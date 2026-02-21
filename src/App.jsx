@@ -26,9 +26,6 @@ const LIBRARY = {
     'Hang Clean','Power Position Clean','Low Hang Clean','No Foot Clean',
     'No Foot No Hook Clean','Pause at Knee Clean','Hang Power Clean',
     'Power Position Power Clean','Low Hang Power Clean','Tall Clean',
-    'Hang Clean High Pull','PAK Clean Pull','Clean Pull',
-    'Pause at Knee Clean Pull','3-Position Clean Pull',
-    'Hang Snatch High Pull','Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull',
   ],
   'Complex': [
     'Hang Clean + Push Press','PP Clean + Push Press','Hang Snatch + OHS',
@@ -52,6 +49,10 @@ const LIBRARY = {
   ],
   'Pulls / Hinge': [
     'Deadlift','Sumo Deadlift','Trap Bar Deadlift','KB Deadlift','RDL','DB RDL',
+    'Clean Pull','Pause at Knee Clean Pull','3-Position Clean Pull',
+    'Hang Clean High Pull','PAK Clean Pull',
+    'Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull',
+    'Hang Snatch High Pull',
   ],
   'Horizontal Row': [
     'KOB Row','SA KOB Row','Chainsaw Row','Bent-Over Row',
@@ -108,11 +109,10 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','Hang Clean + Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','Deadlift',3,'5'),mkEx('D1','KOB Row',3,'8ea'),mkEx('D2','Dragon Flag',3,'8')] }
       },
       2: {
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','PP Snatch + OHS',4,'2+1'),mkEx('B1','Bench Press',4,'5'),mkEx('C1','Front Squat',4,'3'),mkEx('D1','Chin Up',3,'8'),mkEx('D2','RFE Split Squat',3,'8ea')] },
-        dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','PP Clean + Push Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','KB Deadlift',4,'5'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','Farmers Carry',3,'1')] }
+        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','PP Snatch + OHS',4,'2+1'),mkEx('B1','Bench Press',4,'3'),mkEx('C1','Front Squat',4,'3'),mkEx('D1','Chin Up',3,'8'),mkEx('D2','RFE Split Squat',3,'8ea')] },
+        dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','PP Clean + Push Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','Deadlift',4,'3'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','Nordic Hamstring Curl',3,'8')] }
       },
       3: {
-        maxWeek: 3,
         dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2'),mkEx('B1','Bench Press',4,'5'),mkEx('C1','Front Squat',4,'3'),mkEx('D1','RFE Split Squat',3,'8ea'),mkEx('D2','Chin Up',3,'8')] },
         dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','Hang Clean + Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','Deadlift',4,'5'),mkEx('D1','SA Cable Row',3,'8'),mkEx('D2','Nordic Hamstring Curl',3,'8')] }
       }
@@ -131,7 +131,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),mkEx('C1','Deadlift',4,'5',[0.70,0.70,0.80],'deadlift'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','Farmers Carry',3,'1')] }
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only', maxWeek: 3,
+        pctLabel: '75-85%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),mkEx('D1','Sled Push',3,'1'),mkEx('D2','Chin Up',3,'8')] },
         dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','Hang Clean + Push Press',4,'1+2',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),mkEx('C1','Deadlift',3,'5',[0.75,0.75,0.90],'deadlift'),mkEx('D1','KOB Row',3,'8ea'),mkEx('D2','Dragon Flag',3,'8')] }
       }
@@ -150,7 +150,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','Hang Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean + Front Squat',4,'2+1',[0.75,0.75,0.85],'clean'),mkEx('C1','PAK Clean Pull',4,'3',[0.95,0.95,1.05],'clean'),mkEx('D1','Chainsaw Row',3,'8'),mkEx('D2','Split Stance RDL',3,'8ea')] }
       },
       3: {
-        pctLabel: '75-90%', w1note: '75% only', maxWeek: 3,
+        pctLabel: '75-90%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.90],'snatch'),mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),mkEx('D1','Flywheel Rotation',3,'10'),mkEx('D2','Chin Up',3,'AMAP')] },
         dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','Hang Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',[1.00,1.00,1.20],'clean'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','45-Deg Back Extension',3,'8ea')] }
       }
@@ -237,6 +237,8 @@ export default function App() {
   const [showAthDrop, setShowAthDrop] = useState(false)
   const [status, setStatus] = useState('Loading...')
   const [edits, setEdits] = useState({})
+  // cellNotes: key = "day-exIdx-wk", value = string
+  const [cellNotes, setCellNotes] = useState({})
   const athRef = useRef(null)
 
   useEffect(() => {
@@ -281,6 +283,7 @@ export default function App() {
     const k = tier + '-' + block + '-' + day + '-' + i
     setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), [field]: value } }))
   }
+  const setCellNote = (key, val) => setCellNotes(prev => ({ ...prev, [key]: val }))
 
   const PKS = [
     ['snatch','Snatch'],['clean','Clean'],['front_squat','Fr. Squat'],
@@ -288,7 +291,7 @@ export default function App() {
   ]
 
   return (
-    <div style={{ background: '#f0f0f0', minHeight: '100vh', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
+    <div style={{ background: '#f0f0f0', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
       {status !== 'Ready' && (
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
@@ -297,7 +300,7 @@ export default function App() {
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <div style={lbl}>Template</div>
-          <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1); setEdits({}) }}
+          <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1); setEdits({}); setCellNotes({}) }}
             style={{ border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit' }}>
             {Object.entries(TEMPLATES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
           </select>
@@ -306,7 +309,7 @@ export default function App() {
           <div style={lbl}>Block</div>
           <div style={{ display: 'flex', gap: 2 }}>
             {[1, 2, 3].map(b => (
-              <button key={b} onClick={() => { setBlock(b); setEdits({}) }}
+              <button key={b} onClick={() => { setBlock(b); setEdits({}); setCellNotes({}) }}
                 style={{ padding: '5px 16px', border: '1px solid #bbb', background: block === b ? '#111' : '#fff', color: block === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {b}
               </button>
@@ -352,7 +355,7 @@ export default function App() {
       <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
 
         {/* Header */}
-        <div className="sheet-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '2px solid #111' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '2px solid #111' }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{tD.label} — Block {block}</div>
             <div style={{ fontSize: 14, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>
@@ -360,7 +363,7 @@ export default function App() {
             </div>
             {isOly && bD.pctLabel && (
               <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>
-                Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}{bD.maxWeek ? ' | Wk ' + bD.maxWeek + ': MAX' : ''}
+                Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}
               </div>
             )}
           </div>
@@ -371,7 +374,7 @@ export default function App() {
         </div>
 
         {/* PR Bar */}
-        <div className="pr-bar" style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
           {PKS.map(([k, lb], idx) => {
             const v = ath ? getPR(ath.id, k) : null
             return (
@@ -385,26 +388,17 @@ export default function App() {
 
         {/* Days */}
         {['dayA', 'dayB'].map((dk) => (
-          <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} mw={bD.maxWeek || null} ath={ath} getPR={getPR} setEdit={setEdit} />
+          <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} />
         ))}
       </div>
 
       <style>{`
         * { box-sizing: border-box; }
         @media print {
-          @page { size: letter portrait; margin: 0.35in }
+          @page { size: letter portrait; margin: 0.4in }
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important }
-          #sheet { max-width: none !important; margin: 0 !important; padding: 4px 8px !important; box-shadow: none !important; }
-          #sheet table td, #sheet table th { padding-top: 1px !important; padding-bottom: 1px !important; }
-          #sheet .wu-cell { height: 28px !important; }
-          #sheet .write-box { height: 22px !important; margin: 1px 4px 2px !important; }
-          #sheet .hint-line { min-height: 8px !important; font-size: 7px !important; }
-          #sheet .day-gap { margin-bottom: 4px !important; }
-          #sheet .sheet-header { margin-bottom: 4px !important; padding-bottom: 4px !important; }
-          #sheet .pr-bar { margin-bottom: 6px !important; }
-          #sheet .ex-name { font-size: 11px !important; }
-          #sheet .sets-reps { font-size: 11px !important; }
+          #sheet { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
         }
       `}</style>
     </div>
@@ -414,9 +408,9 @@ export default function App() {
 const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 }
 
 /* ===================== DAY TABLE ===================== */
-function DayTable({ dk, day, exs, isOly, mw, ath, getPR, setEdit }) {
+function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote }) {
   return (
-    <div className="day-gap" style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>
         {day.header}
       </div>
@@ -429,13 +423,15 @@ function DayTable({ dk, day, exs, isOly, mw, ath, getPR, setEdit }) {
         <thead>
           <tr>
             {['#', 'Exercise', 'Week 1', 'Week 2', 'Week 3', 'Week 4'].map((h, i) => (
-              <th key={i} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', borderRight: i < 5 ? '1px solid #bbb' : 'none', padding: '3px 4px', textAlign: i <= 1 ? 'left' : 'center', color: '#444', background: '#fff' }}>{h}</th>
+              <th key={i} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', borderRight: i < 5 ? '1px solid #777' : 'none', padding: '3px 4px', textAlign: i <= 1 ? 'left' : 'center', color: '#444', background: '#fff' }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {exs.map((ex, i) => (
-            <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} mw={mw} ath={ath} getPR={getPR} setEdit={setEdit} isLast={i === exs.length - 1} isWU={ex.series === 'WU'} />
+            <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit}
+              isLast={i === exs.length - 1} isWU={ex.series === 'WU'}
+              cellNotes={cellNotes} setCellNote={setCellNote} />
           ))}
         </tbody>
       </table>
@@ -444,29 +440,32 @@ function DayTable({ dk, day, exs, isOly, mw, ath, getPR, setEdit }) {
 }
 
 /* ===================== EXERCISE ROW ===================== */
-function ExRow({ ex, i, dk, isOly, mw, ath, getPR, setEdit, isLast, isWU }) {
+function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote }) {
   const pr = ath && ex.prKey ? getPR(ath.id, ex.prKey) : null
 
+  // Border color for week cells - darker than before
+  const cellBorder = '1px solid #777'
+  const cellBorderBottom = isLast ? '2px solid #111' : '1px solid #999'
+
   const tdBase = {
-    borderBottom: isLast ? '1.5px solid #111' : '1px solid #ddd',
-    borderRight: '1px solid #ddd',
+    borderBottom: cellBorderBottom,
+    borderRight: cellBorder,
     padding: 0,
     verticalAlign: 'top',
     background: isWU ? '#fafafa' : 'transparent',
   }
 
   const wkCell = (wk) => {
-    // WU rows — no write box, just empty space
+    // WU rows — blank, no box, just empty space matching row height
     if (isWU) return (
-      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? '1px solid #ddd' : 'none' }}>
-        <div className="wu-cell" style={{ height: 44 }}></div>
+      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}>
+        <div style={{ height: 46 }}></div>
       </td>
     )
-    if (mw && wk === mw && ex.pct) return (
-      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? '1px solid #ddd' : 'none' }}>
-        <div className="write-box" style={{ fontSize: 8, fontWeight: 800, textAlign: 'center', border: '1.5px solid #555', height: 34, paddingTop: 10, margin: '5px 5px' }}>MAX ___</div>
-      </td>
-    )
+
+    const noteKey = `${dk}-${i}-${wk}`
+    const noteVal = cellNotes[noteKey] || ''
+
     let hint = ''
     if (isOly && ex.pct) {
       if (wk === 1 && pr) hint = r5(pr * ex.pct[0]) + ' lbs'
@@ -475,22 +474,37 @@ function ExRow({ ex, i, dk, isOly, mw, ath, getPR, setEdit, isLast, isWU }) {
         hint = lo === hi ? lo + ' lbs' : lo + '–' + hi
       }
     }
+
     return (
-      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? '1px solid #ddd' : 'none' }}>
-        <div className="hint-line" style={{ fontSize: 8, color: '#0055bb', minHeight: 12, paddingLeft: 4, fontWeight: hint ? 700 : 400 }}>{hint || '\u00a0'}</div>
-        <div className="write-box" style={{ border: '1.5px solid #555', height: 30, margin: '2px 5px 4px' }}></div>
+      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
+        {/* Typeable note in top-left */}
+        <input
+          value={noteVal}
+          onChange={e => setCellNote(noteKey, e.target.value)}
+          placeholder={hint || ''}
+          style={{
+            position: 'absolute', top: 2, left: 3,
+            fontSize: 8, color: noteVal ? '#111' : '#0055bb',
+            fontWeight: noteVal ? 600 : 700,
+            border: 'none', outline: 'none', background: 'transparent',
+            fontFamily: 'Arial, sans-serif', padding: 0,
+            width: 'calc(100% - 6px)',
+          }}
+        />
+        {/* Empty space for writing */}
+        <div style={{ height: 46 }}></div>
       </td>
     )
   }
 
   return (
     <tr>
-      <td style={{ ...tdBase, borderRight: '1px solid #ddd', textAlign: 'center', padding: '5px 2px' }}>
+      <td style={{ ...tdBase, borderRight: cellBorder, textAlign: 'center', padding: '5px 2px' }}>
         <EditField value={ex.series} onChange={v => setEdit(dk, i, 'series', v)} style={{ fontSize: 10, fontWeight: 800, color: isWU ? '#bbb' : '#111' }} />
       </td>
-      <td style={{ ...tdBase, borderRight: '1px solid #ddd', padding: '4px 6px' }}>
+      <td style={{ ...tdBase, borderRight: cellBorder, padding: '4px 6px' }}>
         <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} />
-        <div className="sets-reps" style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
+        <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
           <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 13, fontWeight: 800 }} />
