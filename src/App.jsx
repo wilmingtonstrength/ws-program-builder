@@ -28,11 +28,11 @@ const LIBRARY = {
     'Power Position Power Clean','Low Hang Power Clean','Tall Clean',
   ],
   'Complex': [
-    'Hang Clean + Push Press','PP Clean + Push Press','Hang Snatch + OHS',
-    'PP Snatch + OHS','3-Position Clean','3-Position Snatch',
-    'PP Snatch + Hang Snatch','PP Clean + Hang Clean',
-    'Hang Clean + Front Squat','PAK Clean Pull + Clean Pull',
+    'PP Snatch + OHS','PP Snatch + Hang Snatch','Hang Snatch + OHS',
+    'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
+    'PP Clean + Hang Clean','Hang Clean + Front Squat',
     'PP Clean + Push Press + Front Squat','Hang Clean + Push Jerk',
+    'PAK Clean Pull + Clean Pull','3-Position Clean','3-Position Snatch',
     'Tall Snatch + OHS','Tall Clean + Push Press','Tall Clean + Press',
   ],
   'Squat': [
@@ -57,7 +57,7 @@ const LIBRARY = {
   'Horizontal Row': [
     'KOB Row','SA KOB Row','Chainsaw Row','Bent-Over Row',
     'Supinated Grip Bent-Over Row','Chest Supported Row',
-    'Tripod Row','TRX Row','SA TRX Row','Flywheel Row','SA Cable Row',
+    'Tripod Row','TRX Row','SA TRX Row','Flywheel Row','SA Flywheel Row','SA Cable Row',
   ],
   'Horizontal Press': [
     'Bench Press','DB Bench Press','DB Incline Press',
@@ -100,21 +100,102 @@ const LIBRARY = {
 }
 const PATTERN_KEYS = Object.keys(LIBRARY)
 
+/* ===================== DEFAULT CELL NOTES ===================== */
+// Format: { 'template-block-day-exIdx-wk': 'note' }
+const DEFAULT_CELL_NOTES = {
+  // BEGINNER BLOCK 3 - A Day
+  'beginner-3-dayA-1-2': '2RM', 'beginner-3-dayA-1-3': 'MAX',   // Hang Snatch
+  'beginner-3-dayA-2-2': '3RM', 'beginner-3-dayA-2-3': 'MAX',   // Bench Press
+  'beginner-3-dayA-3-2': '2RM', 'beginner-3-dayA-3-3': 'MAX',   // Front Squat
+  // BEGINNER BLOCK 3 - B Day
+  'beginner-3-dayB-1-2': '3RM', 'beginner-3-dayB-1-3': 'MAX',   // PP Clean + Press
+  'beginner-3-dayB-2-2': '2RM', 'beginner-3-dayB-2-3': 'MAX',   // Hang Clean
+  'beginner-3-dayB-3-2': '3RM', 'beginner-3-dayB-3-3': 'MAX',   // Deadlift
+
+  // OLY ATHLETE BLOCKS 1 & 2 - Week 4 RM
+  'oly_athlete-1-dayA-1-4': 'RM', 'oly_athlete-1-dayA-2-4': 'RM', 'oly_athlete-1-dayA-3-4': 'RM',
+  'oly_athlete-1-dayB-1-4': 'RM', 'oly_athlete-1-dayB-2-4': 'RM', 'oly_athlete-1-dayB-3-4': 'RM',
+  'oly_athlete-2-dayA-1-4': 'RM', 'oly_athlete-2-dayA-2-4': 'RM', 'oly_athlete-2-dayA-3-4': 'RM',
+  'oly_athlete-2-dayB-1-4': 'RM', 'oly_athlete-2-dayB-2-4': 'RM', 'oly_athlete-2-dayB-3-4': 'RM',
+  // OLY ATHLETE BLOCK 3 - Wk2/Wk3
+  'oly_athlete-3-dayA-1-2': '2RM', 'oly_athlete-3-dayA-1-3': 'MAX',  // Snatch
+  'oly_athlete-3-dayA-2-2': '3RM', 'oly_athlete-3-dayA-2-3': 'MAX',  // Bench
+  'oly_athlete-3-dayA-3-2': '2RM', 'oly_athlete-3-dayA-3-3': 'MAX',  // Front Squat
+  'oly_athlete-3-dayB-1-2': '2RM', 'oly_athlete-3-dayB-1-3': 'MAX',  // PP Clean + Push Press
+  'oly_athlete-3-dayB-2-2': '2RM', 'oly_athlete-3-dayB-2-3': 'MAX',  // Hang Clean
+  'oly_athlete-3-dayB-3-2': '3RM', 'oly_athlete-3-dayB-3-3': 'MAX',  // Deadlift
+
+  // OLY ADV BLOCKS 1 & 2 - Week 4 RM
+  'oly_adv-1-dayA-1-4': 'RM', 'oly_adv-1-dayA-2-4': 'RM', 'oly_adv-1-dayA-3-4': 'RM',
+  'oly_adv-1-dayB-1-4': 'RM', 'oly_adv-1-dayB-2-4': 'RM', 'oly_adv-1-dayB-3-4': 'RM',
+  'oly_adv-2-dayA-1-4': 'RM', 'oly_adv-2-dayA-2-4': 'RM', 'oly_adv-2-dayA-3-4': 'RM',
+  'oly_adv-2-dayB-1-4': 'RM', 'oly_adv-2-dayB-2-4': 'RM', 'oly_adv-2-dayB-3-4': 'RM',
+  // OLY ADV BLOCK 3 - Wk2/Wk3
+  'oly_adv-3-dayA-1-2': '2RM', 'oly_adv-3-dayA-1-3': 'MAX',  // Snatch
+  'oly_adv-3-dayA-2-2': '3RM', 'oly_adv-3-dayA-2-3': 'MAX',  // Bench
+  'oly_adv-3-dayA-3-2': '3RM', 'oly_adv-3-dayA-3-3': 'MAX',  // Back Squat
+  'oly_adv-3-dayB-1-2': '2RM',                                 // Push Press wk2 only
+  'oly_adv-3-dayB-2-2': '2RM', 'oly_adv-3-dayB-2-3': 'MAX',  // Clean
+  'oly_adv-3-dayB-3-3': 'MAX',                                 // Deadlift wk3 only
+}
+
 /* ===================== TEMPLATES ===================== */
 const TEMPLATES = {
   beginner: {
     label: 'Athlete Beginner', blocks: {
       1: {
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2'),mkEx('B1','Bench Press',4,'5'),mkEx('C1','Front Squat',4,'3'),mkEx('D1','RFE Split Squat',3,'8ea'),mkEx('D2','Chin Up',3,'8')] },
-        dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','Hang Clean + Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','Deadlift',3,'5'),mkEx('D1','KOB Row',3,'8ea'),mkEx('D2','Dragon Flag',3,'8')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + OHS',4,'3+1'),
+          mkEx('B1','Bench Press',4,'5'),
+          mkEx('C1','Front Squat',4,'3'),
+          mkEx('D1','RFE Split Squat',3,'8ea'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_press,
+          mkEx('A1','PP Clean + Press',4,'1+5'),
+          mkEx('B1','Power Position Clean',4,'3'),
+          mkEx('C1','KB Deadlift',3,'8'),
+          mkEx('D1','Chest Supported Row',3,'8'),
+          mkEx('D2','Plank',3,'30sec'),
+        ]}
       },
       2: {
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','PP Snatch + OHS',4,'2+1'),mkEx('B1','Bench Press',4,'3'),mkEx('C1','Front Squat',4,'3'),mkEx('D1','Chin Up',3,'8'),mkEx('D2','RFE Split Squat',3,'8ea')] },
-        dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','PP Clean + Push Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','Deadlift',4,'3'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','Nordic Hamstring Curl',3,'8')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1'),
+          mkEx('B1','Bench Press',4,'5'),
+          mkEx('C1','Goblet Squat',4,'5'),
+          mkEx('D1','Chin Up',3,'8'),
+          mkEx('D2','Sled Push',3,'1'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_press,
+          mkEx('A1','PP Clean + Press',4,'1+5'),
+          mkEx('B1','Hang Clean',4,'2'),
+          mkEx('C1','KB Deadlift',4,'5'),
+          mkEx('D1','SA KOB Row',3,'8ea'),
+          mkEx('D2','Farmers Carry',3,'1'),
+        ]}
       },
       3: {
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2'),mkEx('B1','Bench Press',4,'5'),mkEx('C1','Front Squat',4,'3'),mkEx('D1','RFE Split Squat',3,'8ea'),mkEx('D2','Chin Up',3,'8')] },
-        dayB: { header: 'B Day', exercises: [WU_B_press, mkEx('A1','Hang Clean + Press',4,'1+3'),mkEx('B1','Hang Clean',4,'2'),mkEx('C1','Deadlift',4,'5'),mkEx('D1','SA Cable Row',3,'8'),mkEx('D2','Nordic Hamstring Curl',3,'8')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2'),
+          mkEx('B1','Bench Press',4,'5'),
+          mkEx('C1','Front Squat',4,'3'),
+          mkEx('D1','RFE Split Squat',3,'8ea'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_press,
+          mkEx('A1','PP Clean + Press',4,'1+5'),
+          mkEx('B1','Hang Clean',4,'2'),
+          mkEx('C1','Deadlift',4,'5'),
+          mkEx('D1','Flywheel Row',3,'8ea'),
+          mkEx('D2','Suitcase Carry',3,'1'),
+        ]}
       }
     }
   },
@@ -122,18 +203,60 @@ const TEMPLATES = {
     label: 'Oly Athlete', blocks: {
       1: {
         pctLabel: '65-75%', w1note: '65% only',
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',[0.65,0.65,0.75],'snatch'),mkEx('B1','Bench Press',3,'8',[0.60,0.60,0.70],'bench_press'),mkEx('C1','Front Squat',4,'5',[0.65,0.65,0.75],'front_squat'),mkEx('D1','Ipsilateral Split Squat',3,'8ea'),mkEx('D2','Chin Up',3,'8')] },
-        dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','PP Clean + Push Press',4,'1+5',[0.65,0.65,0.75],'clean'),mkEx('B1','PP Clean + Hang Clean',4,'2+1',[0.65,0.65,0.75],'clean'),mkEx('C1','Deadlift',3,'8',[0.60,0.60,0.70],'deadlift'),mkEx('D1','Nordic Hamstring Curl',3,'8'),mkEx('D2','Chest Supported Row',3,'12')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',[0.65,0.65,0.75],'snatch'),
+          mkEx('B1','Bench Press',3,'8',[0.60,0.60,0.70],'bench_press'),
+          mkEx('C1','Front Squat',4,'5',[0.65,0.65,0.75],'front_squat'),
+          mkEx('D1','Ipsilateral Split Squat',3,'8ea'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+5',[0.65,0.65,0.75],'clean'),
+          mkEx('B1','PP Clean + Hang Clean',4,'2+1',[0.65,0.65,0.75],'clean'),
+          mkEx('C1','Deadlift',3,'8',[0.60,0.60,0.70],'deadlift'),
+          mkEx('D1','Nordic Hamstring Curl',3,'8'),
+          mkEx('D2','Chest Supported Row',3,'12'),
+        ]}
       },
       2: {
         pctLabel: '75-85%', w1note: '75% only',
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),mkEx('D1','Chin Up',3,'8'),mkEx('D2','RFE Split Squat',3,'8ea')] },
-        dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),mkEx('C1','Deadlift',4,'5',[0.70,0.70,0.80],'deadlift'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','Farmers Carry',3,'1')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),
+          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
+          mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+          mkEx('D2','RFE Split Squat',3,'8ea'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
+          mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),
+          mkEx('C1','Deadlift',4,'5',[0.70,0.70,0.80],'deadlift'),
+          mkEx('D1','SA KOB Row',3,'8ea'),
+          mkEx('D2','Farmers Carry',3,'1'),
+        ]}
       },
       3: {
         pctLabel: '75-85%', w1note: '75% only',
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),mkEx('D1','Sled Push',3,'1'),mkEx('D2','Chin Up',3,'8')] },
-        dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','Hang Clean + Push Press',4,'1+2',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),mkEx('C1','Deadlift',3,'5',[0.75,0.75,0.90],'deadlift'),mkEx('D1','KOB Row',3,'8ea'),mkEx('D2','Dragon Flag',3,'8')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),
+          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
+          mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),
+          mkEx('D1','Sled Push',3,'1'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
+          mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),
+          mkEx('C1','Deadlift',3,'5',[0.75,0.75,0.90],'deadlift'),
+          mkEx('D1','KOB Row',3,'8ea'),
+          mkEx('D2','Dragon Flag',3,'8'),
+        ]}
       }
     }
   },
@@ -141,18 +264,60 @@ const TEMPLATES = {
     label: 'Oly ADV Athlete', blocks: {
       1: {
         pctLabel: '65-75%', w1note: '65% only',
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',[0.65,0.65,0.75],'snatch'),mkEx('B1','Bench Press',3,'8',[0.60,0.60,0.70],'bench_press'),mkEx('C1','Back Squat',3,'8',[0.60,0.60,0.70],'back_squat'),mkEx('D1','Ipsilateral Split Squat',3,'8ea'),mkEx('D2','Chin Up',3,'8')] },
-        dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','PP Clean + Push Press',4,'1+5',[0.65,0.65,0.75],'clean'),mkEx('B1','PP Clean + Front Squat',4,'3+1',[0.65,0.65,0.75],'clean'),mkEx('C1','Hang Clean High Pull',4,'5',[0.85,0.85,0.95],'clean'),mkEx('D1','Chest Supported Row',3,'12'),mkEx('D2','Glute Ham Raise',3,'8')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',[0.65,0.65,0.75],'snatch'),
+          mkEx('B1','Bench Press',3,'8',[0.60,0.60,0.70],'bench_press'),
+          mkEx('C1','Back Squat',3,'8',[0.60,0.60,0.70],'back_squat'),
+          mkEx('D1','Ipsilateral Split Squat',3,'8ea'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+5',[0.65,0.65,0.75],'clean'),
+          mkEx('B1','PP Clean + Front Squat',4,'3+1',[0.65,0.65,0.75],'clean'),
+          mkEx('C1','Hang Clean High Pull',4,'5',[0.85,0.85,0.95],'clean'),
+          mkEx('D1','Chest Supported Row',3,'12'),
+          mkEx('D2','Glute Ham Raise',3,'8'),
+        ]}
       },
       2: {
         pctLabel: '75-85%', w1note: '75% only',
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch + OHS',4,'2+1',[0.75,0.75,0.85],'snatch'),mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),mkEx('D1','Chin Up',3,'8'),mkEx('D2','Nordic Hamstring Curl',3,'8')] },
-        dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','Hang Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean + Front Squat',4,'2+1',[0.75,0.75,0.85],'clean'),mkEx('C1','PAK Clean Pull',4,'3',[0.95,0.95,1.05],'clean'),mkEx('D1','Chainsaw Row',3,'8'),mkEx('D2','Split Stance RDL',3,'8ea')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch + OHS',4,'2+1',[0.75,0.75,0.85],'snatch'),
+          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
+          mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+          mkEx('D2','Nordic Hamstring Curl',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','Hang Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
+          mkEx('B1','Hang Clean + Front Squat',4,'2+1',[0.75,0.75,0.85],'clean'),
+          mkEx('C1','PAK Clean Pull',4,'3',[0.95,0.95,1.05],'clean'),
+          mkEx('D1','Chainsaw Row',3,'8'),
+          mkEx('D2','Split Stance RDL',3,'8ea'),
+        ]}
       },
       3: {
         pctLabel: '75-90%', w1note: '75% only',
-        dayA: { header: 'A Day', exercises: [WU_A, mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.90],'snatch'),mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),mkEx('D1','Flywheel Rotation',3,'10'),mkEx('D2','Chin Up',3,'AMAP')] },
-        dayB: { header: 'B Day', exercises: [WU_B_pp, mkEx('A1','Hang Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',[1.00,1.00,1.20],'clean'),mkEx('D1','SA KOB Row',3,'8ea'),mkEx('D2','45-Deg Back Extension',3,'8ea')] }
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.90],'snatch'),
+          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
+          mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),
+          mkEx('D1','Flywheel Rotation',3,'10'),
+          mkEx('D2','Chin Up',3,'AMAP'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
+          mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),
+          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',[1.00,1.00,1.20],'clean'),
+          mkEx('D1','SA KOB Row',3,'8ea'),
+          mkEx('D2','45-Deg Back Extension',3,'8ea'),
+        ]}
       }
     }
   }
@@ -237,16 +402,19 @@ export default function App() {
   const [showAthDrop, setShowAthDrop] = useState(false)
   const [status, setStatus] = useState('Loading...')
   const [edits, setEdits] = useState({})
-  // cellNotes: key = "day-exIdx-wk", value = string
-  const [cellNotes, setCellNotes] = useState({})
+  const [cellNotes, setCellNotes] = useState({ ...DEFAULT_CELL_NOTES })
+  const [saving, setSaving] = useState(false)
   const athRef = useRef(null)
+  const saveTimers = useRef({})
 
+  // Load athletes, PRs, saved edits and cell notes from DB
   useEffect(() => {
     async function load() {
       const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').eq('status', 'Active').order('first_name')
       if (error) { setStatus('Error: ' + error.message); return }
       setAthletes(ath)
       setStatus('Fetching PRs...')
+
       let all = [], from = 0
       while (true) {
         const { data } = await sb.from('results').select('athlete_id,test_id,converted_value').range(from, from + 499)
@@ -257,6 +425,30 @@ export default function App() {
       const map = {}
       all.forEach(r => { const k = r.athlete_id + '-' + r.test_id; const v = parseFloat(r.converted_value); if (!map[k] || v > map[k]) map[k] = v })
       setPrs(map)
+
+      // Load saved program edits
+      const { data: savedEdits } = await sb.from('program_edits').select('*')
+      if (savedEdits && savedEdits.length > 0) {
+        const editMap = {}
+        savedEdits.forEach(r => {
+          const k = `${r.template}-${r.block}-${r.day}-${r.ex_index}`
+          if (!editMap[k]) editMap[k] = {}
+          editMap[k][r.field] = r.value
+        })
+        setEdits(editMap)
+      }
+
+      // Load saved cell notes, merge over defaults
+      const { data: savedNotes } = await sb.from('program_cell_notes').select('*')
+      if (savedNotes && savedNotes.length > 0) {
+        const noteMap = { ...DEFAULT_CELL_NOTES }
+        savedNotes.forEach(r => {
+          const k = `${r.template}-${r.block}-${r.day}-${r.ex_index}-${r.week}`
+          noteMap[k] = r.value
+        })
+        setCellNotes(noteMap)
+      }
+
       setStatus('Ready')
     }
     load()
@@ -276,14 +468,48 @@ export default function App() {
   const filteredAth = athletes.filter(a => (a.first_name + ' ' + a.last_name).toLowerCase().includes(search.toLowerCase()))
 
   const getExs = (day) => bD[day].exercises.map((ex, i) => {
-    const k = tier + '-' + block + '-' + day + '-' + i
+    const k = `${tier}-${block}-${day}-${i}`
     return edits[k] ? { ...ex, ...edits[k] } : ex
   })
+
   const setEdit = (day, i, field, value) => {
-    const k = tier + '-' + block + '-' + day + '-' + i
+    const k = `${tier}-${block}-${day}-${i}`
     setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), [field]: value } }))
+    // Debounced save to DB
+    const timerKey = `${k}-${field}`
+    if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
+    saveTimers.current[timerKey] = setTimeout(async () => {
+      setSaving(true)
+      await sb.from('program_edits').upsert({
+        template: tier, block, day, ex_index: i, field, value, updated_at: new Date().toISOString()
+      }, { onConflict: 'template,block,day,ex_index,field' })
+      setSaving(false)
+    }, 800)
   }
-  const setCellNote = (key, val) => setCellNotes(prev => ({ ...prev, [key]: val }))
+
+  const setCellNote = (key, val) => {
+    setCellNotes(prev => ({ ...prev, [key]: val }))
+    // Parse key: template-block-day-exIdx-wk
+    const parts = key.split('-')
+    // key format: tier-block-day-exIdx-wk  (tier may have underscore e.g. oly_athlete)
+    // We stored key as `${tier}-${block}-${day}-${i}-${wk}`
+    // Need to recover: last element is wk, second to last is exIdx, third to last is day
+    const wk = parseInt(parts[parts.length - 1])
+    const exIdx = parseInt(parts[parts.length - 2])
+    const day = parts[parts.length - 3]
+    const blk = parseInt(parts[parts.length - 4])
+    const tmpl = parts.slice(0, parts.length - 4).join('-')
+
+    const timerKey = `note-${key}`
+    if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
+    saveTimers.current[timerKey] = setTimeout(async () => {
+      setSaving(true)
+      await sb.from('program_cell_notes').upsert({
+        template: tmpl, block: blk, day, ex_index: exIdx, week: wk, value: val, updated_at: new Date().toISOString()
+      }, { onConflict: 'template,block,day,ex_index,week' })
+      setSaving(false)
+    }, 800)
+  }
 
   const PKS = [
     ['snatch','Snatch'],['clean','Clean'],['front_squat','Fr. Squat'],
@@ -300,7 +526,7 @@ export default function App() {
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <div style={lbl}>Template</div>
-          <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1); setEdits({}); setCellNotes({}) }}
+          <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1) }}
             style={{ border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit' }}>
             {Object.entries(TEMPLATES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
           </select>
@@ -309,7 +535,7 @@ export default function App() {
           <div style={lbl}>Block</div>
           <div style={{ display: 'flex', gap: 2 }}>
             {[1, 2, 3].map(b => (
-              <button key={b} onClick={() => { setBlock(b); setEdits({}); setCellNotes({}) }}
+              <button key={b} onClick={() => setBlock(b)}
                 style={{ padding: '5px 16px', border: '1px solid #bbb', background: block === b ? '#111' : '#fff', color: block === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {b}
               </button>
@@ -345,6 +571,7 @@ export default function App() {
             </div>
           )}
         </div>
+        {saving && <div style={{ fontSize: 10, color: '#aaa', alignSelf: 'center' }}>Saving...</div>}
         <button onClick={() => window.print()}
           style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>
           Print / PDF
@@ -388,7 +615,9 @@ export default function App() {
 
         {/* Days */}
         {['dayA', 'dayB'].map((dk) => (
-          <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} />
+          <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
+            setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote}
+            tier={tier} block={block} />
         ))}
       </div>
 
@@ -408,7 +637,7 @@ export default function App() {
 const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 }
 
 /* ===================== DAY TABLE ===================== */
-function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote }) {
+function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>
@@ -431,7 +660,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
           {exs.map((ex, i) => (
             <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit}
               isLast={i === exs.length - 1} isWU={ex.series === 'WU'}
-              cellNotes={cellNotes} setCellNote={setCellNote} />
+              cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
           ))}
         </tbody>
       </table>
@@ -440,58 +669,57 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
 }
 
 /* ===================== EXERCISE ROW ===================== */
-function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote }) {
+function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block }) {
   const pr = ath && ex.prKey ? getPR(ath.id, ex.prKey) : null
-
-  // Border color for week cells - darker than before
   const cellBorder = '1px solid #777'
-  const cellBorderBottom = isLast ? '2px solid #111' : '1px solid #999'
-
   const tdBase = {
-    borderBottom: cellBorderBottom,
+    borderBottom: isLast ? '2px solid #111' : '1px solid #999',
     borderRight: cellBorder,
     padding: 0,
     verticalAlign: 'top',
     background: isWU ? '#fafafa' : 'transparent',
   }
 
+  const getHint = (wk) => {
+    if (!isOly || !ex.pct) return ''
+    if (wk === 1) return pr ? r5(pr * ex.pct[0]) + ' lbs' : Math.round(ex.pct[0] * 100) + '%'
+    if (wk === 2 || wk === 3) {
+      if (pr) {
+        const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
+        return lo === hi ? lo + ' lbs' : lo + '–' + hi
+      }
+      const lo = Math.round(ex.pct[1] * 100), hi = Math.round(ex.pct[2] * 100)
+      return lo === hi ? lo + '%' : lo + '–' + hi + '%'
+    }
+    return ''
+  }
+
   const wkCell = (wk) => {
-    // WU rows — blank, no box, just empty space matching row height
     if (isWU) return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}>
         <div style={{ height: 46 }}></div>
       </td>
     )
-
-    const noteKey = `${dk}-${i}-${wk}`
-    const noteVal = cellNotes[noteKey] || ''
-
-    let hint = ''
-    if (isOly && ex.pct) {
-      if (wk === 1 && pr) hint = r5(pr * ex.pct[0]) + ' lbs'
-      if ((wk === 2 || wk === 3) && pr) {
-        const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
-        hint = lo === hi ? lo + ' lbs' : lo + '–' + hi
-      }
-    }
+    const noteKey = `${tier}-${block}-${dk}-${i}-${wk}`
+    const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
+    const hint = getHint(wk)
 
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
-        {/* Typeable note in top-left */}
         <input
           value={noteVal}
           onChange={e => setCellNote(noteKey, e.target.value)}
-          placeholder={hint || ''}
+          placeholder={hint}
           style={{
             position: 'absolute', top: 2, left: 3,
-            fontSize: 8, color: noteVal ? '#111' : '#0055bb',
-            fontWeight: noteVal ? 600 : 700,
+            fontSize: 8,
+            color: noteVal ? '#111' : '#0055bb',
+            fontWeight: noteVal ? 700 : 600,
             border: 'none', outline: 'none', background: 'transparent',
             fontFamily: 'Arial, sans-serif', padding: 0,
             width: 'calc(100% - 6px)',
           }}
         />
-        {/* Empty space for writing */}
         <div style={{ height: 46 }}></div>
       </td>
     )
