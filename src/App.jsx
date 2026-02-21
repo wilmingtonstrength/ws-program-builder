@@ -349,28 +349,29 @@ export default function App() {
       </div>
 
       {/* SHEET */}
-      <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '14px 18px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+      <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 7, borderBottom: '2px solid #111' }}>
+        <div className="sheet-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '2px solid #111' }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{tD.label} — Block {block}</div>
-            <div style={{ fontSize: 13, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>
+            <div style={{ fontSize: 14, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>
               {ath ? ath.first_name + ' ' + ath.last_name : 'Select an athlete above'}
             </div>
             {isOly && bD.pctLabel && (
-              <div style={{ fontSize: 9, color: '#777', marginTop: 1, letterSpacing: 1 }}>
+              <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>
                 Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}{bD.maxWeek ? ' | Wk ' + bD.maxWeek + ': MAX' : ''}
               </div>
             )}
           </div>
-          <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.5 }}>
-            <div style={{ fontSize: 20, letterSpacing: 4, fontWeight: 900 }}>WS</div>
+          <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
             WILMINGTON<br />STRENGTH
           </div>
         </div>
 
         {/* PR Bar */}
-        <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 9, overflow: 'hidden' }}>
+        <div className="pr-bar" style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
           {PKS.map(([k, lb], idx) => {
             const v = ath ? getPR(ath.id, k) : null
             return (
@@ -391,10 +392,19 @@ export default function App() {
       <style>{`
         * { box-sizing: border-box; }
         @media print {
-          @page { size: letter portrait; margin: 0.3in }
+          @page { size: letter portrait; margin: 0.35in }
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important }
-          #sheet { max-width: none !important; margin: 0 !important; padding: 6px !important; box-shadow: none !important }
+          #sheet { max-width: none !important; margin: 0 !important; padding: 4px 8px !important; box-shadow: none !important; }
+          #sheet table td, #sheet table th { padding-top: 1px !important; padding-bottom: 1px !important; }
+          #sheet .wu-cell { height: 28px !important; }
+          #sheet .write-box { height: 22px !important; margin: 1px 4px 2px !important; }
+          #sheet .hint-line { min-height: 8px !important; font-size: 7px !important; }
+          #sheet .day-gap { margin-bottom: 4px !important; }
+          #sheet .sheet-header { margin-bottom: 4px !important; padding-bottom: 4px !important; }
+          #sheet .pr-bar { margin-bottom: 6px !important; }
+          #sheet .ex-name { font-size: 11px !important; }
+          #sheet .sets-reps { font-size: 11px !important; }
         }
       `}</style>
     </div>
@@ -406,8 +416,8 @@ const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'up
 /* ===================== DAY TABLE ===================== */
 function DayTable({ dk, day, exs, isOly, mw, ath, getPR, setEdit }) {
   return (
-    <div style={{ marginBottom: 7 }}>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #aaa' }}>
+    <div className="day-gap" style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>
         {day.header}
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -446,14 +456,15 @@ function ExRow({ ex, i, dk, isOly, mw, ath, getPR, setEdit, isLast, isWU }) {
   }
 
   const wkCell = (wk) => {
+    // WU rows — no write box, just empty space
     if (isWU) return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? '1px solid #ddd' : 'none' }}>
-        <div style={{ height: 32 }}></div>
+        <div className="wu-cell" style={{ height: 44 }}></div>
       </td>
     )
     if (mw && wk === mw && ex.pct) return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? '1px solid #ddd' : 'none' }}>
-        <div style={{ fontSize: 8, fontWeight: 800, textAlign: 'center', border: '1.5px solid #777', height: 28, paddingTop: 7, margin: '3px 4px' }}>MAX ___</div>
+        <div className="write-box" style={{ fontSize: 8, fontWeight: 800, textAlign: 'center', border: '1.5px solid #555', height: 34, paddingTop: 10, margin: '5px 5px' }}>MAX ___</div>
       </td>
     )
     let hint = ''
@@ -466,20 +477,20 @@ function ExRow({ ex, i, dk, isOly, mw, ath, getPR, setEdit, isLast, isWU }) {
     }
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? '1px solid #ddd' : 'none' }}>
-        <div style={{ fontSize: 8, color: '#0055bb', minHeight: 11, paddingLeft: 3, fontWeight: hint ? 700 : 400 }}>{hint || '\u00a0'}</div>
-        <div style={{ border: '1.5px solid #888', height: 28, margin: '2px 4px 3px' }}></div>
+        <div className="hint-line" style={{ fontSize: 8, color: '#0055bb', minHeight: 12, paddingLeft: 4, fontWeight: hint ? 700 : 400 }}>{hint || '\u00a0'}</div>
+        <div className="write-box" style={{ border: '1.5px solid #555', height: 30, margin: '2px 5px 4px' }}></div>
       </td>
     )
   }
 
   return (
     <tr>
-      <td style={{ ...tdBase, borderRight: '1px solid #ddd', textAlign: 'center', padding: '4px 2px' }}>
+      <td style={{ ...tdBase, borderRight: '1px solid #ddd', textAlign: 'center', padding: '5px 2px' }}>
         <EditField value={ex.series} onChange={v => setEdit(dk, i, 'series', v)} style={{ fontSize: 10, fontWeight: 800, color: isWU ? '#bbb' : '#111' }} />
       </td>
-      <td style={{ ...tdBase, borderRight: '1px solid #ddd', padding: '3px 5px' }}>
+      <td style={{ ...tdBase, borderRight: '1px solid #ddd', padding: '4px 6px' }}>
         <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} />
-        <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 1 }}>
+        <div className="sets-reps" style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
           <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 13, fontWeight: 800 }} />
