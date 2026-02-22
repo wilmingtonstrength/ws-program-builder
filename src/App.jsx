@@ -10,9 +10,37 @@ function r5(v) { return Math.round(v / 5) * 5 }
 function mkEx(s, e, st, r, p, pk, n) {
   return { series: s, exercise: e, sets: String(st), reps: String(r), pct: p || null, prKey: pk || null, note: n || '' }
 }
+
+// Warmups
 const WU_A = mkEx('WU', 'Tall Snatch + OHS', 1, '5+1', null, null, 'bar')
-const WU_B_press = mkEx('WU', 'Tall Clean + Press', 1, '5+5', null, null, 'bar')
 const WU_B_pp = mkEx('WU', 'Tall Clean + Push Press', 1, '5+5', null, null, 'bar')
+const WU_B_press = mkEx('WU', 'Tall Clean + Press', 1, '5+5', null, null, 'bar')
+
+// Percentage arrays: [wk1, wk2lo, wk2hi]
+// Strength: B1=60-70, B2=70-80, B3=75-80
+const STR_B1 = [0.60, 0.60, 0.70]
+const STR_B2 = [0.70, 0.70, 0.80]
+const STR_B3 = [0.75, 0.75, 0.80]
+// Front Squat / Push Press same pct as strength
+const FS_B1 = STR_B1
+const FS_B2 = STR_B2
+const FS_B3 = STR_B3
+// Oly: B1=65-75, B2=75-85, B3=75-85
+const OLY_B1 = [0.65, 0.65, 0.75]
+const OLY_B2 = [0.75, 0.75, 0.85]
+const OLY_B3 = [0.75, 0.75, 0.85]
+// Power variations: 55-65
+const PWR_B1 = [0.55, 0.55, 0.65]
+const PWR_B2 = [0.65, 0.65, 0.75]
+const PWR_B3 = [0.70, 0.70, 0.80]
+// Pulls: B1=85-95, B2=95-110, B3=95-120
+const PULL_B1 = [0.85, 0.85, 0.95]
+const PULL_B2 = [0.95, 0.95, 1.10]
+const PULL_B3 = [0.95, 0.95, 1.20]
+// Heavy clean/jerk B1: 70-80
+const CJ_HEAVY_B1 = [0.70, 0.70, 0.80]
+const CJ_HEAVY_B2 = [0.80, 0.80, 0.90]
+const CJ_HEAVY_B3 = [0.80, 0.80, 0.90]
 
 /* ===================== EXERCISE LIBRARY ===================== */
 const LIBRARY = {
@@ -27,13 +55,20 @@ const LIBRARY = {
     'No Foot No Hook Clean','Pause at Knee Clean','Hang Power Clean',
     'Power Position Power Clean','Low Hang Power Clean','Tall Clean',
   ],
+  'Jerk': [
+    'Push Jerk','Power Jerk','Split Jerk','Push Press',
+    'Behind-the-Neck Push Jerk','Behind-the-Neck Power Jerk','Behind-the-Neck Split Jerk',
+    'Pause Jerk','Tall Jerk',
+  ],
   'Complex': [
     'PP Snatch + OHS','PP Snatch + Hang Snatch','Hang Snatch + OHS',
     'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
     'PP Clean + Hang Clean','Hang Clean + Front Squat',
     'PP Clean + Push Press + Front Squat','Hang Clean + Push Jerk',
-    'PAK Clean Pull + Clean Pull','3-Position Clean','3-Position Snatch',
+    'Low Hang Clean + Pause Jerk','PAK Clean Pull + Clean Pull',
+    '3-Position Clean','3-Position Snatch',
     'Tall Snatch + OHS','Tall Clean + Push Press','Tall Clean + Press',
+    'Clean + Jerk','Hang Clean + Jerk','PP Clean + Jerk',
   ],
   'Squat': [
     'Front Squat','Back Squat','Goblet Squat','OHS',
@@ -50,7 +85,7 @@ const LIBRARY = {
   'Pulls / Hinge': [
     'Deadlift','Sumo Deadlift','Trap Bar Deadlift','KB Deadlift','RDL','DB RDL',
     'Clean Pull','Pause at Knee Clean Pull','3-Position Clean Pull',
-    'Hang Clean High Pull','PAK Clean Pull',
+    'Hang Clean High Pull','PAK Clean Pull','PAK Clean Pull + Clean Pull',
     'Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull',
     'Hang Snatch High Pull',
   ],
@@ -91,58 +126,62 @@ const LIBRARY = {
     'Landmine Anti-Rotation',
   ],
   'Shoulder Girdle': [
-    'Isohold Lateral Raises','Pullovers','TRX Ys','TRX Ws','YWTs',
+    'Isohold Lateral Raises','TRX Ys','TRX Ws','YWTs',
     'Trap Raises','Shrugs','Band Pull-Aparts','BPA Underhand',
     'DB External Shoulder Rotation','Band External Shoulder Rotation',
     'Bottoms-Up KB Carry',"Waiter's Walk",
   ],
   'Cardio / Conditioning': ['Rower','Bike','Runner','Jump Rope'],
+  'Speed / Power': [
+    'Resisted Sprints','Acceleration','Change of Direction',
+    'Acceleration / Change of Direction',
+    'SL Lateral Hurdle Hop Complex','Seated Broad to Hurdle Hop',
+    'Pro Agility','Plyo Warmup',
+  ],
 }
 const PATTERN_KEYS = Object.keys(LIBRARY)
 
 /* ===================== DEFAULT CELL NOTES ===================== */
-// Format: { 'template-block-day-exIdx-wk': 'note' }
 const DEFAULT_CELL_NOTES = {
-  // BEGINNER BLOCK 3 - A Day
-  'beginner-3-dayA-1-2': '2RM', 'beginner-3-dayA-1-3': 'MAX',   // Hang Snatch
-  'beginner-3-dayA-2-2': '3RM', 'beginner-3-dayA-2-3': 'MAX',   // Bench Press
-  'beginner-3-dayA-3-2': '2RM', 'beginner-3-dayA-3-3': 'MAX',   // Front Squat
-  // BEGINNER BLOCK 3 - B Day
-  'beginner-3-dayB-1-2': '3RM', 'beginner-3-dayB-1-3': 'MAX',   // PP Clean + Press
-  'beginner-3-dayB-2-2': '2RM', 'beginner-3-dayB-2-3': 'MAX',   // Hang Clean
-  'beginner-3-dayB-3-2': '3RM', 'beginner-3-dayB-3-3': 'MAX',   // Deadlift
-
-  // OLY ATHLETE BLOCKS 1 & 2 - Week 4 RM
+  // BEGINNER BLOCK 3 A Day
+  'beginner-3-dayA-1-2': '2RM', 'beginner-3-dayA-1-3': 'MAX',
+  'beginner-3-dayA-2-2': '3RM', 'beginner-3-dayA-2-3': 'MAX',
+  'beginner-3-dayA-3-2': '2RM', 'beginner-3-dayA-3-3': 'MAX',
+  // BEGINNER BLOCK 3 B Day
+  'beginner-3-dayB-1-2': '3RM', 'beginner-3-dayB-1-3': 'MAX',
+  'beginner-3-dayB-2-2': '2RM', 'beginner-3-dayB-2-3': 'MAX',
+  'beginner-3-dayB-3-2': '3RM', 'beginner-3-dayB-3-3': 'MAX',
+  // OLY ATHLETE B1+B2 wk4 RM
   'oly_athlete-1-dayA-1-4': 'RM', 'oly_athlete-1-dayA-2-4': 'RM', 'oly_athlete-1-dayA-3-4': 'RM',
   'oly_athlete-1-dayB-1-4': 'RM', 'oly_athlete-1-dayB-2-4': 'RM', 'oly_athlete-1-dayB-3-4': 'RM',
   'oly_athlete-2-dayA-1-4': 'RM', 'oly_athlete-2-dayA-2-4': 'RM', 'oly_athlete-2-dayA-3-4': 'RM',
   'oly_athlete-2-dayB-1-4': 'RM', 'oly_athlete-2-dayB-2-4': 'RM', 'oly_athlete-2-dayB-3-4': 'RM',
-  // OLY ATHLETE BLOCK 3 - Wk2/Wk3
-  'oly_athlete-3-dayA-1-2': '2RM', 'oly_athlete-3-dayA-1-3': 'MAX',  // Snatch
-  'oly_athlete-3-dayA-2-2': '3RM', 'oly_athlete-3-dayA-2-3': 'MAX',  // Bench
-  'oly_athlete-3-dayA-3-2': '2RM', 'oly_athlete-3-dayA-3-3': 'MAX',  // Front Squat
-  'oly_athlete-3-dayB-1-2': '2RM', 'oly_athlete-3-dayB-1-3': 'MAX',  // PP Clean + Push Press
-  'oly_athlete-3-dayB-2-2': '2RM', 'oly_athlete-3-dayB-2-3': 'MAX',  // Hang Clean
-  'oly_athlete-3-dayB-3-2': '3RM', 'oly_athlete-3-dayB-3-3': 'MAX',  // Deadlift
-
-  // OLY ADV BLOCKS 1 & 2 - Week 4 RM
+  // OLY ATHLETE B3
+  'oly_athlete-3-dayA-1-2': '2RM', 'oly_athlete-3-dayA-1-3': 'MAX',
+  'oly_athlete-3-dayA-2-2': '3RM', 'oly_athlete-3-dayA-2-3': 'MAX',
+  'oly_athlete-3-dayA-3-2': '2RM', 'oly_athlete-3-dayA-3-3': 'MAX',
+  'oly_athlete-3-dayB-1-2': '2RM', 'oly_athlete-3-dayB-1-3': 'MAX',
+  'oly_athlete-3-dayB-2-2': '2RM', 'oly_athlete-3-dayB-2-3': 'MAX',
+  'oly_athlete-3-dayB-3-2': '3RM', 'oly_athlete-3-dayB-3-3': 'MAX',
+  // OLY ADV B1+B2 wk4 RM
   'oly_adv-1-dayA-1-4': 'RM', 'oly_adv-1-dayA-2-4': 'RM', 'oly_adv-1-dayA-3-4': 'RM',
   'oly_adv-1-dayB-1-4': 'RM', 'oly_adv-1-dayB-2-4': 'RM', 'oly_adv-1-dayB-3-4': 'RM',
   'oly_adv-2-dayA-1-4': 'RM', 'oly_adv-2-dayA-2-4': 'RM', 'oly_adv-2-dayA-3-4': 'RM',
   'oly_adv-2-dayB-1-4': 'RM', 'oly_adv-2-dayB-2-4': 'RM', 'oly_adv-2-dayB-3-4': 'RM',
-  // OLY ADV BLOCK 3 - Wk2/Wk3
-  'oly_adv-3-dayA-1-2': '2RM', 'oly_adv-3-dayA-1-3': 'MAX',  // Snatch
-  'oly_adv-3-dayA-2-2': '3RM', 'oly_adv-3-dayA-2-3': 'MAX',  // Bench
-  'oly_adv-3-dayA-3-2': '3RM', 'oly_adv-3-dayA-3-3': 'MAX',  // Back Squat
-  'oly_adv-3-dayB-1-2': '2RM',                                 // Push Press wk2 only
-  'oly_adv-3-dayB-2-2': '2RM', 'oly_adv-3-dayB-2-3': 'MAX',  // Clean
-  'oly_adv-3-dayB-3-3': 'MAX',                                 // Deadlift wk3 only
+  // OLY ADV B3
+  'oly_adv-3-dayA-1-2': '2RM', 'oly_adv-3-dayA-1-3': 'MAX',
+  'oly_adv-3-dayA-2-2': '3RM', 'oly_adv-3-dayA-2-3': 'MAX',
+  'oly_adv-3-dayA-3-2': '3RM', 'oly_adv-3-dayA-3-3': 'MAX',
+  'oly_adv-3-dayB-1-2': '2RM',
+  'oly_adv-3-dayB-2-2': '2RM', 'oly_adv-3-dayB-2-3': 'MAX',
+  'oly_adv-3-dayB-3-3': 'MAX',
 }
 
 /* ===================== TEMPLATES ===================== */
 const TEMPLATES = {
+  // ── EXISTING THREE ──────────────────────────────────────────
   beginner: {
-    label: 'Athlete Beginner', blocks: {
+    label: 'Athlete Beginner', days: ['dayA','dayB'], blocks: {
       1: {
         dayA: { header: 'A Day', exercises: [
           WU_A,
@@ -199,23 +238,24 @@ const TEMPLATES = {
       }
     }
   },
+
   oly_athlete: {
-    label: 'Oly Athlete', blocks: {
+    label: 'Oly Athlete', days: ['dayA','dayB'], blocks: {
       1: {
         pctLabel: '65-75%', w1note: '65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',[0.65,0.65,0.75],'snatch'),
-          mkEx('B1','Bench Press',3,'8',[0.60,0.60,0.70],'bench_press'),
-          mkEx('C1','Front Squat',4,'5',[0.65,0.65,0.75],'front_squat'),
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
+          mkEx('B1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('C1','Front Squat',4,'5',FS_B1,'front_squat'),
           mkEx('D1','Ipsilateral Split Squat',3,'8ea'),
           mkEx('D2','Chin Up',3,'8'),
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+5',[0.65,0.65,0.75],'clean'),
-          mkEx('B1','PP Clean + Hang Clean',4,'2+1',[0.65,0.65,0.75],'clean'),
-          mkEx('C1','Deadlift',3,'8',[0.60,0.60,0.70],'deadlift'),
+          mkEx('A1','PP Clean + Push Press',4,'1+5',OLY_B1,'clean'),
+          mkEx('B1','PP Clean + Hang Clean',4,'2+1',OLY_B1,'clean'),
+          mkEx('C1','Deadlift',3,'8',STR_B1,'deadlift'),
           mkEx('D1','Nordic Hamstring Curl',3,'8'),
           mkEx('D2','Chest Supported Row',3,'12'),
         ]}
@@ -224,17 +264,17 @@ const TEMPLATES = {
         pctLabel: '75-85%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),
-          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
-          mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),
+          mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
           mkEx('D1','Chin Up',3,'8'),
           mkEx('D2','RFE Split Squat',3,'8ea'),
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
-          mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),
-          mkEx('C1','Deadlift',4,'5',[0.70,0.70,0.80],'deadlift'),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,'clean'),
+          mkEx('B1','Hang Clean',4,'2',OLY_B2,'clean'),
+          mkEx('C1','Deadlift',4,'5',STR_B2,'deadlift'),
           mkEx('D1','SA KOB Row',3,'8ea'),
           mkEx('D2','Farmers Carry',3,'1'),
         ]}
@@ -243,40 +283,41 @@ const TEMPLATES = {
         pctLabel: '75-85%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.85],'snatch'),
-          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
-          mkEx('C1','Front Squat',4,'3',[0.75,0.75,0.85],'front_squat'),
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('C1','Front Squat',4,'3',FS_B3,'front_squat'),
           mkEx('D1','Sled Push',3,'1'),
           mkEx('D2','Chin Up',3,'8'),
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
-          mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),
-          mkEx('C1','Deadlift',3,'5',[0.75,0.75,0.90],'deadlift'),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,'clean'),
+          mkEx('B1','Hang Clean',4,'2',OLY_B3,'clean'),
+          mkEx('C1','Deadlift',3,'5',OLY_B3,'deadlift'),
           mkEx('D1','KOB Row',3,'8ea'),
           mkEx('D2','Dragon Flag',3,'8'),
         ]}
       }
     }
   },
+
   oly_adv: {
-    label: 'Oly ADV Athlete', blocks: {
+    label: 'Oly ADV Athlete', days: ['dayA','dayB'], blocks: {
       1: {
         pctLabel: '65-75%', w1note: '65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',[0.65,0.65,0.75],'snatch'),
-          mkEx('B1','Bench Press',3,'8',[0.60,0.60,0.70],'bench_press'),
-          mkEx('C1','Back Squat',3,'8',[0.60,0.60,0.70],'back_squat'),
+          mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',OLY_B1,'snatch'),
+          mkEx('B1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('C1','Back Squat',3,'8',STR_B1,'back_squat'),
           mkEx('D1','Ipsilateral Split Squat',3,'8ea'),
           mkEx('D2','Chin Up',3,'8'),
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+5',[0.65,0.65,0.75],'clean'),
-          mkEx('B1','PP Clean + Front Squat',4,'3+1',[0.65,0.65,0.75],'clean'),
-          mkEx('C1','Hang Clean High Pull',4,'5',[0.85,0.85,0.95],'clean'),
+          mkEx('A1','PP Clean + Push Press',4,'1+5',OLY_B1,'clean'),
+          mkEx('B1','PP Clean + Front Squat',4,'3+1',OLY_B1,'clean'),
+          mkEx('C1','Hang Clean High Pull',4,'5',PULL_B1,'clean'),
           mkEx('D1','Chest Supported Row',3,'12'),
           mkEx('D2','Glute Ham Raise',3,'8'),
         ]}
@@ -285,17 +326,17 @@ const TEMPLATES = {
         pctLabel: '75-85%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','Hang Snatch + OHS',4,'2+1',[0.75,0.75,0.85],'snatch'),
-          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
-          mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),
+          mkEx('A1','Hang Snatch + OHS',4,'2+1',OLY_B2,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('C1','Back Squat',4,'5',STR_B2,'back_squat'),
           mkEx('D1','Chin Up',3,'8'),
           mkEx('D2','Nordic Hamstring Curl',3,'8'),
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','Hang Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
-          mkEx('B1','Hang Clean + Front Squat',4,'2+1',[0.75,0.75,0.85],'clean'),
-          mkEx('C1','PAK Clean Pull',4,'3',[0.95,0.95,1.05],'clean'),
+          mkEx('A1','Hang Clean + Push Press',4,'1+3',OLY_B2,'clean'),
+          mkEx('B1','Hang Clean + Front Squat',4,'2+1',OLY_B2,'clean'),
+          mkEx('C1','PAK Clean Pull',4,'3',PULL_B2,'clean'),
           mkEx('D1','Chainsaw Row',3,'8'),
           mkEx('D2','Split Stance RDL',3,'8ea'),
         ]}
@@ -304,23 +345,728 @@ const TEMPLATES = {
         pctLabel: '75-90%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','Hang Snatch',4,'2',[0.75,0.75,0.90],'snatch'),
-          mkEx('B1','Bench Press',4,'5',[0.70,0.70,0.80],'bench_press'),
-          mkEx('C1','Back Squat',4,'5',[0.70,0.70,0.80],'back_squat'),
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('C1','Back Squat',4,'5',STR_B3,'back_squat'),
           mkEx('D1','Flywheel Rotation',3,'10'),
           mkEx('D2','Chin Up',3,'AMAP'),
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',[0.75,0.75,0.85],'clean'),
-          mkEx('B1','Hang Clean',4,'2',[0.75,0.75,0.85],'clean'),
-          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',[1.00,1.00,1.20],'clean'),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,'clean'),
+          mkEx('B1','Hang Clean',4,'2',OLY_B3,'clean'),
+          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('D1','SA KOB Row',3,'8ea'),
           mkEx('D2','45-Deg Back Extension',3,'8ea'),
         ]}
       }
     }
-  }
+  },
+
+  // ── GPP 2-DAY ───────────────────────────────────────────────
+  gpp_2day: {
+    label: 'GPP 2-Day', days: ['dayA','dayB'], blocks: {
+      1: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Press',3,'8',STR_B1,'bench_press'),
+          mkEx('B1','Front Squat',3,'8',STR_B1,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','Split Squat',3,'8ea'),
+          mkEx('C3','Hollow Hold',3,'30sec'),
+          mkEx('C4','Band Pull-Aparts',3,'15'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          mkEx('A1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('B1','Sumo Deadlift',3,'8',STR_B1,'deadlift'),
+          mkEx('C1','SA KOB Row',3,'8ea'),
+          mkEx('C2','Nordic Hamstring Curl',3,'8'),
+          mkEx('C3','Side Plank',3,'30s'),
+          mkEx('C4','Rower',3,'400m'),
+        ]}
+      },
+      2: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','RFE Split Squat',3,'6ea'),
+          mkEx('C3','Dead Bug',3,'8'),
+          mkEx('C4','TRX Ws',3,'12'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','Sumo Deadlift',4,'5',STR_B2,'deadlift'),
+          mkEx('C1','Chest Supported Row',3,'10'),
+          mkEx('C2','Glute Ham Raise',3,'8'),
+          mkEx('C3','Copenhagen Plank',3,'20s'),
+          mkEx('C4','Bike',3,'10cal'),
+        ]}
+      },
+      3: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','RFE Split Squat',3,'5ea'),
+          mkEx('C3','Hollow Rocks',3,'10'),
+          mkEx('C4','YWTs',3,'10'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Deadlift',4,'5',STR_B3,'deadlift'),
+          mkEx('C1','Flywheel Row',3,'8ea'),
+          mkEx('C2','45-Deg Back Extension',3,'10'),
+          mkEx('C3','Paloff Press',3,'10ea'),
+          mkEx('C4','Rower',3,'500m'),
+        ]}
+      }
+    }
+  },
+
+  // ── ADULT WEIGHTLIFTING 2-DAY ────────────────────────────────
+  adult_oly: {
+    label: 'Adult Weightlifting 2-Day', days: ['dayA','dayB'], blocks: {
+      1: {
+        pctLabel: '65-75%', w1note: '65% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,'clean'),
+          mkEx('C1','Front Squat',4,'5',FS_B1,'front_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+          mkEx('D2','Hollow Hold',3,'30sec'),
+          mkEx('D3','TRX Ws',3,'12'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
+          mkEx('B1','Hang Clean + Push Press',4,'1+3',OLY_B1,'clean'),
+          mkEx('C1','Clean Pull',3,'5',PULL_B1,'clean'),
+          mkEx('D1','KB Swing',3,'10'),
+          mkEx('D2','SA KOB Row',3,'8ea'),
+          mkEx('D3','Dead Bug',3,'8'),
+        ]}
+      },
+      2: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,'clean'),
+          mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+          mkEx('D2','Dead Bug',3,'8'),
+          mkEx('D3','Band Pull-Aparts',3,'15'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,'clean'),
+          mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('D1','45-Deg Back Extension',3,'10'),
+          mkEx('D2','Chest Supported Row',3,'10'),
+          mkEx('D3','Landmine Anti-Rotation',3,'10ea'),
+        ]}
+      },
+      3: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,'clean'),
+          mkEx('C1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+          mkEx('D2','Hollow Rocks',3,'10'),
+          mkEx('D3','YWTs',3,'10'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+1',OLY_B3,'clean'),
+          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
+          mkEx('D1','Glute Ham Raise',3,'8'),
+          mkEx('D2','Chainsaw Row',3,'8'),
+          mkEx('D3','Side Plank',3,'30s'),
+        ]}
+      }
+    }
+  },
+
+  // ── OLYMPIC LIFTING 2-DAY ────────────────────────────────────
+  oly_2day: {
+    label: 'Olympic Lifting 2-Day', days: ['dayA','dayB'], blocks: {
+      1: {
+        pctLabel: '65-75%', w1note: '65% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,'clean'),
+          mkEx('C1','Front Squat',4,'5',FS_B1,'front_squat'),
+          mkEx('D1','RFE Split Squat',3,'8ea'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
+          mkEx('B1','Hang Clean + Push Press',4,'1+3',OLY_B1,'clean'),
+          mkEx('C1','Clean Pull',3,'5',PULL_B1,'clean'),
+          mkEx('D1','DB Bench Press',3,'8'),
+          mkEx('D2','Dead Bug',3,'8'),
+        ]}
+      },
+      2: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,'clean'),
+          mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('D1','Ipsilateral Split Squat',3,'6ea'),
+          mkEx('D2','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,'clean'),
+          mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('D1','Bench Press',3,'5',STR_B2,'bench_press'),
+          mkEx('D2','Hollow Rocks',3,'10'),
+        ]}
+      },
+      3: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,'clean'),
+          mkEx('C1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('D1','RFE Split Squat',3,'5ea'),
+          mkEx('D2','Chin Up',3,'AMAP'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+1',OLY_B3,'clean'),
+          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
+          mkEx('D1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('D2','Dragon Flag',3,'8'),
+        ]}
+      }
+    }
+  },
+
+  // ── 3-DAY OLY + POWER ───────────────────────────────────────
+  oly_power_3day: {
+    label: '3-Day Oly + Power', days: ['dayA','dayB','dayC'], blocks: {
+      1: {
+        pctLabel: '65-75%', w1note: '65% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
+          mkEx('B1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('D1','Front Squat',4,'5',FS_B1,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','Hollow Hold',3,'30sec'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','Hang Clean + Push Press',4,'1+5',OLY_B1,'clean'),
+          mkEx('B1','Clean Pull',3,'5',PULL_B1,'clean'),
+          mkEx('C1','45-Deg Back Extension',3,'10'),
+          mkEx('C2','SA KOB Row',3,'8ea'),
+          mkEx('C3','Dead Bug',3,'8'),
+          mkEx('C4','Rower',3,'400m'),
+        ]},
+        dayC: { header: 'C Day', exercises: [
+          mkEx('A1','Hang Clean',4,'3',OLY_B1,'clean'),
+          mkEx('B1','RFE Split Squat',3,'8ea'),
+          mkEx('C1','Nordic Hamstring Curl',3,'8'),
+          mkEx('C2','DB Bench Press',3,'8'),
+          mkEx('C3','Band Pull-Aparts',3,'15'),
+          mkEx('C4','Hollow Rocks',3,'10'),
+        ]}
+      },
+      2: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('D1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','Dead Bug',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,'clean'),
+          mkEx('B1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('C1','Glute Ham Raise',3,'8'),
+          mkEx('C2','Chest Supported Row',3,'10'),
+          mkEx('C3','Paloff Press',3,'10ea'),
+          mkEx('C4','Bike',3,'10cal'),
+        ]},
+        dayC: { header: 'C Day', exercises: [
+          mkEx('A1','Low Hang Clean',4,'2',OLY_B2,'clean'),
+          mkEx('B1','Ipsilateral Split Squat',4,'5ea'),
+          mkEx('C1','45-Deg Back Extension',3,'10'),
+          mkEx('C2','Push Up',3,'AMAP'),
+          mkEx('C3','TRX Ws',3,'12'),
+          mkEx('C4','Side Plank',3,'30s'),
+        ]}
+      },
+      3: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('D1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('C1','Chin Up',3,'AMAP'),
+          mkEx('C2','Hollow Rocks',3,'10'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,'clean'),
+          mkEx('B1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
+          mkEx('C1','Split Stance RDL',3,'8ea'),
+          mkEx('C2','Flywheel Row',3,'8ea'),
+          mkEx('C3','Dragon Flag',3,'8'),
+          mkEx('C4','Rower',3,'500m'),
+        ]},
+        dayC: { header: 'C Day', exercises: [
+          mkEx('A1','Hang Clean',4,'2',OLY_B3,'clean'),
+          mkEx('B1','RFE Split Squat',3,'5ea'),
+          mkEx('C1','Razor Curl',3,'8'),
+          mkEx('C2','Deficit Push Up',3,'8'),
+          mkEx('C3','YWTs',3,'10'),
+          mkEx('C4','Suitcase Carry',3,'1'),
+        ]}
+      }
+    }
+  },
+
+  // ── 4-DAY OLY + POWER + PLYO ────────────────────────────────
+  oly_power_4day: {
+    label: '4-Day Oly + Power + Plyo', days: ['dayA','dayB','dayC','dayD'], blocks: {
+      1: {
+        pctLabel: '65-75%', w1note: '65% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
+          mkEx('B1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('D1','Front Squat',4,'5',FS_B1,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','Hollow Hold',3,'30sec'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','Hang Clean + Push Press',4,'1+5',OLY_B1,'clean'),
+          mkEx('B1','Clean Pull',3,'5',PULL_B1,'clean'),
+          mkEx('C1','45-Deg Back Extension',3,'10'),
+          mkEx('C2','SA KOB Row',3,'8ea'),
+          mkEx('C3','Dead Bug',3,'8'),
+          mkEx('C4','Rower',3,'400m'),
+        ]},
+        dayC: { header: 'C Day — Plyo + Power', exercises: [
+          mkEx('A1','Plyo Warmup',1,'1'),
+          mkEx('B1','SL Lateral Hurdle Hop Complex',3,'4ea'),
+          mkEx('C1','Seated Broad to Hurdle Hop',4,'1'),
+          mkEx('D1','Pro Agility',4,'1'),
+          mkEx('E1','Resisted Sprints',6,'1'),
+        ]},
+        dayD: { header: 'D Day', exercises: [
+          mkEx('A1','Hang Clean',4,'3',OLY_B1,'clean'),
+          mkEx('B1','RFE Split Squat',3,'8ea'),
+          mkEx('C1','Nordic Hamstring Curl',3,'8'),
+          mkEx('C2','DB Bench Press',3,'8'),
+          mkEx('C3','Band Pull-Aparts',3,'15'),
+          mkEx('C4','Hollow Rocks',3,'10'),
+        ]}
+      },
+      2: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('D1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','Dead Bug',3,'8'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,'clean'),
+          mkEx('B1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('C1','Glute Ham Raise',3,'8'),
+          mkEx('C2','Chest Supported Row',3,'10'),
+          mkEx('C3','Paloff Press',3,'10ea'),
+          mkEx('C4','Bike',3,'10cal'),
+        ]},
+        dayC: { header: 'C Day — Plyo + Power', exercises: [
+          mkEx('A1','Plyo Warmup',1,'1'),
+          mkEx('B1','SL Lateral Hurdle Hop Complex',3,'4ea'),
+          mkEx('C1','Seated Broad to Hurdle Hop',4,'1'),
+          mkEx('D1','Pro Agility',4,'1'),
+          mkEx('E1','Resisted Sprints',6,'1'),
+        ]},
+        dayD: { header: 'D Day', exercises: [
+          mkEx('A1','Low Hang Clean',4,'2',OLY_B2,'clean'),
+          mkEx('B1','Ipsilateral Split Squat',4,'5ea'),
+          mkEx('C1','45-Deg Back Extension',3,'10'),
+          mkEx('C2','Push Up',3,'AMAP'),
+          mkEx('C3','TRX Ws',3,'12'),
+          mkEx('C4','Side Plank',3,'30s'),
+        ]}
+      },
+      3: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('D1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('C1','Chin Up',3,'AMAP'),
+          mkEx('C2','Hollow Rocks',3,'10'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          WU_B_pp,
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,'clean'),
+          mkEx('B1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
+          mkEx('C1','Split Stance RDL',3,'8ea'),
+          mkEx('C2','Flywheel Row',3,'8ea'),
+          mkEx('C3','Dragon Flag',3,'8'),
+          mkEx('C4','Rower',3,'500m'),
+        ]},
+        dayC: { header: 'C Day — Plyo + Power', exercises: [
+          mkEx('A1','Plyo Warmup',1,'1'),
+          mkEx('B1','SL Lateral Hurdle Hop Complex',3,'4ea'),
+          mkEx('C1','Seated Broad to Hurdle Hop',4,'1'),
+          mkEx('D1','Pro Agility',4,'1'),
+          mkEx('E1','Resisted Sprints',6,'1'),
+        ]},
+        dayD: { header: 'D Day', exercises: [
+          mkEx('A1','Hang Clean',4,'2',OLY_B3,'clean'),
+          mkEx('B1','RFE Split Squat',3,'5ea'),
+          mkEx('C1','Razor Curl',3,'8'),
+          mkEx('C2','Deficit Push Up',3,'8'),
+          mkEx('C3','YWTs',3,'10'),
+          mkEx('C4','Suitcase Carry',3,'1'),
+        ]}
+      }
+    }
+  },
+
+  // ── GPP 3-DAY ────────────────────────────────────────────────
+  gpp_3day: {
+    label: 'GPP 3-Day', days: ['dayA','dayB','dayC'], blocks: {
+      1: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Press',3,'8',STR_B1,'bench_press'),
+          mkEx('B1','Front Squat',3,'8',FS_B1,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','Split Squat',3,'8ea'),
+          mkEx('C3','Hollow Hold',3,'30sec'),
+          mkEx('C4','Band Pull-Aparts',3,'15'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          mkEx('A1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('B1','Sumo Deadlift',3,'8',STR_B1,'deadlift'),
+          mkEx('C1','SA KOB Row',3,'8ea'),
+          mkEx('C2','Nordic Hamstring Curl',3,'8'),
+          mkEx('C3','Side Plank',3,'30s'),
+          mkEx('C4','Rower',3,'400m'),
+        ]},
+        dayC: { header: 'C Day', exercises: [
+          mkEx('A1','DB Bench Press',3,'8'),
+          mkEx('A2','RFE Split Squat',3,'8ea'),
+          mkEx('C1','45-Deg Back Extension',3,'10'),
+          mkEx('C2','Tripod Row',3,'10ea'),
+          mkEx('C3','Dead Bug',3,'8'),
+          mkEx('C4','Bike',3,'10cal'),
+        ]}
+      },
+      2: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('C1','Chin Up',3,'8'),
+          mkEx('C2','RFE Split Squat',3,'6ea'),
+          mkEx('C3','Dead Bug',3,'8'),
+          mkEx('C4','TRX Ws',3,'12'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','Deadlift',4,'5',STR_B2,'deadlift'),
+          mkEx('C1','Chest Supported Row',3,'10'),
+          mkEx('C2','Glute Ham Raise',3,'8'),
+          mkEx('C3','Copenhagen Plank',3,'20s'),
+          mkEx('C4','Bike',3,'10cal'),
+        ]},
+        dayC: { header: 'C Day', exercises: [
+          mkEx('A1','Push Up',4,'AMAP'),
+          mkEx('A2','Ipsilateral Split Squat',4,'5ea'),
+          mkEx('C1','Split Stance RDL',3,'8ea'),
+          mkEx('C2','SA KOB Row',3,'8ea'),
+          mkEx('C3','Paloff Press',3,'10ea'),
+          mkEx('C4','Rower',3,'500m'),
+        ]}
+      },
+      3: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('C1','Chin Up',3,'AMAP'),
+          mkEx('C2','RFE Split Squat',3,'5ea'),
+          mkEx('C3','Hollow Rocks',3,'10'),
+          mkEx('C4','YWTs',3,'10'),
+        ]},
+        dayB: { header: 'B Day', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Deadlift',4,'5',STR_B3,'deadlift'),
+          mkEx('C1','Flywheel Row',3,'8ea'),
+          mkEx('C2','45-Deg Back Extension',3,'10'),
+          mkEx('C3','Side Plank',3,'30s'),
+          mkEx('C4','Rower',3,'500m'),
+        ]},
+        dayC: { header: 'C Day', exercises: [
+          mkEx('A1','Deficit Push Up',4,'8'),
+          mkEx('A2','Contralateral Split Squat',4,'5ea'),
+          mkEx('C1','Razor Curl',3,'8'),
+          mkEx('C2','Chainsaw Row',3,'8ea'),
+          mkEx('C3','Dragon Flag',3,'8'),
+          mkEx('C4','Suitcase Carry',3,'1'),
+        ]}
+      }
+    }
+  },
+
+  // ── UPPER / LOWER SPLIT 4-DAY ────────────────────────────────
+  upper_lower: {
+    label: 'Upper / Lower Split', days: ['dayA','dayB','dayC','dayD'], blocks: {
+      1: {
+        dayA: { header: 'A Day — Upper Push', exercises: [
+          mkEx('A1','Press',3,'8',STR_B1,'bench_press'),
+          mkEx('B1','Isohold Lateral Raises',3,'12'),
+          mkEx('B2','SA KOB Row',3,'8ea'),
+          mkEx('C1','DB Curl',3,'10'),
+          mkEx('C2','Hollow Hold',3,'30sec'),
+        ]},
+        dayB: { header: 'B Day — Lower Hinge', exercises: [
+          mkEx('A1','Deadlift',3,'8',STR_B1,'deadlift'),
+          mkEx('B1','45-Deg Back Extension',3,'10'),
+          mkEx('B2','RFE Split Squat',3,'8ea'),
+          mkEx('B3','Rower',3,'400m'),
+        ]},
+        dayC: { header: 'C Day — Upper Pull', exercises: [
+          mkEx('A1','Bench Press',3,'8',STR_B1,'bench_press'),
+          mkEx('B1','Push Press',3,'8',FS_B1,'bench_press'),
+          mkEx('B2','Band Pull-Aparts',3,'15'),
+          mkEx('C1','Tricep Pushdown',3,'12'),
+          mkEx('C2','Dead Bug',3,'8'),
+        ]},
+        dayD: { header: 'D Day — Lower Squat', exercises: [
+          mkEx('A1','Front Squat',3,'8',FS_B1,'front_squat'),
+          mkEx('B1','Ipsilateral Split Squat',3,'8ea'),
+          mkEx('B2','Nordic Hamstring Curl',3,'8'),
+          mkEx('B3','Plank',3,'30sec'),
+        ]}
+      },
+      2: {
+        dayA: { header: 'A Day — Upper Push', exercises: [
+          mkEx('A1','Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','TRX Ws',3,'12'),
+          mkEx('B2','Chest Supported Row',3,'10'),
+          mkEx('C1','DB Hammer Curl',3,'10'),
+          mkEx('C2','Paloff Press',3,'10ea'),
+        ]},
+        dayB: { header: 'B Day — Lower Hinge', exercises: [
+          mkEx('A1','Deadlift',4,'5',STR_B2,'deadlift'),
+          mkEx('B1','Glute Ham Raise',3,'8'),
+          mkEx('B2','Contralateral Split Squat',4,'5ea'),
+          mkEx('B3','Bike',3,'10cal'),
+        ]},
+        dayC: { header: 'C Day — Upper Pull', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','Push Press',4,'3',FS_B2,'bench_press'),
+          mkEx('B2','YWTs',3,'10'),
+          mkEx('C1','Dips',3,'AMAP'),
+          mkEx('C2','Copenhagen Plank',3,'20s'),
+        ]},
+        dayD: { header: 'D Day — Lower Squat', exercises: [
+          mkEx('A1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('B1','RFE Split Squat',4,'5ea'),
+          mkEx('B2','45-Deg Back Extension',3,'10'),
+          mkEx('B3','Dead Bug',3,'8'),
+        ]}
+      },
+      3: {
+        dayA: { header: 'A Day — Upper Push', exercises: [
+          mkEx('A1','Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Isohold Lateral Raises',3,'12'),
+          mkEx('B2','Flywheel Row',3,'8ea'),
+          mkEx('C1','DB Curl',3,'10'),
+          mkEx('C2','Hollow Rocks',3,'10'),
+        ]},
+        dayB: { header: 'B Day — Lower Hinge', exercises: [
+          mkEx('A1','Deadlift',4,'5',STR_B3,'deadlift'),
+          mkEx('B1','Split Stance RDL',3,'8ea'),
+          mkEx('B2','Contralateral Split Squat',4,'5ea'),
+          mkEx('B3','Rower',3,'500m'),
+        ]},
+        dayC: { header: 'C Day — Upper Pull', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Push Press',4,'3',FS_B3,'bench_press'),
+          mkEx('B2','Band Pull-Aparts',3,'15'),
+          mkEx('C1','Tricep Pushdown',3,'12'),
+          mkEx('C2','Dragon Flag',3,'8'),
+        ]},
+        dayD: { header: 'D Day — Lower Squat', exercises: [
+          mkEx('A1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('B1','RFE Split Squat',4,'5ea'),
+          mkEx('B2','Razor Curl',3,'8'),
+          mkEx('B3','Suitcase Carry',3,'1'),
+        ]}
+      }
+    }
+  },
+
+  // ── OLYMPIC LIFTING 4-DAY ────────────────────────────────────
+  oly_4day: {
+    label: 'Olympic Lifting 4-Day', days: ['dayA','dayB','dayC','dayD'], blocks: {
+      1: {
+        pctLabel: '65-75%', w1note: '65% only',
+        dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,'clean'),
+          mkEx('C1','Back Squat',3,'8',STR_B1,'back_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day — Plyo + Power', exercises: [
+          mkEx('A1','Plyo Warmup',1,'1'),
+          mkEx('B1','Hang Power Snatch',4,'3',PWR_B1,'snatch'),
+          mkEx('C1','Hang Power Clean + Push Press',4,'2+3',PWR_B1,'clean'),
+          mkEx('D1','Snatch Pull',3,'5',PULL_B1,'snatch'),
+          mkEx('E1','45-Deg Back Extension',3,'10'),
+        ]},
+        dayC: { header: 'C Day — Big Snatch + Jerk + FS', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',5,'2+1',OLY_B1,'snatch'),
+          mkEx('B1','Push Jerk',5,'3',OLY_B1,'clean'),
+          mkEx('C1','Push Press',4,'5',FS_B1,'bench_press'),
+          mkEx('D1','DB Bench Press',3,'8'),
+          mkEx('D2','TRX Ws',3,'12'),
+        ]},
+        dayD: { header: 'D Day — Snatch + Heavy C&J + Pull', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
+          mkEx('B1','Hang Clean + Jerk',5,'2+2',CJ_HEAVY_B1,'clean'),
+          mkEx('C1','Clean Pull',3,'5',PULL_B1,'clean'),
+          mkEx('D1','SA KOB Row',3,'8ea'),
+          mkEx('D2','Dead Bug',3,'8'),
+        ]}
+      },
+      2: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,'clean'),
+          mkEx('C1','Back Squat',4,'5',STR_B2,'back_squat'),
+          mkEx('D1','Chin Up',3,'8'),
+        ]},
+        dayB: { header: 'B Day — Plyo + Power', exercises: [
+          mkEx('A1','Plyo Warmup',1,'1'),
+          mkEx('B1','Hang Power Snatch',4,'2',PWR_B2,'snatch'),
+          mkEx('C1','Hang Power Clean + Push Press',4,'1+3',PWR_B2,'clean'),
+          mkEx('D1','Snatch Pull',4,'2',PULL_B2,'snatch'),
+          mkEx('E1','Glute Ham Raise',3,'8'),
+        ]},
+        dayC: { header: 'C Day — Big Snatch + Jerk + FS', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',5,'2',OLY_B2,'snatch'),
+          mkEx('B1','Push Jerk',5,'2',OLY_B2,'clean'),
+          mkEx('C1','Push Press',4,'3',FS_B2,'bench_press'),
+          mkEx('D1','Bench Press',3,'5',STR_B2,'bench_press'),
+          mkEx('D2','Band Pull-Aparts',3,'15'),
+        ]},
+        dayD: { header: 'D Day — Snatch + Heavy C&J + Pull', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Hang Clean + Jerk',5,'1+2',CJ_HEAVY_B2,'clean'),
+          mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('D1','Chest Supported Row',3,'10'),
+          mkEx('D2','Paloff Press',3,'10ea'),
+        ]}
+      },
+      3: {
+        pctLabel: '75-85%', w1note: '75% only',
+        dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,'clean'),
+          mkEx('C1','Back Squat',4,'5',STR_B3,'back_squat'),
+          mkEx('D1','Chin Up',3,'AMAP'),
+        ]},
+        dayB: { header: 'B Day — Plyo + Power', exercises: [
+          mkEx('A1','Plyo Warmup',1,'1'),
+          mkEx('B1','Hang Power Snatch',4,'2',PWR_B3,'snatch'),
+          mkEx('C1','Hang Power Clean + Push Press',4,'1+2',PWR_B3,'clean'),
+          mkEx('D1','Snatch Pull',4,'2',PULL_B3,'snatch'),
+          mkEx('E1','Split Stance RDL',3,'8ea'),
+        ]},
+        dayC: { header: 'C Day — Big Snatch + Jerk + FS', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',5,'2',OLY_B3,'snatch'),
+          mkEx('B1','Push Jerk',5,'2',OLY_B3,'clean'),
+          mkEx('C1','Push Press',4,'3',FS_B3,'bench_press'),
+          mkEx('D1','DB Bench Press',3,'8'),
+          mkEx('D2','YWTs',3,'10'),
+        ]},
+        dayD: { header: 'D Day — Snatch + Heavy C&J + Pull', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Hang Clean + Jerk',5,'1+1',CJ_HEAVY_B3,'clean'),
+          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
+          mkEx('D1','Flywheel Row',3,'8ea'),
+          mkEx('D2','Dragon Flag',3,'8'),
+        ]}
+      }
+    }
+  },
+
+  // ── HIGH SCHOOL TECHNIQUE + SPEED ───────────────────────────
+  hs_tech_speed: {
+    label: 'HS Technique + Speed', days: ['dayA'], blocks: {
+      1: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Acceleration / Change of Direction',"10'", '1'),
+          mkEx('B1','PP Clean + Push Press',4,'1+5',OLY_B1,'clean'),
+          mkEx('C1','Hang Clean',4,'3',OLY_B1,'clean'),
+          mkEx('D1','PAK Clean Pull + Clean Pull',3,'3',PULL_B1,'clean'),
+          mkEx('E1','Nordic Hamstring Curl',3,'8'),
+        ]}
+      },
+      2: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Acceleration / Change of Direction',"10'", '1'),
+          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B2,'clean'),
+          mkEx('C1','Hang Clean',4,'2',OLY_B2,'clean'),
+          mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B2,'clean'),
+          mkEx('E1','Glute Ham Raise',3,'8'),
+        ]}
+      },
+      3: {
+        dayA: { header: 'A Day', exercises: [
+          mkEx('A1','Acceleration / Change of Direction',"10'", '1'),
+          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B3,'clean'),
+          mkEx('C1','Hang Clean',4,'2',OLY_B3,'clean'),
+          mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B3,'clean'),
+          mkEx('E1','Razor Curl',3,'8'),
+        ]}
+      }
+    }
+  },
 }
 
 /* ===================== EXERCISE COMBO INPUT ===================== */
@@ -407,14 +1153,12 @@ export default function App() {
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
-  // Load athletes, PRs, saved edits and cell notes from DB
   useEffect(() => {
     async function load() {
       const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').eq('status', 'Active').order('first_name')
       if (error) { setStatus('Error: ' + error.message); return }
       setAthletes(ath)
       setStatus('Fetching PRs...')
-
       let all = [], from = 0
       while (true) {
         const { data } = await sb.from('results').select('athlete_id,test_id,converted_value').range(from, from + 499)
@@ -425,8 +1169,6 @@ export default function App() {
       const map = {}
       all.forEach(r => { const k = r.athlete_id + '-' + r.test_id; const v = parseFloat(r.converted_value); if (!map[k] || v > map[k]) map[k] = v })
       setPrs(map)
-
-      // Load saved program edits
       const { data: savedEdits } = await sb.from('program_edits').select('*')
       if (savedEdits && savedEdits.length > 0) {
         const editMap = {}
@@ -437,8 +1179,6 @@ export default function App() {
         })
         setEdits(editMap)
       }
-
-      // Load saved cell notes, merge over defaults
       const { data: savedNotes } = await sb.from('program_cell_notes').select('*')
       if (savedNotes && savedNotes.length > 0) {
         const noteMap = { ...DEFAULT_CELL_NOTES }
@@ -448,7 +1188,6 @@ export default function App() {
         })
         setCellNotes(noteMap)
       }
-
       setStatus('Ready')
     }
     load()
@@ -463,9 +1202,10 @@ export default function App() {
   const getPR = (aId, tid) => prs[aId + '-' + tid] || null
   const tD = TEMPLATES[tier]
   const bD = tD.blocks[block]
-  const isOly = tier !== 'beginner'
+  const isOly = !['gpp_2day','gpp_3day','upper_lower'].includes(tier)
   const ath = athletes.find(a => a.id === athleteId)
   const filteredAth = athletes.filter(a => (a.first_name + ' ' + a.last_name).toLowerCase().includes(search.toLowerCase()))
+  const days = tD.days
 
   const getExs = (day) => bD[day].exercises.map((ex, i) => {
     const k = `${tier}-${block}-${day}-${i}`
@@ -475,7 +1215,6 @@ export default function App() {
   const setEdit = (day, i, field, value) => {
     const k = `${tier}-${block}-${day}-${i}`
     setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), [field]: value } }))
-    // Debounced save to DB
     const timerKey = `${k}-${field}`
     if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
     saveTimers.current[timerKey] = setTimeout(async () => {
@@ -489,17 +1228,12 @@ export default function App() {
 
   const setCellNote = (key, val) => {
     setCellNotes(prev => ({ ...prev, [key]: val }))
-    // Parse key: template-block-day-exIdx-wk
     const parts = key.split('-')
-    // key format: tier-block-day-exIdx-wk  (tier may have underscore e.g. oly_athlete)
-    // We stored key as `${tier}-${block}-${day}-${i}-${wk}`
-    // Need to recover: last element is wk, second to last is exIdx, third to last is day
     const wk = parseInt(parts[parts.length - 1])
     const exIdx = parseInt(parts[parts.length - 2])
     const day = parts[parts.length - 3]
     const blk = parseInt(parts[parts.length - 4])
     const tmpl = parts.slice(0, parts.length - 4).join('-')
-
     const timerKey = `note-${key}`
     if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
     saveTimers.current[timerKey] = setTimeout(async () => {
@@ -515,6 +1249,11 @@ export default function App() {
     ['snatch','Snatch'],['clean','Clean'],['front_squat','Fr. Squat'],
     ['back_squat','Bk. Squat'],['bench_press','Bench'],['deadlift','Deadlift']
   ]
+
+  // For multi-day templates, split days across pages
+  // Page 1: first 2 days, Page 2: remaining days
+  const page1Days = days.slice(0, 2)
+  const page2Days = days.slice(2)
 
   return (
     <div style={{ background: '#f0f0f0', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
@@ -578,48 +1317,26 @@ export default function App() {
         </button>
       </div>
 
-      {/* SHEET */}
+      {/* PAGE 1 — first 2 days */}
       <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '2px solid #111' }}>
-          <div>
-            <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{tD.label} — Block {block}</div>
-            <div style={{ fontSize: 14, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>
-              {ath ? ath.first_name + ' ' + ath.last_name : 'Select an athlete above'}
-            </div>
-            {isOly && bD.pctLabel && (
-              <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>
-                Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}
-              </div>
-            )}
-          </div>
-          <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
-            <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
-            WILMINGTON<br />STRENGTH
-          </div>
-        </div>
-
-        {/* PR Bar */}
-        <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
-          {PKS.map(([k, lb], idx) => {
-            const v = ath ? getPR(ath.id, k) : null
-            return (
-              <div key={k} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', borderRight: idx < PKS.length - 1 ? '1px solid #bbb' : 'none' }}>
-                <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: '#777' }}>{lb}</div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: v ? '#111' : '#ccc' }}>{v ? Math.round(v) : '—'}</div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Days */}
-        {['dayA', 'dayB'].map((dk) => (
+        <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
+        <PRBar PKS={PKS} ath={ath} getPR={getPR} />
+        {page1Days.map(dk => (
           <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
-            setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote}
-            tier={tier} block={block} />
+            setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
         ))}
       </div>
+
+      {/* PAGE 2 — extra days (C, D) if they exist */}
+      {page2Days.length > 0 && (
+        <div id="sheet2" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+          <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} compact />
+          {page2Days.map(dk => (
+            <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
+              setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
+          ))}
+        </div>
+      )}
 
       <style>{`
         * { box-sizing: border-box; }
@@ -627,7 +1344,8 @@ export default function App() {
           @page { size: letter portrait; margin: 0.4in }
           body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important }
-          #sheet { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
+          #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
+          #sheet2 { page-break-before: always; }
         }
       `}</style>
     </div>
@@ -635,6 +1353,46 @@ export default function App() {
 }
 
 const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 }
+
+/* ===================== SHEET HEADER ===================== */
+function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: compact ? 4 : 8, paddingBottom: compact ? 4 : 8, borderBottom: '2px solid #111' }}>
+      <div>
+        <div style={{ fontSize: compact ? 14 : 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{tD.label} — Block {block}</div>
+        <div style={{ fontSize: 13, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>
+          {ath ? ath.first_name + ' ' + ath.last_name : 'Select an athlete above'}
+        </div>
+        {isOly && bD.pctLabel && (
+          <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>
+            Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}
+          </div>
+        )}
+      </div>
+      <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
+        <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
+        WILMINGTON<br />STRENGTH
+      </div>
+    </div>
+  )
+}
+
+/* ===================== PR BAR ===================== */
+function PRBar({ PKS, ath, getPR }) {
+  return (
+    <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
+      {PKS.map(([k, lb], idx) => {
+        const v = ath ? getPR(ath.id, k) : null
+        return (
+          <div key={k} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', borderRight: idx < PKS.length - 1 ? '1px solid #bbb' : 'none' }}>
+            <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: '#777' }}>{lb}</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: v ? '#111' : '#ccc' }}>{v ? Math.round(v) : '—'}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 /* ===================== DAY TABLE ===================== */
 function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block }) {
@@ -681,7 +1439,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   }
 
   const getHint = (wk) => {
-    if (!isOly || !ex.pct) return ''
+    if (!ex.pct) return ''
     if (wk === 1) return pr ? r5(pr * ex.pct[0]) + ' lbs' : Math.round(ex.pct[0] * 100) + '%'
     if (wk === 2 || wk === 3) {
       if (pr) {
@@ -712,8 +1470,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           placeholder={hint}
           style={{
             position: 'absolute', top: 2, left: 3,
-            fontSize: 8,
-            color: noteVal ? '#111' : '#0055bb',
+            fontSize: 8, color: noteVal ? '#111' : '#0055bb',
             fontWeight: noteVal ? 700 : 600,
             border: 'none', outline: 'none', background: 'transparent',
             fontFamily: 'Arial, sans-serif', padding: 0,
