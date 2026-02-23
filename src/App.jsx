@@ -1175,7 +1175,7 @@ export default function App() {
   const getPR = (aId, tid) => prs[aId + '-' + tid] || null
 
   const getOverheadPR = (aId) => {
-    const vals = ['press', 'push_press', 'jerk'].map(t => getPR(aId, t)).filter(Boolean)
+    const vals = ['press', 'push_press', 'jerk', 'overhead'].map(t => getPR(aId, t)).filter(Boolean)
     return vals.length ? Math.max(...vals) : null
   }
 
