@@ -1232,7 +1232,13 @@ export default function App() {
 
   const getExs = (day) => bD[day].exercises.map((ex, i) => {
     const k = `${tier}-${block}-${day}-${i}`
-    return edits[k] ? { ...ex, ...edits[k] } : ex
+    if (!edits[k]) return ex
+    const merged = { ...ex, ...edits[k] }
+    // If template has an array prKey (complex), don't let a saved string prKey override it
+    if (Array.isArray(ex.prKey) && typeof edits[k].prKey === 'string') {
+      merged.prKey = ex.prKey
+    }
+    return merged
   })
 
   const setEdit = (day, i, field, value) => {
