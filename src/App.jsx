@@ -143,16 +143,16 @@ const EXERCISE_PR_KEYS = {
   'Behind-the-Neck Power Jerk': 'jerk', 'Behind-the-Neck Split Jerk': 'jerk',
   'Hang Snatch': 'snatch', 'Power Position Snatch': 'snatch', 'Low Hang Snatch': 'snatch',
   'No Foot Snatch': 'snatch', 'Hang Power Snatch': 'snatch', 'Tall Snatch': 'snatch',
-  'PP Snatch + OHS': null, 'Hang Snatch + OHS': null, '3-Position Snatch': 'snatch',
+  'PP Snatch + OHS': ['snatch','front_squat'], 'Hang Snatch + OHS': ['snatch','front_squat'], '3-Position Snatch': 'snatch',
   'Hang Clean': 'clean', 'Power Position Clean': 'clean', 'Low Hang Clean': 'clean',
   'No Foot Clean': 'clean', 'Hang Power Clean': 'clean', 'Tall Clean': 'clean',
-  // Complexes: no prKey — weight depends on the limiting lift, enter manually
-  'PP Clean + Press': null, 'PP Clean + Push Press': null, 'Hang Clean + Push Press': null,
-  'PP Clean + Hang Clean': 'clean', 'Hang Clean + Front Squat': null,
-  'PP Clean + Push Press + Front Squat': null, 'Hang Clean + Push Jerk': null,
-  'Low Hang Clean + Pause Jerk': null, '3-Position Clean': 'clean',
-  'Tall Clean + Push Press': null, 'Tall Clean + Press': null,
-  'Clean + Jerk': null, 'Hang Clean + Jerk': null, 'PP Clean + Jerk': null,
+  // Complexes: store BOTH keys as array — runtime picks the min PR
+  'PP Clean + Press': ['clean','press'], 'PP Clean + Push Press': ['clean','push_press'], 'Hang Clean + Push Press': ['clean','push_press'],
+  'PP Clean + Hang Clean': 'clean', 'Hang Clean + Front Squat': ['clean','front_squat'],
+  'PP Clean + Push Press + Front Squat': ['clean','push_press','front_squat'], 'Hang Clean + Push Jerk': ['clean','jerk'],
+  'Low Hang Clean + Pause Jerk': ['clean','jerk'], '3-Position Clean': 'clean',
+  'Tall Clean + Push Press': ['clean','push_press'], 'Tall Clean + Press': ['clean','press'],
+  'Clean + Jerk': ['clean','jerk'], 'Hang Clean + Jerk': ['clean','jerk'], 'PP Clean + Jerk': ['clean','jerk'],
   'Chin Up': 'chin_up', 'Pull Up': 'chin_up',
 }
 
@@ -261,7 +261,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+5',OLY_B1,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
           mkEx('B1','PP Clean + Hang Clean',4,'2+1',OLY_B1,'clean'),
           mkEx('C1','Deadlift',3,'8',STR_B1,'deadlift'),
           mkEx('D1','Nordic Hamstring Curl',3,'8'),
@@ -280,7 +280,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
           mkEx('B1','Hang Clean',4,'2',OLY_B2,'clean'),
           mkEx('C1','Deadlift',4,'5',STR_B2,'deadlift'),
           mkEx('D1','SA KOB Row',3,'8ea'),
@@ -299,7 +299,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
           mkEx('B1','Hang Clean',4,'2',OLY_B3,'clean'),
           mkEx('C1','Deadlift',3,'5',OLY_B3,'deadlift'),
           mkEx('D1','KOB Row',3,'8ea'),
@@ -315,7 +315,7 @@ const TEMPLATES = {
         pctLabel: '65-75%', w1note: '65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',OLY_B1,null),
+          mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',OLY_B1,['snatch','front_squat']),
           mkEx('B1','Bench Press',3,'8',STR_B1,'bench_press'),
           mkEx('C1','Back Squat',3,'8',STR_B1,'back_squat'),
           mkEx('D1','Ipsilateral Split Squat',3,'8ea'),
@@ -323,8 +323,8 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+5',OLY_B1,null),
-          mkEx('B1','PP Clean + Front Squat',4,'3+1',OLY_B1,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
+          mkEx('B1','PP Clean + Front Squat',4,'3+1',OLY_B1,['clean','front_squat']),
           mkEx('C1','Hang Clean High Pull',4,'5',PULL_B1,'clean'),
           mkEx('D1','Chest Supported Row',3,'12'),
           mkEx('D2','Glute Ham Raise',3,'8'),
@@ -334,7 +334,7 @@ const TEMPLATES = {
         pctLabel: '75-85%', w1note: '75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
-          mkEx('A1','Hang Snatch + OHS',4,'2+1',OLY_B2,null),
+          mkEx('A1','Hang Snatch + OHS',4,'2+1',OLY_B2,['snatch','front_squat']),
           mkEx('B1','Bench Press',4,'5',STR_B2,'bench_press'),
           mkEx('C1','Back Squat',4,'5',STR_B2,'back_squat'),
           mkEx('D1','Chin Up',3,'8'),
@@ -342,8 +342,8 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','Hang Clean + Push Press',4,'1+3',OLY_B2,null),
-          mkEx('B1','Hang Clean + Front Squat',4,'2+1',OLY_B2,null),
+          mkEx('A1','Hang Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
+          mkEx('B1','Hang Clean + Front Squat',4,'2+1',OLY_B2,['clean','front_squat']),
           mkEx('C1','PAK Clean Pull',4,'3',PULL_B2,'clean'),
           mkEx('D1','Chainsaw Row',3,'8'),
           mkEx('D2','Split Stance RDL',3,'8ea'),
@@ -361,7 +361,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
           mkEx('B1','Hang Clean',4,'2',OLY_B3,'clean'),
           mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('D1','SA KOB Row',3,'8ea'),
@@ -437,7 +437,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,null),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,['clean','jerk']),
           mkEx('C1','Front Squat',4,'5',FS_B1,'front_squat'),
           mkEx('D1','Chin Up',3,'8'),
           mkEx('D2','Hollow Hold',3,'30sec'),
@@ -446,7 +446,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
-          mkEx('B1','Hang Clean + Push Press',4,'1+3',OLY_B1,null),
+          mkEx('B1','Hang Clean + Push Press',4,'1+3',OLY_B1,['clean','push_press']),
           mkEx('C1','Clean Pull',3,'5',PULL_B1,'clean'),
           mkEx('D1','KB Swing',3,'10'),
           mkEx('D2','SA KOB Row',3,'8ea'),
@@ -458,7 +458,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,null),
+          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,['clean','jerk']),
           mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
           mkEx('D1','Chin Up',3,'8'),
           mkEx('D2','Dead Bug',3,'8'),
@@ -467,7 +467,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [
           WU_A,
           mkEx('A1','Low Hang Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,null),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,['clean','jerk']),
           mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
           mkEx('D1','45-Deg Back Extension',3,'10'),
           mkEx('D2','Chest Supported Row',3,'10'),
@@ -479,7 +479,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,null),
+          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,['clean','jerk']),
           mkEx('C1','Front Squat',4,'3',FS_B3,'front_squat'),
           mkEx('D1','Chin Up',3,'8'),
           mkEx('D2','Hollow Rocks',3,'10'),
@@ -488,7 +488,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [
           WU_A,
           mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Hang Clean + Push Jerk',4,'1+1',OLY_B3,null),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+1',OLY_B3,['clean','jerk']),
           mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('D1','Glute Ham Raise',3,'8'),
           mkEx('D2','Chainsaw Row',3,'8'),
@@ -505,7 +505,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,null),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,['clean','jerk']),
           mkEx('C1','Front Squat',4,'5',FS_B1,'front_squat'),
           mkEx('D1','RFE Split Squat',3,'8ea'),
           mkEx('D2','Chin Up',3,'8'),
@@ -513,7 +513,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
-          mkEx('B1','Hang Clean + Push Press',4,'1+3',OLY_B1,null),
+          mkEx('B1','Hang Clean + Push Press',4,'1+3',OLY_B1,['clean','push_press']),
           mkEx('C1','Clean Pull',3,'5',PULL_B1,'clean'),
           mkEx('D1','DB Bench Press',3,'8'),
           mkEx('D2','Dead Bug',3,'8'),
@@ -524,7 +524,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,null),
+          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,['clean','jerk']),
           mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
           mkEx('D1','Ipsilateral Split Squat',3,'6ea'),
           mkEx('D2','Chin Up',3,'8'),
@@ -532,7 +532,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [
           WU_A,
           mkEx('A1','Low Hang Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,null),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,['clean','jerk']),
           mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
           mkEx('D1','Bench Press',3,'5',STR_B2,'bench_press'),
           mkEx('D2','Hollow Rocks',3,'10'),
@@ -543,7 +543,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,null),
+          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,['clean','jerk']),
           mkEx('C1','Front Squat',4,'3',FS_B3,'front_squat'),
           mkEx('D1','RFE Split Squat',3,'5ea'),
           mkEx('D2','Chin Up',3,'AMAP'),
@@ -551,7 +551,7 @@ const TEMPLATES = {
         dayB: { header: 'B Day', exercises: [
           WU_A,
           mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Hang Clean + Push Jerk',4,'1+1',OLY_B3,null),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+1',OLY_B3,['clean','jerk']),
           mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('D1','Bench Press',4,'5',STR_B3,'bench_press'),
           mkEx('D2','Dragon Flag',3,'8'),
@@ -574,7 +574,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','Hang Clean + Push Press',4,'1+5',OLY_B1,null),
+          mkEx('A1','Hang Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
           mkEx('B1','Clean Pull',3,'5',PULL_B1,'clean'),
           mkEx('C1','45-Deg Back Extension',3,'10'),
           mkEx('C2','SA KOB Row',3,'8ea'),
@@ -602,7 +602,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
           mkEx('B1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
           mkEx('C1','Glute Ham Raise',3,'8'),
           mkEx('C2','Chest Supported Row',3,'10'),
@@ -630,7 +630,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
           mkEx('B1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('C1','Split Stance RDL',3,'8ea'),
           mkEx('C2','Flywheel Row',3,'8ea'),
@@ -663,7 +663,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','Hang Clean + Push Press',4,'1+5',OLY_B1,null),
+          mkEx('A1','Hang Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
           mkEx('B1','Clean Pull',3,'5',PULL_B1,'clean'),
           mkEx('C1','45-Deg Back Extension',3,'10'),
           mkEx('C2','SA KOB Row',3,'8ea'),
@@ -698,7 +698,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
           mkEx('B1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
           mkEx('C1','Glute Ham Raise',3,'8'),
           mkEx('C2','Chest Supported Row',3,'10'),
@@ -733,7 +733,7 @@ const TEMPLATES = {
         ]},
         dayB: { header: 'B Day', exercises: [
           WU_B_pp,
-          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,null),
+          mkEx('A1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
           mkEx('B1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('C1','Split Stance RDL',3,'8ea'),
           mkEx('C2','Flywheel Row',3,'8ea'),
@@ -938,7 +938,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,null),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,['clean','jerk']),
           mkEx('C1','Back Squat',3,'8',STR_B1,'back_squat'),
           mkEx('D1','Chin Up',3,'8'),
         ]},
@@ -960,7 +960,7 @@ const TEMPLATES = {
         dayD: { header: 'D Day — Snatch + Heavy C&J + Pull', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
-          mkEx('B1','Hang Clean + Jerk',5,'2+2',CJ_HEAVY_B1,null),
+          mkEx('B1','Hang Clean + Jerk',5,'2+2',CJ_HEAVY_B1,['clean','jerk']),
           mkEx('C1','Clean Pull',3,'5',PULL_B1,'clean'),
           mkEx('D1','SA KOB Row',3,'8ea'),
           mkEx('D2','Dead Bug',3,'8'),
@@ -971,7 +971,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,null),
+          mkEx('B1','Clean + Jerk',4,'1+2',OLY_B2,['clean','jerk']),
           mkEx('C1','Back Squat',4,'5',STR_B2,'back_squat'),
           mkEx('D1','Chin Up',3,'8'),
         ]},
@@ -993,7 +993,7 @@ const TEMPLATES = {
         dayD: { header: 'D Day — Snatch + Heavy C&J + Pull', exercises: [
           WU_A,
           mkEx('A1','Low Hang Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Hang Clean + Jerk',5,'1+2',CJ_HEAVY_B2,null),
+          mkEx('B1','Hang Clean + Jerk',5,'1+2',CJ_HEAVY_B2,['clean','jerk']),
           mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
           mkEx('D1','Chest Supported Row',3,'10'),
           mkEx('D2','Paloff Press',3,'10ea'),
@@ -1004,7 +1004,7 @@ const TEMPLATES = {
         dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,null),
+          mkEx('B1','Clean + Jerk',4,'1+1',OLY_B3,['clean','jerk']),
           mkEx('C1','Back Squat',4,'5',STR_B3,'back_squat'),
           mkEx('D1','Chin Up',3,'AMAP'),
         ]},
@@ -1026,7 +1026,7 @@ const TEMPLATES = {
         dayD: { header: 'D Day — Snatch + Heavy C&J + Pull', exercises: [
           WU_A,
           mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Hang Clean + Jerk',5,'1+1',CJ_HEAVY_B3,null),
+          mkEx('B1','Hang Clean + Jerk',5,'1+1',CJ_HEAVY_B3,['clean','jerk']),
           mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
           mkEx('D1','Flywheel Row',3,'8ea'),
           mkEx('D2','Dragon Flag',3,'8'),
@@ -1040,7 +1040,7 @@ const TEMPLATES = {
       1: {
         dayA: { header: 'A Day', exercises: [
           mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
-          mkEx('B1','PP Clean + Push Press',4,'1+5',OLY_B1,null),
+          mkEx('B1','PP Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
           mkEx('C1','Hang Clean',4,'3',OLY_B1,'clean'),
           mkEx('D1','PAK Clean Pull + Clean Pull',3,'3',PULL_B1,'clean'),
           mkEx('E1','Nordic Hamstring Curl',3,'8'),
@@ -1049,7 +1049,7 @@ const TEMPLATES = {
       2: {
         dayA: { header: 'A Day', exercises: [
           mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
-          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B2,null),
+          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
           mkEx('C1','Hang Clean',4,'2',OLY_B2,'clean'),
           mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B2,'clean'),
           mkEx('E1','Glute Ham Raise',3,'8'),
@@ -1058,7 +1058,7 @@ const TEMPLATES = {
       3: {
         dayA: { header: 'A Day', exercises: [
           mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
-          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B3,null),
+          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
           mkEx('C1','Hang Clean',4,'2',OLY_B3,'clean'),
           mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B3,'clean'),
           mkEx('E1','Razor Curl',3,'8'),
@@ -1196,7 +1196,13 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const getPR = (aId, tid) => prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
+  const getPR = (aId, tid) => {
+    if (Array.isArray(tid)) {
+      const vals = tid.map(t => prs[aId + '-' + t]).filter(v => v != null)
+      return vals.length === tid.length ? Math.min(...vals) : (vals.length ? Math.min(...vals) : null)
+    }
+    return prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
+  }
 
   const getOverheadPR = (aId) => {
     const vals = ['press', 'push_press', 'jerk', 'overhead'].map(t => getPR(aId, t)).filter(Boolean)
