@@ -1182,7 +1182,7 @@ export default function App() {
   const PKS = [
     ['snatch','Snatch'],['clean','Clean'],['deadlift','Deadlift'],
     ['front_squat','Fr. Squat'],['back_squat','Bk. Squat'],
-    ['bench_press','Bench'],['press','Press'],['push_press','Push Press'],['jerk','Jerk']
+    ['bench_press','Bench'],['press','Press'],['push_press','Push Press'],['_overhead','Overhead']
   ]
 
   const tD = TEMPLATES[tier]
