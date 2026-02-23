@@ -11,38 +11,29 @@ function mkEx(s, e, st, r, p, pk, n) {
   return { series: s, exercise: e, sets: String(st), reps: String(r), pct: p || null, prKey: pk || null, note: n || '' }
 }
 
-// Warmups
 const WU_A = mkEx('WU', 'Tall Snatch + OHS', 1, '5+1', null, null, 'bar')
 const WU_B_pp = mkEx('WU', 'Tall Clean + Push Press', 1, '5+5', null, null, 'bar')
 const WU_B_press = mkEx('WU', 'Tall Clean + Press', 1, '5+5', null, null, 'bar')
 
-// Percentage arrays: [wk1, wk2lo, wk2hi]
-// Strength: B1=60-70, B2=70-80, B3=75-80
 const STR_B1 = [0.60, 0.60, 0.70]
 const STR_B2 = [0.70, 0.70, 0.80]
 const STR_B3 = [0.75, 0.75, 0.80]
-// Front Squat / Push Press same pct as strength
 const FS_B1 = STR_B1
 const FS_B2 = STR_B2
 const FS_B3 = STR_B3
-// Oly: B1=65-75, B2=75-85, B3=75-85
 const OLY_B1 = [0.65, 0.65, 0.75]
 const OLY_B2 = [0.75, 0.75, 0.85]
 const OLY_B3 = [0.75, 0.75, 0.85]
-// Power variations: 55-65
 const PWR_B1 = [0.55, 0.55, 0.65]
 const PWR_B2 = [0.65, 0.65, 0.75]
 const PWR_B3 = [0.70, 0.70, 0.80]
-// Pulls: B1=85-95, B2=95-110, B3=95-120
 const PULL_B1 = [0.85, 0.85, 0.95]
 const PULL_B2 = [0.95, 0.95, 1.10]
 const PULL_B3 = [0.95, 0.95, 1.20]
-// Heavy clean/jerk B1: 70-80
 const CJ_HEAVY_B1 = [0.70, 0.70, 0.80]
 const CJ_HEAVY_B2 = [0.80, 0.80, 0.90]
 const CJ_HEAVY_B3 = [0.80, 0.80, 0.90]
 
-/* ===================== EXERCISE LIBRARY ===================== */
 const LIBRARY = {
   'Snatch': [
     'Hang Snatch','Power Position Snatch','Low Hang Snatch','No Foot Snatch',
@@ -141,34 +132,27 @@ const LIBRARY = {
 }
 const PATTERN_KEYS = Object.keys(LIBRARY)
 
-/* ===================== DEFAULT CELL NOTES ===================== */
 const DEFAULT_CELL_NOTES = {
-  // BEGINNER BLOCK 3 A Day
   'beginner-3-dayA-1-2': '2RM', 'beginner-3-dayA-1-3': 'MAX',
   'beginner-3-dayA-2-2': '3RM', 'beginner-3-dayA-2-3': 'MAX',
   'beginner-3-dayA-3-2': '2RM', 'beginner-3-dayA-3-3': 'MAX',
-  // BEGINNER BLOCK 3 B Day
   'beginner-3-dayB-1-2': '3RM', 'beginner-3-dayB-1-3': 'MAX',
   'beginner-3-dayB-2-2': '2RM', 'beginner-3-dayB-2-3': 'MAX',
   'beginner-3-dayB-3-2': '3RM', 'beginner-3-dayB-3-3': 'MAX',
-  // OLY ATHLETE B1+B2 wk4 RM
   'oly_athlete-1-dayA-1-4': 'RM', 'oly_athlete-1-dayA-2-4': 'RM', 'oly_athlete-1-dayA-3-4': 'RM',
   'oly_athlete-1-dayB-1-4': 'RM', 'oly_athlete-1-dayB-2-4': 'RM', 'oly_athlete-1-dayB-3-4': 'RM',
   'oly_athlete-2-dayA-1-4': 'RM', 'oly_athlete-2-dayA-2-4': 'RM', 'oly_athlete-2-dayA-3-4': 'RM',
   'oly_athlete-2-dayB-1-4': 'RM', 'oly_athlete-2-dayB-2-4': 'RM', 'oly_athlete-2-dayB-3-4': 'RM',
-  // OLY ATHLETE B3
   'oly_athlete-3-dayA-1-2': '2RM', 'oly_athlete-3-dayA-1-3': 'MAX',
   'oly_athlete-3-dayA-2-2': '3RM', 'oly_athlete-3-dayA-2-3': 'MAX',
   'oly_athlete-3-dayA-3-2': '2RM', 'oly_athlete-3-dayA-3-3': 'MAX',
   'oly_athlete-3-dayB-1-2': '2RM', 'oly_athlete-3-dayB-1-3': 'MAX',
   'oly_athlete-3-dayB-2-2': '2RM', 'oly_athlete-3-dayB-2-3': 'MAX',
   'oly_athlete-3-dayB-3-2': '3RM', 'oly_athlete-3-dayB-3-3': 'MAX',
-  // OLY ADV B1+B2 wk4 RM
   'oly_adv-1-dayA-1-4': 'RM', 'oly_adv-1-dayA-2-4': 'RM', 'oly_adv-1-dayA-3-4': 'RM',
   'oly_adv-1-dayB-1-4': 'RM', 'oly_adv-1-dayB-2-4': 'RM', 'oly_adv-1-dayB-3-4': 'RM',
   'oly_adv-2-dayA-1-4': 'RM', 'oly_adv-2-dayA-2-4': 'RM', 'oly_adv-2-dayA-3-4': 'RM',
   'oly_adv-2-dayB-1-4': 'RM', 'oly_adv-2-dayB-2-4': 'RM', 'oly_adv-2-dayB-3-4': 'RM',
-  // OLY ADV B3
   'oly_adv-3-dayA-1-2': '2RM', 'oly_adv-3-dayA-1-3': 'MAX',
   'oly_adv-3-dayA-2-2': '3RM', 'oly_adv-3-dayA-2-3': 'MAX',
   'oly_adv-3-dayA-3-2': '3RM', 'oly_adv-3-dayA-3-3': 'MAX',
@@ -177,9 +161,9 @@ const DEFAULT_CELL_NOTES = {
   'oly_adv-3-dayB-3-3': 'MAX',
 }
 
-/* ===================== TEMPLATES ===================== */
+const ADULT_TEMPLATES = ['adult_oly', 'gpp_2day', 'gpp_3day', 'upper_lower']
+
 const TEMPLATES = {
-  // ── EXISTING THREE ──────────────────────────────────────────
   beginner: {
     label: 'Athlete Beginner', days: ['dayA','dayB'], blocks: {
       1: {
@@ -363,12 +347,11 @@ const TEMPLATES = {
     }
   },
 
-  // ── GPP 2-DAY ───────────────────────────────────────────────
   gpp_2day: {
     label: 'GPP 2-Day', days: ['dayA','dayB'], blocks: {
       1: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Press',3,'8',STR_B1,'bench_press'),
+          mkEx('A1','Press',3,'8',STR_B1,'press'),
           mkEx('B1','Front Squat',3,'8',STR_B1,'front_squat'),
           mkEx('C1','Chin Up',3,'8'),
           mkEx('C2','Split Squat',3,'8ea'),
@@ -386,7 +369,7 @@ const TEMPLATES = {
       },
       2: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Press',4,'5',STR_B2,'bench_press'),
+          mkEx('A1','Press',4,'5',STR_B2,'press'),
           mkEx('B1','Front Squat',4,'3',FS_B2,'front_squat'),
           mkEx('C1','Chin Up',3,'8'),
           mkEx('C2','RFE Split Squat',3,'6ea'),
@@ -404,7 +387,7 @@ const TEMPLATES = {
       },
       3: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Press',4,'5',STR_B3,'bench_press'),
+          mkEx('A1','Press',4,'5',STR_B3,'press'),
           mkEx('B1','Front Squat',4,'3',FS_B3,'front_squat'),
           mkEx('C1','Chin Up',3,'8'),
           mkEx('C2','RFE Split Squat',3,'5ea'),
@@ -423,7 +406,6 @@ const TEMPLATES = {
     }
   },
 
-  // ── ADULT WEIGHTLIFTING 2-DAY ────────────────────────────────
   adult_oly: {
     label: 'Adult Weightlifting 2-Day', days: ['dayA','dayB'], blocks: {
       1: {
@@ -492,7 +474,6 @@ const TEMPLATES = {
     }
   },
 
-  // ── OLYMPIC LIFTING 2-DAY ────────────────────────────────────
   oly_2day: {
     label: 'Olympic Lifting 2-Day', days: ['dayA','dayB'], blocks: {
       1: {
@@ -555,7 +536,6 @@ const TEMPLATES = {
     }
   },
 
-  // ── 3-DAY OLY + POWER ───────────────────────────────────────
   oly_power_3day: {
     label: '3-Day Oly + Power', days: ['dayA','dayB','dayC'], blocks: {
       1: {
@@ -645,7 +625,6 @@ const TEMPLATES = {
     }
   },
 
-  // ── 4-DAY OLY + POWER + PLYO ────────────────────────────────
   oly_power_4day: {
     label: '4-Day Oly + Power + Plyo', days: ['dayA','dayB','dayC','dayD'], blocks: {
       1: {
@@ -756,12 +735,11 @@ const TEMPLATES = {
     }
   },
 
-  // ── GPP 3-DAY ────────────────────────────────────────────────
   gpp_3day: {
     label: 'GPP 3-Day', days: ['dayA','dayB','dayC'], blocks: {
       1: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Press',3,'8',STR_B1,'bench_press'),
+          mkEx('A1','Press',3,'8',STR_B1,'press'),
           mkEx('B1','Front Squat',3,'8',FS_B1,'front_squat'),
           mkEx('C1','Chin Up',3,'8'),
           mkEx('C2','Split Squat',3,'8ea'),
@@ -787,7 +765,7 @@ const TEMPLATES = {
       },
       2: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Press',4,'5',STR_B2,'bench_press'),
+          mkEx('A1','Press',4,'5',STR_B2,'press'),
           mkEx('B1','Front Squat',4,'3',FS_B2,'front_squat'),
           mkEx('C1','Chin Up',3,'8'),
           mkEx('C2','RFE Split Squat',3,'6ea'),
@@ -813,7 +791,7 @@ const TEMPLATES = {
       },
       3: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Press',4,'5',STR_B3,'bench_press'),
+          mkEx('A1','Press',4,'5',STR_B3,'press'),
           mkEx('B1','Front Squat',4,'3',FS_B3,'front_squat'),
           mkEx('C1','Chin Up',3,'AMAP'),
           mkEx('C2','RFE Split Squat',3,'5ea'),
@@ -840,12 +818,11 @@ const TEMPLATES = {
     }
   },
 
-  // ── UPPER / LOWER SPLIT 4-DAY ────────────────────────────────
   upper_lower: {
     label: 'Upper / Lower Split', days: ['dayA','dayB','dayC','dayD'], blocks: {
       1: {
         dayA: { header: 'A Day — Upper Push', exercises: [
-          mkEx('A1','Press',3,'8',STR_B1,'bench_press'),
+          mkEx('A1','Press',3,'8',STR_B1,'press'),
           mkEx('B1','Isohold Lateral Raises',3,'12'),
           mkEx('B2','SA KOB Row',3,'8ea'),
           mkEx('C1','DB Curl',3,'10'),
@@ -859,7 +836,7 @@ const TEMPLATES = {
         ]},
         dayC: { header: 'C Day — Upper Pull', exercises: [
           mkEx('A1','Bench Press',3,'8',STR_B1,'bench_press'),
-          mkEx('B1','Push Press',3,'8',FS_B1,'bench_press'),
+          mkEx('B1','Push Press',3,'8',FS_B1,'push_press'),
           mkEx('B2','Band Pull-Aparts',3,'15'),
           mkEx('C1','Tricep Pushdown',3,'12'),
           mkEx('C2','Dead Bug',3,'8'),
@@ -873,7 +850,7 @@ const TEMPLATES = {
       },
       2: {
         dayA: { header: 'A Day — Upper Push', exercises: [
-          mkEx('A1','Press',4,'5',STR_B2,'bench_press'),
+          mkEx('A1','Press',4,'5',STR_B2,'press'),
           mkEx('B1','TRX Ws',3,'12'),
           mkEx('B2','Chest Supported Row',3,'10'),
           mkEx('C1','DB Hammer Curl',3,'10'),
@@ -887,7 +864,7 @@ const TEMPLATES = {
         ]},
         dayC: { header: 'C Day — Upper Pull', exercises: [
           mkEx('A1','Bench Press',4,'5',STR_B2,'bench_press'),
-          mkEx('B1','Push Press',4,'3',FS_B2,'bench_press'),
+          mkEx('B1','Push Press',4,'3',FS_B2,'push_press'),
           mkEx('B2','YWTs',3,'10'),
           mkEx('C1','Dips',3,'AMAP'),
           mkEx('C2','Copenhagen Plank',3,'20s'),
@@ -901,7 +878,7 @@ const TEMPLATES = {
       },
       3: {
         dayA: { header: 'A Day — Upper Push', exercises: [
-          mkEx('A1','Press',4,'5',STR_B3,'bench_press'),
+          mkEx('A1','Press',4,'5',STR_B3,'press'),
           mkEx('B1','Isohold Lateral Raises',3,'12'),
           mkEx('B2','Flywheel Row',3,'8ea'),
           mkEx('C1','DB Curl',3,'10'),
@@ -915,7 +892,7 @@ const TEMPLATES = {
         ]},
         dayC: { header: 'C Day — Upper Pull', exercises: [
           mkEx('A1','Bench Press',4,'5',STR_B3,'bench_press'),
-          mkEx('B1','Push Press',4,'3',FS_B3,'bench_press'),
+          mkEx('B1','Push Press',4,'3',FS_B3,'push_press'),
           mkEx('B2','Band Pull-Aparts',3,'15'),
           mkEx('C1','Tricep Pushdown',3,'12'),
           mkEx('C2','Dragon Flag',3,'8'),
@@ -930,7 +907,6 @@ const TEMPLATES = {
     }
   },
 
-  // ── OLYMPIC LIFTING 4-DAY ────────────────────────────────────
   oly_4day: {
     label: 'Olympic Lifting 4-Day', days: ['dayA','dayB','dayC','dayD'], blocks: {
       1: {
@@ -953,7 +929,7 @@ const TEMPLATES = {
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch',5,'2+1',OLY_B1,'snatch'),
           mkEx('B1','Push Jerk',5,'3',OLY_B1,'clean'),
-          mkEx('C1','Push Press',4,'5',FS_B1,'bench_press'),
+          mkEx('C1','Push Press',4,'5',FS_B1,'push_press'),
           mkEx('D1','DB Bench Press',3,'8'),
           mkEx('D2','TRX Ws',3,'12'),
         ]},
@@ -986,7 +962,7 @@ const TEMPLATES = {
           WU_A,
           mkEx('A1','Hang Snatch',5,'2',OLY_B2,'snatch'),
           mkEx('B1','Push Jerk',5,'2',OLY_B2,'clean'),
-          mkEx('C1','Push Press',4,'3',FS_B2,'bench_press'),
+          mkEx('C1','Push Press',4,'3',FS_B2,'push_press'),
           mkEx('D1','Bench Press',3,'5',STR_B2,'bench_press'),
           mkEx('D2','Band Pull-Aparts',3,'15'),
         ]},
@@ -1019,7 +995,7 @@ const TEMPLATES = {
           WU_A,
           mkEx('A1','Hang Snatch',5,'2',OLY_B3,'snatch'),
           mkEx('B1','Push Jerk',5,'2',OLY_B3,'clean'),
-          mkEx('C1','Push Press',4,'3',FS_B3,'bench_press'),
+          mkEx('C1','Push Press',4,'3',FS_B3,'push_press'),
           mkEx('D1','DB Bench Press',3,'8'),
           mkEx('D2','YWTs',3,'10'),
         ]},
@@ -1035,12 +1011,11 @@ const TEMPLATES = {
     }
   },
 
-  // ── HIGH SCHOOL TECHNIQUE + SPEED ───────────────────────────
   hs_tech_speed: {
     label: 'HS Technique + Speed', days: ['dayA'], blocks: {
       1: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Acceleration / Change of Direction',"10'", '1'),
+          mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
           mkEx('B1','PP Clean + Push Press',4,'1+5',OLY_B1,'clean'),
           mkEx('C1','Hang Clean',4,'3',OLY_B1,'clean'),
           mkEx('D1','PAK Clean Pull + Clean Pull',3,'3',PULL_B1,'clean'),
@@ -1049,7 +1024,7 @@ const TEMPLATES = {
       },
       2: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Acceleration / Change of Direction',"10'", '1'),
+          mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
           mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B2,'clean'),
           mkEx('C1','Hang Clean',4,'2',OLY_B2,'clean'),
           mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B2,'clean'),
@@ -1058,7 +1033,7 @@ const TEMPLATES = {
       },
       3: {
         dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Acceleration / Change of Direction',"10'", '1'),
+          mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
           mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B3,'clean'),
           mkEx('C1','Hang Clean',4,'2',OLY_B3,'clean'),
           mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B3,'clean'),
@@ -1069,7 +1044,7 @@ const TEMPLATES = {
   },
 }
 
-/* ===================== EXERCISE COMBO INPUT ===================== */
+
 function ExerciseInput({ value, onChange }) {
   const [pattern, setPattern] = useState(() => {
     for (const [p, exs] of Object.entries(LIBRARY)) {
@@ -1123,7 +1098,6 @@ function ExerciseInput({ value, onChange }) {
   )
 }
 
-/* ===================== INLINE EDITABLE FIELD ===================== */
 function EditField({ value, onChange, style = {} }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(value)
@@ -1137,7 +1111,6 @@ function EditField({ value, onChange, style = {} }) {
   return <span onClick={() => setEditing(true)} style={{ cursor: 'pointer', borderBottom: '1px dashed #ccc', ...style }}>{value}</span>
 }
 
-/* ===================== MAIN APP ===================== */
 export default function App() {
   const [athletes, setAthletes] = useState([])
   const [prs, setPrs] = useState({})
@@ -1155,7 +1128,7 @@ export default function App() {
 
   useEffect(() => {
     async function load() {
-      const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').eq('status', 'Active').order('first_name')
+      const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').eq('status', 'active').order('first_name')
       if (error) { setStatus('Error: ' + error.message); return }
       setAthletes(ath)
       setStatus('Fetching PRs...')
@@ -1200,6 +1173,18 @@ export default function App() {
   }, [])
 
   const getPR = (aId, tid) => prs[aId + '-' + tid] || null
+
+  const getOverheadPR = (aId) => {
+    const vals = ['press', 'push_press', 'jerk'].map(t => getPR(aId, t)).filter(Boolean)
+    return vals.length ? Math.max(...vals) : null
+  }
+
+  const PKS = [
+    ['snatch','Snatch'],['clean','Clean'],['deadlift','Deadlift'],
+    ['front_squat','Fr. Squat'],['back_squat','Bk. Squat'],
+    ['bench_press','Bench'],['press','Press'],['push_press','Push Press'],['jerk','Jerk']
+  ]
+
   const tD = TEMPLATES[tier]
   const bD = tD.blocks[block]
   const isOly = !['gpp_2day','gpp_3day','upper_lower'].includes(tier)
@@ -1245,13 +1230,6 @@ export default function App() {
     }, 800)
   }
 
-  const PKS = [
-    ['snatch','Snatch'],['clean','Clean'],['front_squat','Fr. Squat'],
-    ['back_squat','Bk. Squat'],['bench_press','Bench'],['deadlift','Deadlift']
-  ]
-
-  // For multi-day templates, split days across pages
-  // Page 1: first 2 days, Page 2: remaining days
   const page1Days = days.slice(0, 2)
   const page2Days = days.slice(2)
 
@@ -1260,8 +1238,6 @@ export default function App() {
       {status !== 'Ready' && (
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
-
-      {/* CONTROLS */}
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <div style={lbl}>Template</div>
@@ -1317,17 +1293,15 @@ export default function App() {
         </button>
       </div>
 
-      {/* PAGE 1 — first 2 days */}
       <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
         <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
-        <PRBar PKS={PKS} ath={ath} getPR={getPR} />
+        <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} />
         {page1Days.map(dk => (
           <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
             setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
         ))}
       </div>
 
-      {/* PAGE 2 — extra days (C, D) if they exist */}
       {page2Days.length > 0 && (
         <div id="sheet2" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
           <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} compact />
@@ -1354,7 +1328,6 @@ export default function App() {
 
 const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 }
 
-/* ===================== SHEET HEADER ===================== */
 function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: compact ? 4 : 8, paddingBottom: compact ? 4 : 8, borderBottom: '2px solid #111' }}>
@@ -1377,12 +1350,13 @@ function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   )
 }
 
-/* ===================== PR BAR ===================== */
-function PRBar({ PKS, ath, getPR }) {
+function PRBar({ PKS, ath, getPR, getOverheadPR }) {
   return (
     <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
       {PKS.map(([k, lb], idx) => {
-        const v = ath ? getPR(ath.id, k) : null
+        const v = ath
+          ? (k === '_overhead' ? getOverheadPR(ath.id) : getPR(ath.id, k))
+          : null
         return (
           <div key={k} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', borderRight: idx < PKS.length - 1 ? '1px solid #bbb' : 'none' }}>
             <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: '#777' }}>{lb}</div>
@@ -1394,7 +1368,6 @@ function PRBar({ PKS, ath, getPR }) {
   )
 }
 
-/* ===================== DAY TABLE ===================== */
 function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block }) {
   return (
     <div style={{ marginBottom: 10 }}>
@@ -1426,7 +1399,6 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
   )
 }
 
-/* ===================== EXERCISE ROW ===================== */
 function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block }) {
   const pr = ath && ex.prKey ? getPR(ath.id, ex.prKey) : null
   const cellBorder = '1px solid #777'
