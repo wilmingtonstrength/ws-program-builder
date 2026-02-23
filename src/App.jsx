@@ -1296,8 +1296,19 @@ export default function App() {
       {status !== 'Ready' && (
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
-      <div className="no-print" style={{ background: '#f0f8ff', borderBottom: '1px solid #aad', padding: '4px 16px', fontSize: 10, color: '#336', fontFamily: 'monospace' }}>
-        DEBUG — athleteId: {String(athleteId)} | athletes loaded: {athletes.length} | ath found: {ath ? 'YES' : 'NO'} | prs keys: {ath ? (Object.keys(prs).filter(k => k.startsWith(String(ath.id) + '-')).join(', ') || 'NONE') : 'n/a'}
+      <div className="no-print" style={{ background: '#f0f8ff', borderBottom: '1px solid #aad', padding: '4px 16px', fontSize: 10, color: '#336', fontFamily: 'monospace', display: 'flex', gap: 16, alignItems: 'center' }}>
+        <span>prKey for A1: {JSON.stringify(getExs && tier ? (()=>{ try { const e = getExs(TEMPLATES[tier].days[1]); return e[1] ? e[1].prKey : 'no e[1]' } catch(err) { return err.message } })() : 'n/a')}</span>
+        <button onClick={async () => {
+          await sb.from('program_edits').delete().eq('field','prKey')
+          setEdits(prev => {
+            const next = {...prev}
+            Object.keys(next).forEach(k => { if (next[k].prKey !== undefined) delete next[k].prKey })
+            return next
+          })
+          alert('Cleared all prKey edits from DB')
+        }} style={{fontSize:10,padding:'2px 8px',background:'#c00',color:'#fff',border:'none',cursor:'pointer'}}>
+          Clear Stale prKey Edits
+        </button>
       </div>
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
