@@ -132,6 +132,30 @@ const LIBRARY = {
 }
 const PATTERN_KEYS = Object.keys(LIBRARY)
 
+const EXERCISE_PR_KEYS = {
+  'Back Squat': 'back_squat', 'Back Squat HE': 'back_squat',
+  'Front Squat': 'front_squat', 'Front Squat HE': 'front_squat', 'OHS': 'front_squat',
+  'Bench Press': 'bench_press', 'DB Bench Press': 'bench_press',
+  'Deadlift': 'deadlift', 'Sumo Deadlift': 'deadlift', 'Trap Bar Deadlift': 'deadlift',
+  'Press': 'press', 'Behind-the-Neck Press': 'press',
+  'Push Press': 'push_press', 'Behind-the-Neck Push Jerk': 'push_press',
+  'Push Jerk': 'jerk', 'Power Jerk': 'jerk', 'Split Jerk': 'jerk',
+  'Behind-the-Neck Power Jerk': 'jerk', 'Behind-the-Neck Split Jerk': 'jerk',
+  'Hang Snatch': 'snatch', 'Power Position Snatch': 'snatch', 'Low Hang Snatch': 'snatch',
+  'No Foot Snatch': 'snatch', 'Hang Power Snatch': 'snatch', 'Tall Snatch': 'snatch',
+  'PP Snatch + OHS': 'snatch', 'Hang Snatch + OHS': 'snatch', '3-Position Snatch': 'snatch',
+  'Hang Clean': 'clean', 'Power Position Clean': 'clean', 'Low Hang Clean': 'clean',
+  'No Foot Clean': 'clean', 'Hang Power Clean': 'clean', 'Tall Clean': 'clean',
+  'PP Clean + Press': 'clean', 'PP Clean + Push Press': 'clean', 'Hang Clean + Push Press': 'clean',
+  'PP Clean + Hang Clean': 'clean', 'Hang Clean + Front Squat': 'clean',
+  'PP Clean + Push Press + Front Squat': 'clean', 'Hang Clean + Push Jerk': 'clean',
+  'Low Hang Clean + Pause Jerk': 'clean', '3-Position Clean': 'clean',
+  'Tall Clean + Push Press': 'clean', 'Tall Clean + Press': 'clean',
+  'Clean + Jerk': 'clean', 'Hang Clean + Jerk': 'clean', 'PP Clean + Jerk': 'clean',
+  'Hang Clean + Push Press': 'clean', 'Hang Clean + Jerk': 'clean',
+  'Chin Up': 'chin_up', 'Pull Up': 'chin_up',
+}
+
 const DEFAULT_CELL_NOTES = {
   'beginner-3-dayA-1-2': '2RM', 'beginner-3-dayA-1-3': 'MAX',
   'beginner-3-dayA-2-2': '3RM', 'beginner-3-dayA-2-3': 'MAX',
@@ -1134,13 +1158,13 @@ export default function App() {
       setStatus('Fetching PRs...')
       let all = [], from = 0
       while (true) {
-        const { data } = await sb.from('results').select('athlete_id,test_id,converted_value').range(from, from + 499)
+        const { data } = await sb.from('results').select('athlete_id,test_id,converted_value,raw_value').range(from, from + 499)
         if (data) all = [...all, ...data]
         if (!data || data.length < 500) break
         from += 500
       }
       const map = {}
-      all.forEach(r => { const k = r.athlete_id + '-' + r.test_id; const v = parseFloat(r.converted_value); if (!map[k] || v > map[k]) map[k] = v })
+      all.forEach(r => { const k = r.athlete_id + '-' + r.test_id; const v = parseFloat(r.converted_value ?? r.raw_value); if (!isNaN(v) && (!map[k] || v > map[k])) map[k] = v })
       setPrs(map)
       const { data: savedEdits } = await sb.from('program_edits').select('*')
       if (savedEdits && savedEdits.length > 0) {
@@ -1206,6 +1230,20 @@ export default function App() {
 
   const setEdit = (day, i, field, value) => {
     const k = `${tier}-${block}-${day}-${i}`
+    // When exercise name changes, auto-detect and update prKey too
+    if (field === 'exercise') {
+      const detectedKey = EXERCISE_PR_KEYS[value] || null
+      setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), exercise: value, prKey: detectedKey } }))
+      const timerKey = `${k}-exercise`
+      if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
+      saveTimers.current[timerKey] = setTimeout(async () => {
+        setSaving(true)
+        await sb.from('program_edits').upsert({ template: tier, block, day, ex_index: i, field: 'exercise', value, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,field' })
+        await sb.from('program_edits').upsert({ template: tier, block, day, ex_index: i, field: 'prKey', value: detectedKey, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,field' })
+        setSaving(false)
+      }, 800)
+      return
+    }
     setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), [field]: value } }))
     const timerKey = `${k}-${field}`
     if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
