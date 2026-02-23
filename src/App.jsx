@@ -1478,7 +1478,15 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
 }
 
 function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block }) {
-  const pr = ath && ex.prKey ? getPR(ath.id, ex.prKey) : null
+  // For complexes, look up template prKey (array) directly, ignoring any saved string override
+  const templateEx = ath ? (() => {
+    try {
+      const tmplExs = TEMPLATES[tier]?.blocks[block]?.[dk]?.exercises
+      return tmplExs ? tmplExs[i] : null
+    } catch(e) { return null }
+  })() : null
+  const effectivePrKey = (templateEx && Array.isArray(templateEx.prKey)) ? templateEx.prKey : ex.prKey
+  const pr = ath && effectivePrKey ? getPR(ath.id, effectivePrKey) : null
   const cellBorder = '1px solid #777'
   const tdBase = {
     borderBottom: isLast ? '2px solid #111' : '1px solid #999',
