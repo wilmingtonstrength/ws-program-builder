@@ -1203,11 +1203,12 @@ export default function App() {
     return vals.length ? Math.max(...vals) : null
   }
 
-  // For press/push_press/jerk: fall back to legacy 'overhead' if no dedicated entry
+  // For press/push_press/jerk: fall back to best overhead across all variants
   const getOverheadVariantPR = (aId, primaryKey) => {
     const direct = getPR(aId, primaryKey)
     if (direct) return direct
-    return getPR(aId, 'overhead')
+    // Fall back to best across all overhead variants (jerk, press, push_press, overhead)
+    return getOverheadPR(aId)
   }
 
   const PKS = [
