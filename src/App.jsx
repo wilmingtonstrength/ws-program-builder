@@ -1179,6 +1179,13 @@ export default function App() {
     return vals.length ? Math.max(...vals) : null
   }
 
+  // For press/push_press/jerk: fall back to legacy 'overhead' if no dedicated entry
+  const getOverheadVariantPR = (aId, primaryKey) => {
+    const direct = getPR(aId, primaryKey)
+    if (direct) return direct
+    return getPR(aId, 'overhead')
+  }
+
   const PKS = [
     ['snatch','Snatch'],['clean','Clean'],['deadlift','Deadlift'],
     ['front_squat','Fr. Squat'],['back_squat','Bk. Squat'],
@@ -1295,7 +1302,7 @@ export default function App() {
 
       <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
         <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
-        <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} />
+        <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
         {page1Days.map(dk => (
           <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
             setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
@@ -1350,12 +1357,14 @@ function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   )
 }
 
-function PRBar({ PKS, ath, getPR, getOverheadPR }) {
+function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
   return (
     <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
       {PKS.map(([k, lb], idx) => {
         const v = ath
-          ? (k === '_overhead' ? getOverheadPR(ath.id) : getPR(ath.id, k))
+          ? (k === '_overhead' ? getOverheadPR(ath.id)
+            : (k === 'press' || k === 'push_press' || k === 'jerk') ? getOverheadVariantPR(ath.id, k)
+            : getPR(ath.id, k))
           : null
         return (
           <div key={k} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', borderRight: idx < PKS.length - 1 ? '1px solid #bbb' : 'none' }}>
@@ -1399,17 +1408,8 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
   )
 }
 
-// For complexes, the limiting lift governs the load — not the first exercise in the name.
-// Priority: jerk > push press > press (non-bench) > fall back to whatever prKey was set.
-function getLimitingPrKey(exName, defaultPrKey) {
-  const name = exName.toLowerCase()
-  if (name.includes('jerk')) return 'jerk'
-  if (name.includes('push press')) return 'push_press'
-  if (name.includes('press') && !name.includes('bench')) return 'press'
-  return defaultPrKey
-}
-
 function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block }) {
+  const pr = ath && ex.prKey ? getPR(ath.id, ex.prKey) : null
   const cellBorder = '1px solid #777'
   const tdBase = {
     borderBottom: isLast ? '2px solid #111' : '1px solid #999',
@@ -1421,13 +1421,10 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
 
   const getHint = (wk) => {
     if (!ex.pct) return ''
-    // Use the limiting lift's PR, not necessarily the clean (first exercise in complex)
-    const effectivePrKey = getLimitingPrKey(ex.exercise, ex.prKey)
-    const effectivePr = ath && effectivePrKey ? getPR(ath.id, effectivePrKey) : null
-    if (wk === 1) return effectivePr ? r5(effectivePr * ex.pct[0]) + ' lbs' : Math.round(ex.pct[0] * 100) + '%'
+    if (wk === 1) return pr ? r5(pr * ex.pct[0]) + ' lbs' : Math.round(ex.pct[0] * 100) + '%'
     if (wk === 2 || wk === 3) {
-      if (effectivePr) {
-        const lo = r5(effectivePr * ex.pct[1]), hi = r5(effectivePr * ex.pct[2])
+      if (pr) {
+        const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
         return lo === hi ? lo + ' lbs' : lo + '–' + hi
       }
       const lo = Math.round(ex.pct[1] * 100), hi = Math.round(ex.pct[2] * 100)
