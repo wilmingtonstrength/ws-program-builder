@@ -1172,7 +1172,7 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const getPR = (aId, tid) => prs[aId + '-' + tid] || null
+  const getPR = (aId, tid) => prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
 
   const getOverheadPR = (aId) => {
     const vals = ['press', 'push_press', 'jerk', 'overhead'].map(t => getPR(aId, t)).filter(Boolean)
