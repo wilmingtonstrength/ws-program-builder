@@ -1128,7 +1128,7 @@ export default function App() {
 
   useEffect(() => {
     async function load() {
-      const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').eq('status', 'active').order('first_name')
+      const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').in('status', ['active', 'Active']).order('first_name')
       if (error) { setStatus('Error: ' + error.message); return }
       setAthletes(ath)
       setStatus('Fetching PRs...')
