@@ -1283,6 +1283,11 @@ export default function App() {
       {status !== 'Ready' && (
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
+      {ath && (
+        <div className="no-print" style={{ background: '#f0f8ff', borderBottom: '1px solid #aad', padding: '4px 16px', fontSize: 10, color: '#336', fontFamily: 'monospace' }}>
+          DEBUG — athlete id: {ath.id} (type: {typeof ath.id}) | prs keys with this id: {Object.keys(prs).filter(k => k.startsWith(ath.id + '-')).join(', ') || 'NONE FOUND'}
+        </div>
+      )}
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <div style={lbl}>Template</div>
