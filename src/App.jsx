@@ -1617,7 +1617,6 @@ function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
       {PKS.map(([k, lb], idx) => {
         const v = ath
           ? (k === '_overhead' ? getOverheadPR(ath.id)
-            : (k === 'press' || k === 'push_press' || k === 'jerk') ? getOverheadVariantPR(ath.id, k)
             : getPR(ath.id, k))
           : null
         return (
