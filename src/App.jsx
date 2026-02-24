@@ -152,16 +152,25 @@ const EXERCISE_PR_KEYS = {
   'Behind-the-Neck Power Jerk': 'jerk', 'Behind-the-Neck Split Jerk': 'jerk',
   'Hang Snatch': 'snatch', 'Power Position Snatch': 'snatch', 'Low Hang Snatch': 'snatch',
   'No Foot Snatch': 'snatch', 'Hang Power Snatch': 'snatch', 'Tall Snatch': 'snatch',
-  'PP Snatch + OHS': ['snatch','front_squat'], 'Hang Snatch + OHS': ['snatch','front_squat'], '3-Position Snatch': 'snatch',
+  'PP Snatch + OHS': ['snatch','front_squat'], 'Hang Snatch + OHS': ['snatch','front_squat'], 'Tall Snatch + OHS': ['snatch','front_squat'], '3-Position Snatch': 'snatch',
   'Hang Clean': 'clean', 'Power Position Clean': 'clean', 'Low Hang Clean': 'clean',
   'No Foot Clean': 'clean', 'Hang Power Clean': 'clean', 'Tall Clean': 'clean',
-  // Complexes: store BOTH keys as array — runtime picks the min PR
-  'PP Clean + Press': ['clean','press'], 'PP Clean + Push Press': ['clean','push_press'], 'Hang Clean + Push Press': ['clean','push_press'],
-  'PP Clean + Hang Clean': 'clean', 'Hang Clean + Front Squat': ['clean','front_squat'],
-  'PP Clean + Push Press + Front Squat': ['clean','push_press','front_squat'], 'Hang Clean + Push Jerk': ['clean','jerk'],
-  'Low Hang Clean + Pause Jerk': ['clean','jerk'], '3-Position Clean': 'clean',
-  'Tall Clean + Push Press': ['clean','push_press'], 'Tall Clean + Press': ['clean','press'],
-  'Clean + Jerk': ['clean','jerk'], 'Hang Clean + Jerk': ['clean','jerk'], 'PP Clean + Jerk': ['clean','jerk'],
+  // Complexes: array of keys — runtime picks the MIN across all that exist
+  // Overhead variants include press/push_press/jerk/overhead so legacy data is found
+  'PP Clean + Press': ['clean','press','push_press','jerk','overhead'],
+  'PP Clean + Push Press': ['clean','press','push_press','jerk','overhead'],
+  'Hang Clean + Push Press': ['clean','press','push_press','jerk','overhead'],
+  'PP Clean + Hang Clean': 'clean',
+  'Hang Clean + Front Squat': ['clean','front_squat'],
+  'PP Clean + Push Press + Front Squat': ['clean','press','push_press','jerk','overhead','front_squat'],
+  'Hang Clean + Push Jerk': ['clean','press','push_press','jerk','overhead'],
+  'Low Hang Clean + Pause Jerk': ['clean','press','push_press','jerk','overhead'],
+  '3-Position Clean': 'clean',
+  'Tall Clean + Push Press': ['clean','press','push_press','jerk','overhead'],
+  'Tall Clean + Press': ['clean','press','push_press','jerk','overhead'],
+  'Clean + Jerk': ['clean','press','push_press','jerk','overhead'],
+  'Hang Clean + Jerk': ['clean','press','push_press','jerk','overhead'],
+  'PP Clean + Jerk': ['clean','press','push_press','jerk','overhead'],
   'Chin Up': 'chin_up', 'Pull Up': 'chin_up',
 }
 
@@ -1216,8 +1225,18 @@ export default function App() {
 
   const getPR = (aId, tid) => {
     if (Array.isArray(tid)) {
-      const vals = tid.map(t => prs[aId + '-' + t]).filter(v => v != null)
-      return vals.length === tid.length ? Math.min(...vals) : (vals.length ? Math.min(...vals) : null)
+      // Split into clean/squat keys vs overhead keys
+      const overheadKeys = ['press','push_press','jerk','overhead']
+      const structuralKeys = tid.filter(t => !overheadKeys.includes(t))
+      const ohKeys = tid.filter(t => overheadKeys.includes(t))
+      // Get best available overhead value (max across jerk/press/push_press/overhead)
+      const ohVals = ohKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
+      const bestOH = ohVals.length ? Math.max(...ohVals) : null
+      // Get structural values (clean, front_squat, etc)
+      const structVals = structuralKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
+      // Min of best overhead vs structural lifts
+      const all = [...structVals, ...(bestOH ? [bestOH] : [])]
+      return all.length ? Math.min(...all) : null
     }
     return prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
   }
@@ -1645,14 +1664,10 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
 }
 
 function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library }) {
-  // For complexes, look up template prKey (array) directly, ignoring any saved string override
-  const templateEx = ath ? (() => {
-    try {
-      const tmplExs = TEMPLATES[tier]?.blocks[block]?.[dk]?.exercises
-      return tmplExs ? tmplExs[i] : null
-    } catch(e) { return null }
-  })() : null
-  const effectivePrKey = (templateEx && Array.isArray(templateEx.prKey)) ? templateEx.prKey : ex.prKey
+  // Always derive prKey from EXERCISE_PR_KEYS — never trust saved edits for prKey
+  const effectivePrKey = EXERCISE_PR_KEYS[ex.exercise] !== undefined
+    ? EXERCISE_PR_KEYS[ex.exercise]
+    : ex.prKey
   const pr = ath && effectivePrKey ? getPR(ath.id, effectivePrKey) : null
   const cellBorder = '1px solid #777'
   const tdBase = {
