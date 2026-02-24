@@ -1313,9 +1313,19 @@ export default function App() {
       {status !== 'Ready' && (
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
+      <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', display: 'flex' }}>
+        {[['builder','Program Builder'],['library','Manage Library']].map(([t,label]) => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: '10px 20px', border: 'none', borderBottom: t === tab ? '3px solid #111' : '3px solid transparent',
+            background: 'transparent', fontWeight: t === tab ? 800 : 400, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', letterSpacing: 1, textTransform: 'uppercase'
+          }}>{label}</button>
+        ))}
+      </div>
       {tab === 'library' ? (
         <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
       ) : (
+      <div>
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <div style={lbl}>Template</div>
@@ -1400,7 +1410,7 @@ export default function App() {
           #sheet2 { page-break-before: always; }
         }
       `}</style>
-    </div>
+      </div>
       )}
     </div>
   )
@@ -1581,10 +1591,8 @@ function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
 }
 
 function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
-  const debugOverhead = ath ? `ovhPR=${getOverheadPR(ath.id)} variantPress=${getOverheadVariantPR(ath.id,'press')} variantPP=${getOverheadVariantPR(ath.id,'push_press')}` : 'no ath'
   return (
     <div>
-    <div style={{fontSize:9,color:'red',padding:'2px 4px',fontFamily:'monospace'}}>{debugOverhead}</div>
     <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
       {PKS.map(([k, lb], idx) => {
         const v = ath
