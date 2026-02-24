@@ -39,27 +39,36 @@ const LIBRARY = {
     'Hang Snatch','Power Position Snatch','Low Hang Snatch','No Foot Snatch',
     'No Foot No Hook Snatch','Pause at Knee Snatch','Hang Power Snatch',
     'Power Position Power Snatch','Low Hang Power Snatch','Tall Snatch',
-    'PP Snatch + OHS','Hang Snatch + OHS','3-Position Snatch',
+    '3-Position Snatch',
+    // Snatch complexes
+    'PP Snatch + Hang Snatch','PP Snatch + OHS','Hang Snatch + OHS',
+    'Tall Snatch + OHS','PP Snatch + Hang Snatch + OHS',
   ],
   'Clean': [
     'Hang Clean','Power Position Clean','Low Hang Clean','No Foot Clean',
     'No Foot No Hook Clean','Pause at Knee Clean','Hang Power Clean',
     'Power Position Power Clean','Low Hang Power Clean','Tall Clean',
+    '3-Position Clean',
+    // Clean-only complexes
+    'PP Clean + Hang Clean','PAK Clean Pull + Clean Pull',
   ],
   'Jerk': [
-    'Push Jerk','Power Jerk','Split Jerk','Push Press',
+    'Push Jerk','Power Jerk','Split Jerk',
     'Behind-the-Neck Push Jerk','Behind-the-Neck Power Jerk','Behind-the-Neck Split Jerk',
     'Pause Jerk','Tall Jerk',
-  ],
-  'Complex': [
-    'PP Snatch + OHS','PP Snatch + Hang Snatch','Hang Snatch + OHS',
-    'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
-    'PP Clean + Hang Clean','Hang Clean + Front Squat',
-    'PP Clean + Push Press + Front Squat','Hang Clean + Push Jerk',
-    'Low Hang Clean + Pause Jerk','PAK Clean Pull + Clean Pull',
-    '3-Position Clean','3-Position Snatch',
-    'Tall Snatch + OHS','Tall Clean + Push Press','Tall Clean + Press',
+    // Clean + Jerk complexes (jerk is limiting lift)
     'Clean + Jerk','Hang Clean + Jerk','PP Clean + Jerk',
+    'Hang Clean + Push Jerk','Low Hang Clean + Pause Jerk',
+  ],
+  'Overhead': [
+    'Press','Push Press',
+    'Behind-the-Neck Press',
+    'SA KB Overhead Press','Double KB Overhead Press',
+    'SA KB Push Press','Double KB Push Press',
+    // Clean + overhead complexes (overhead is limiting lift)
+    'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
+    'PP Clean + Push Press + Front Squat',
+    'Tall Clean + Push Press','Tall Clean + Press',
   ],
   'Squat': [
     'Front Squat','Back Squat','Goblet Squat','OHS',
@@ -1069,9 +1078,10 @@ const TEMPLATES = {
 }
 
 
-function ExerciseInput({ value, onChange }) {
+function ExerciseInput({ value, onChange, library: libProp }) {
+  const lib = libProp || LIBRARY
   const [pattern, setPattern] = useState(() => {
-    for (const [p, exs] of Object.entries(LIBRARY)) {
+    for (const [p, exs] of Object.entries(lib)) {
       if (exs.includes(value)) return p
     }
     return ''
@@ -1088,10 +1098,10 @@ function ExerciseInput({ value, onChange }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handlePatternChange = (p) => { setPattern(p); setFiltered(LIBRARY[p] || []); setShowDrop(true); setText('') }
+  const handlePatternChange = (p) => { setPattern(p); setFiltered(lib[p] || []); setShowDrop(true); setText('') }
   const handleTextChange = (e) => {
     const v = e.target.value; setText(v); onChange(v)
-    if (pattern) { setFiltered((LIBRARY[pattern] || []).filter(ex => ex.toLowerCase().includes(v.toLowerCase()))); setShowDrop(true) }
+    if (pattern) { setFiltered((lib[pattern] || []).filter(ex => ex.toLowerCase().includes(v.toLowerCase()))); setShowDrop(true) }
   }
   const handleSelect = (ex) => { setText(ex); onChange(ex); setShowDrop(false) }
 
@@ -1100,7 +1110,7 @@ function ExerciseInput({ value, onChange }) {
       <select value={pattern} onChange={e => handlePatternChange(e.target.value)}
         style={{ fontSize: 8, color: '#aaa', border: 'none', background: 'transparent', padding: '0 0 1px 0', cursor: 'pointer', width: '100%', outline: 'none' }}>
         <option value="">— pattern —</option>
-        {PATTERN_KEYS.map(p => <option key={p} value={p}>{p}</option>)}
+        {Object.keys(lib).map(p => <option key={p} value={p}>{p}</option>)}
       </select>
       <input type="text" value={text} onChange={handleTextChange}
         onFocus={() => { if (pattern) { setFiltered(LIBRARY[pattern] || []); setShowDrop(true) } }}
@@ -1139,6 +1149,7 @@ export default function App() {
   const [athletes, setAthletes] = useState([])
   const [prs, setPrs] = useState({})
   const [athleteId, setAthleteId] = useState(null)
+  const [tab, setTab] = useState('builder')
   const [tier, setTier] = useState('beginner')
   const [block, setBlock] = useState(1)
   const [search, setSearch] = useState('')
@@ -1147,6 +1158,12 @@ export default function App() {
   const [edits, setEdits] = useState({})
   const [cellNotes, setCellNotes] = useState({ ...DEFAULT_CELL_NOTES })
   const [saving, setSaving] = useState(false)
+  const [library, setLibrary] = useState(() => {
+    // Deep copy LIBRARY so we can mutate
+    const copy = {}
+    Object.entries(LIBRARY).forEach(([k,v]) => { copy[k] = [...v] })
+    return copy
+  })
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
@@ -1296,20 +1313,9 @@ export default function App() {
       {status !== 'Ready' && (
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
-      <div className="no-print" style={{ background: '#f0f8ff', borderBottom: '1px solid #aad', padding: '4px 16px', fontSize: 10, color: '#336', fontFamily: 'monospace', display: 'flex', gap: 16, alignItems: 'center' }}>
-        <span>prKey for A1: {JSON.stringify(getExs && tier ? (()=>{ try { const e = getExs(TEMPLATES[tier].days[1]); return e[1] ? e[1].prKey : 'no e[1]' } catch(err) { return err.message } })() : 'n/a')}</span>
-        <button onClick={async () => {
-          await sb.from('program_edits').delete().eq('field','prKey')
-          setEdits(prev => {
-            const next = {...prev}
-            Object.keys(next).forEach(k => { if (next[k].prKey !== undefined) delete next[k].prKey })
-            return next
-          })
-          alert('Cleared all prKey edits from DB')
-        }} style={{fontSize:10,padding:'2px 8px',background:'#c00',color:'#fff',border:'none',cursor:'pointer'}}>
-          Clear Stale prKey Edits
-        </button>
-      </div>
+      {tab === 'library' ? (
+        <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
+      ) : (
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
           <div style={lbl}>Template</div>
@@ -1370,7 +1376,7 @@ export default function App() {
         <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
         {page1Days.map(dk => (
           <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
-            setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
+            setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library} />
         ))}
       </div>
 
@@ -1395,10 +1401,162 @@ export default function App() {
         }
       `}</style>
     </div>
+      )}
+    </div>
   )
 }
 
 const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 }
+
+const CATEGORY_PR_KEYS = {
+  'Snatch': 'snatch',
+  'Clean': 'clean',
+  'Jerk': 'jerk',
+  'Overhead': 'push_press',
+  'Squat': null,
+  'Pulls / Hinge': 'deadlift',
+  'Horizontal Press': 'bench_press',
+}
+
+function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
+  const [selectedCat, setSelectedCat] = useState(Object.keys(library)[0])
+  const [newExercise, setNewExercise] = useState('')
+  const [newCategory, setNewCategory] = useState('')
+  const [addingCat, setAddingCat] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 2500) }
+
+  const addExercise = async () => {
+    const ex = newExercise.trim()
+    if (!ex || !selectedCat) return
+    const updated = { ...library, [selectedCat]: [...(library[selectedCat] || []), ex] }
+    setLibrary(updated)
+    setNewExercise('')
+    setSaving(true)
+    await sb.from('library_exercises').upsert({ category: selectedCat, exercise: ex }, { onConflict: 'category,exercise' })
+    setSaving(false)
+    flash(`Added "${ex}" to ${selectedCat}`)
+  }
+
+  const removeExercise = async (cat, ex) => {
+    const updated = { ...library, [cat]: library[cat].filter(e => e !== ex) }
+    setLibrary(updated)
+    setSaving(true)
+    await sb.from('library_exercises').delete().eq('category', cat).eq('exercise', ex)
+    setSaving(false)
+    flash(`Removed "${ex}"`)
+  }
+
+  const moveExercise = async (ex, fromCat, toCat) => {
+    if (fromCat === toCat) return
+    const updated = {
+      ...library,
+      [fromCat]: library[fromCat].filter(e => e !== ex),
+      [toCat]: [...(library[toCat] || []), ex]
+    }
+    setLibrary(updated)
+    setSaving(true)
+    await sb.from('library_exercises').delete().eq('category', fromCat).eq('exercise', ex)
+    await sb.from('library_exercises').upsert({ category: toCat, exercise: ex }, { onConflict: 'category,exercise' })
+    setSaving(false)
+    flash(`Moved "${ex}" to ${toCat}`)
+  }
+
+  const addCategory = async () => {
+    const cat = newCategory.trim()
+    if (!cat || library[cat]) return
+    const updated = { ...library, [cat]: [] }
+    setLibrary(updated)
+    setSelectedCat(cat)
+    setNewCategory('')
+    setAddingCat(false)
+    setSaving(true)
+    await sb.from('library_categories').upsert({ category: cat }, { onConflict: 'category' })
+    setSaving(false)
+    flash(`Created category "${cat}"`)
+  }
+
+  const cats = Object.keys(library)
+
+  return (
+    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
+      {/* Sidebar */}
+      <div style={{ width: 200, borderRight: '2px solid #111', background: '#fafafa', overflowY: 'auto', flexShrink: 0 }}>
+        <div style={{ padding: '8px 12px', fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#555', borderBottom: '1px solid #ddd' }}>
+          Categories
+        </div>
+        {cats.map(cat => (
+          <div key={cat} onClick={() => setSelectedCat(cat)}
+            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eee',
+              background: selectedCat === cat ? '#111' : 'transparent',
+              color: selectedCat === cat ? '#fff' : '#111',
+              fontWeight: selectedCat === cat ? 700 : 400 }}>
+            <div>{cat}</div>
+            <div style={{ fontSize: 10, color: selectedCat === cat ? '#aaa' : '#999' }}>{(library[cat] || []).length} exercises</div>
+          </div>
+        ))}
+        <div style={{ padding: 8 }}>
+          {addingCat ? (
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input autoFocus value={newCategory} onChange={e => setNewCategory(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addCategory(); if (e.key === 'Escape') setAddingCat(false) }}
+                placeholder="Category name" style={{ flex: 1, border: '1px solid #bbb', padding: '4px 6px', fontSize: 11, fontFamily: 'inherit' }} />
+              <button onClick={addCategory} style={{ background: '#111', color: '#fff', border: 'none', padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>+</button>
+            </div>
+          ) : (
+            <button onClick={() => setAddingCat(true)}
+              style={{ width: '100%', background: 'transparent', border: '1px dashed #bbb', padding: '5px 8px', cursor: 'pointer', fontSize: 11, color: '#666' }}>
+              + Add Category
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{selectedCat}</h2>
+          {msg && <span style={{ fontSize: 11, color: '#090', background: '#e8ffe8', padding: '2px 8px', borderRadius: 3 }}>{msg}</span>}
+          {saving && <span style={{ fontSize: 11, color: '#999' }}>Saving...</span>}
+        </div>
+
+        {/* Add exercise bar */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <input value={newExercise} onChange={e => setNewExercise(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addExercise() }}
+            placeholder={`Add exercise to ${selectedCat}...`}
+            style={{ flex: 1, border: '1.5px solid #bbb', padding: '7px 10px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }} />
+          <button onClick={addExercise}
+            style={{ background: '#111', color: '#fff', border: 'none', padding: '7px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'inherit' }}>
+            Add
+          </button>
+        </div>
+
+        {/* Exercise list */}
+        <div style={{ border: '1px solid #ddd' }}>
+          {(library[selectedCat] || []).length === 0 && (
+            <div style={{ padding: '20px', color: '#aaa', textAlign: 'center', fontStyle: 'italic' }}>No exercises yet</div>
+          )}
+          {(library[selectedCat] || []).map((ex, idx) => (
+            <div key={ex} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+              <span style={{ flex: 1, fontWeight: 500 }}>{ex}</span>
+              <select defaultValue="" onChange={e => { if (e.target.value) moveExercise(ex, selectedCat, e.target.value) }}
+                style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 4px', marginRight: 8, fontFamily: 'inherit', color: '#555', background: '#fff' }}>
+                <option value="">Move to...</option>
+                {cats.filter(c => c !== selectedCat).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button onClick={() => removeExercise(selectedCat, ex)}
+                style={{ background: 'none', border: 'none', color: '#c00', cursor: 'pointer', fontSize: 14, fontWeight: 700, padding: '0 4px', lineHeight: 1 }}>
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   return (
@@ -1446,7 +1604,7 @@ function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
   )
 }
 
-function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block }) {
+function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>
@@ -1469,7 +1627,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
           {exs.map((ex, i) => (
             <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit}
               isLast={i === exs.length - 1} isWU={ex.series === 'WU'}
-              cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
+              cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library} />
           ))}
         </tbody>
       </table>
@@ -1477,7 +1635,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
   )
 }
 
-function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block }) {
+function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library }) {
   // For complexes, look up template prKey (array) directly, ignoring any saved string override
   const templateEx = ath ? (() => {
     try {
@@ -1546,7 +1704,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
         <EditField value={ex.series} onChange={v => setEdit(dk, i, 'series', v)} style={{ fontSize: 10, fontWeight: 800, color: isWU ? '#bbb' : '#111' }} />
       </td>
       <td style={{ ...tdBase, borderRight: cellBorder, padding: '4px 6px' }}>
-        <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} />
+        <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
         <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
