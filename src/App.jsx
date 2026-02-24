@@ -1187,6 +1187,7 @@ export default function App() {
       if (savedEdits && savedEdits.length > 0) {
         const editMap = {}
         savedEdits.forEach(r => {
+          if (r.field === 'prKey') return // prKey always comes from template, never from saved edits
           const k = `${r.template}-${r.block}-${r.day}-${r.ex_index}`
           if (!editMap[k]) editMap[k] = {}
           editMap[k][r.field] = r.value
@@ -1269,7 +1270,7 @@ export default function App() {
       saveTimers.current[timerKey] = setTimeout(async () => {
         setSaving(true)
         await sb.from('program_edits').upsert({ template: tier, block, day, ex_index: i, field: 'exercise', value, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,field' })
-        await sb.from('program_edits').upsert({ template: tier, block, day, ex_index: i, field: 'prKey', value: detectedKey, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,field' })
+        // Do NOT save prKey — it always derives from the template at runtime
         setSaving(false)
       }, 800)
       return
