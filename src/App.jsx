@@ -34,6 +34,34 @@ const CJ_HEAVY_B1 = [0.70, 0.70, 0.80]
 const CJ_HEAVY_B2 = [0.80, 0.80, 0.90]
 const CJ_HEAVY_B3 = [0.80, 0.80, 0.90]
 
+const DEFAULT_BLOCK_RANGES = {
+  1: { STR: [60, 60, 70], OLY: [65, 65, 75], PULL: [85, 85, 95], PWR: [55, 55, 65] },
+  2: { STR: [70, 70, 80], OLY: [75, 75, 85], PULL: [95, 95, 110], PWR: [65, 65, 75] },
+  3: { STR: [75, 75, 80], OLY: [75, 75, 85], PULL: [95, 95, 120], PWR: [70, 70, 80] },
+}
+
+function detectPctCategory(name) {
+  if (!name) return null
+  const n = name.toLowerCase()
+  // Pulls first (before oly check since they contain clean/snatch keywords)
+  if ((n.includes('pull') || n.includes('high pull')) && (n.includes('clean') || n.includes('snatch'))) return 'PULL'
+  // Power variants
+  if (n.includes('power') && (n.includes('snatch') || n.includes('clean'))) return 'PWR'
+  // Olympic lifts
+  if (n.includes('snatch') || n.includes('clean') || n.includes('jerk')) return 'OLY'
+  if (['front squat','front squat he','push press','ohs',
+       'sa kb push press','double kb push press'].includes(n)) return 'OLY'
+  // Complexes with overhead
+  if (n.includes('tall clean') || n.includes('pp clean')) return 'OLY'
+  // Strength
+  if (['back squat','back squat he','deadlift','sumo deadlift','trap bar deadlift',
+       'bench press','press','behind-the-neck press','db bench press'].includes(n)) return 'STR'
+  return null
+}
+
+const PCT_CAT_LABELS = { STR: 'Strength', OLY: 'Olympic', PULL: 'Pulls', PWR: 'Power' }
+const PCT_CAT_COLORS = { STR: '#2266aa', OLY: '#aa6600', PULL: '#666', PWR: '#8833aa' }
+
 const LIBRARY = {
   'Snatch': [
     'Hang Snatch','Power Position Snatch','Low Hang Snatch','No Foot Snatch',
@@ -1622,23 +1650,39 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   const [label, setLabel] = useState('')
   const [days, setDays] = useState(['dayA','dayB'])
   const [dayHeaders, setDayHeaders] = useState({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' })
-  const [blocks, setBlocks] = useState({ 1:{}, 2:{}, 3:{} })
+  const [blocks, setBlocks] = useState(() => {
+    const b = {}
+    ;[1,2,3].forEach(n => { b[n] = { pctLabel:'', w1note:'', ranges: JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[n])) } })
+    return b
+  })
   const [editBlock, setEditBlock] = useState(1)
   const [msg, setMsg] = useState('')
   const [copyFrom, setCopyFrom] = useState('')
   const [editingId, setEditingId] = useState(null)
 
   const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
-
   const DAY_OPTIONS = ['dayA','dayB','dayC','dayD']
   const DAY_LABELS = { dayA:'A', dayB:'B', dayC:'C', dayD:'D' }
-
   const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,30)
+  const CATS = ['STR','OLY','PULL','PWR']
 
   const resetForm = () => {
     setTemplateId(''); setLabel(''); setDays(['dayA','dayB'])
     setDayHeaders({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' })
-    setBlocks({ 1:{}, 2:{}, 3:{} }); setEditBlock(1); setCopyFrom(''); setEditingId(null)
+    const b = {}
+    ;[1,2,3].forEach(n => { b[n] = { pctLabel:'', w1note:'', ranges: JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[n])) } })
+    setBlocks(b); setEditBlock(1); setCopyFrom(''); setEditingId(null)
+  }
+
+  // Reverse-detect category from a pct array [w1, w2lo, w2hi] (values 0-1) and block ranges
+  const reverseDetectCat = (pctArr, blockRanges) => {
+    if (!pctArr || pctArr.length < 3) return null
+    const pctInts = pctArr.map(p => Math.round(p * 100))
+    for (const cat of CATS) {
+      const r = blockRanges[cat]
+      if (r && r[0] === pctInts[0] && r[1] === pctInts[1] && r[2] === pctInts[2]) return cat
+    }
+    return null
   }
 
   const loadTemplate = (key) => {
@@ -1649,96 +1693,172 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     setTemplateId(slugify(t.label) + '_copy')
     setDays([...t.days])
     const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
-    Object.keys(t.blocks).forEach(b => {
-      t.days.forEach(d => { if (t.blocks[b][d]?.header) dh[d] = t.blocks[b][d].header })
-    })
-    setDayHeaders(dh)
+    // Build block ranges from DEFAULT_BLOCK_RANGES, then try to detect from exercises
     const bks = {}
     ;[1,2,3].forEach(b => {
-      bks[b] = { pctLabel: t.blocks[b]?.pctLabel || '', w1note: t.blocks[b]?.w1note || '' }
-      t.days.forEach(d => {
-        const dayData = t.blocks[b]?.[d]
-        if (dayData) {
-          bks[b][d] = dayData.exercises.map(ex => ({
-            series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
-            pct: ex.pct ? ex.pct.map(p => Math.round(p*100)) : null,
-            prKey: ex.prKey, note: ex.note || ''
-          }))
-        }
-      })
+      const bd = t.blocks[b]
+      const ranges = JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[b]))
+      // Try to detect actual ranges from exercises in this block
+      if (bd) {
+        t.days.forEach(d => {
+          const dayData = bd[d]
+          if (!dayData) return
+          dayData.exercises.forEach(ex => {
+            if (!ex.pct) return
+            const cat = detectPctCategory(ex.exercise)
+            if (cat && !ranges._detected) {
+              const pctInts = ex.pct.map(p => Math.round(p * 100))
+              // Only override if the detected range differs from default
+              if (ranges[cat][0] !== pctInts[0] || ranges[cat][1] !== pctInts[1] || ranges[cat][2] !== pctInts[2]) {
+                ranges[cat] = pctInts
+              }
+            }
+          })
+        })
+      }
+      bks[b] = { pctLabel: bd?.pctLabel || '', w1note: bd?.w1note || '', ranges }
+      if (bd) {
+        t.days.forEach(d => {
+          const dayData = bd[d]
+          if (dayData) {
+            dh[d] = dayData.header || dh[d]
+            bks[b][d] = dayData.exercises.map(ex => {
+              const detected = detectPctCategory(ex.exercise)
+              let pctCat = 'none'
+              if (ex.pct) {
+                const matched = reverseDetectCat(ex.pct, ranges)
+                if (matched) pctCat = 'auto'
+                else pctCat = 'custom'
+              }
+              return {
+                series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
+                pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null,
+                prKey: ex.prKey, note: ex.note || ''
+              }
+            })
+          }
+        })
+      }
     })
+    setDayHeaders(dh)
     setBlocks(bks)
   }
 
   const editExisting = (key) => {
     const t = customTemplates[key]
     if (!t) return
-    setEditingId(key)
-    setLabel(t.label)
-    setTemplateId(key)
+    setEditingId(key); setLabel(t.label); setTemplateId(key)
     setDays([...t.days])
     const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
-    Object.keys(t.blocks).forEach(b => {
-      t.days.forEach(d => { if (t.blocks[b][d]?.header) dh[d] = t.blocks[b][d].header })
-    })
-    setDayHeaders(dh)
     const bks = {}
     ;[1,2,3].forEach(b => {
-      bks[b] = { pctLabel: t.blocks[b]?.pctLabel || '', w1note: t.blocks[b]?.w1note || '' }
-      t.days.forEach(d => {
-        const dayData = t.blocks[b]?.[d]
-        if (dayData) {
-          bks[b][d] = dayData.exercises.map(ex => ({
-            series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
-            pct: ex.pct ? ex.pct.map(p => Math.round(p*100)) : null,
-            prKey: ex.prKey, note: ex.note || ''
-          }))
-        }
-      })
+      const bd = t.blocks[b]
+      const ranges = JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[b]))
+      if (bd) {
+        t.days.forEach(d => {
+          const dayData = bd[d]
+          if (!dayData) return
+          dayData.exercises.forEach(ex => {
+            if (!ex.pct) return
+            const cat = detectPctCategory(ex.exercise)
+            if (cat) {
+              const pctInts = ex.pct.map(p => Math.round(p * 100))
+              if (ranges[cat][0] !== pctInts[0] || ranges[cat][1] !== pctInts[1] || ranges[cat][2] !== pctInts[2]) {
+                ranges[cat] = pctInts
+              }
+            }
+          })
+        })
+      }
+      bks[b] = { pctLabel: bd?.pctLabel || '', w1note: bd?.w1note || '', ranges }
+      if (bd) {
+        t.days.forEach(d => {
+          const dayData = bd[d]
+          if (dayData) {
+            dh[d] = dayData.header || dh[d]
+            bks[b][d] = dayData.exercises.map(ex => {
+              let pctCat = 'none'
+              if (ex.pct) {
+                const matched = reverseDetectCat(ex.pct, ranges)
+                if (matched) pctCat = 'auto'
+                else pctCat = 'custom'
+              }
+              return {
+                series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
+                pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null,
+                prKey: ex.prKey, note: ex.note || ''
+              }
+            })
+          }
+        })
+      }
     })
-    setBlocks(bks)
+    setDayHeaders(dh); setBlocks(bks)
   }
 
   const getExs = (d) => blocks[editBlock]?.[d] || []
   const setExs = (d, exs) => {
     setBlocks(prev => ({ ...prev, [editBlock]: { ...prev[editBlock], [d]: exs } }))
   }
-
   const addEx = (d) => {
     const cur = getExs(d)
     const nextSeries = cur.length === 0 ? 'A1' : cur[cur.length-1].series
-    setExs(d, [...cur, { series: nextSeries, exercise: '', sets: '3', reps: '8', pct: null, prKey: null, note: '' }])
+    setExs(d, [...cur, { series: nextSeries, exercise: '', sets: '3', reps: '8', pctCat: 'auto', customPct: null, prKey: null, note: '' }])
   }
-
   const updateEx = (d, idx, field, val) => {
     const cur = [...getExs(d)]
     cur[idx] = { ...cur[idx], [field]: val }
-    if (field === 'exercise') cur[idx].prKey = EXERCISE_PR_KEYS[val] || null
+    if (field === 'exercise') {
+      cur[idx].prKey = EXERCISE_PR_KEYS[val] || null
+      // Re-detect category
+      const det = detectPctCategory(val)
+      if (cur[idx].pctCat === 'auto' || cur[idx].pctCat === 'none') {
+        cur[idx].pctCat = det ? 'auto' : 'none'
+      }
+    }
     setExs(d, cur)
   }
-
-  const removeEx = (d, idx) => {
-    const cur = [...getExs(d)]
-    cur.splice(idx, 1)
-    setExs(d, cur)
-  }
-
+  const removeEx = (d, idx) => { const cur = [...getExs(d)]; cur.splice(idx, 1); setExs(d, cur) }
   const moveEx = (d, idx, dir) => {
-    const cur = [...getExs(d)]
-    const ni = idx + dir
+    const cur = [...getExs(d)]; const ni = idx + dir
     if (ni < 0 || ni >= cur.length) return
-    ;[cur[idx], cur[ni]] = [cur[ni], cur[idx]]
-    setExs(d, cur)
+    ;[cur[idx], cur[ni]] = [cur[ni], cur[idx]]; setExs(d, cur)
   }
 
   const copyBlockTo = (fromB, toB) => {
     setBlocks(prev => {
       const src = prev[fromB] || {}
-      const copy = { pctLabel: src.pctLabel || '', w1note: src.w1note || '' }
-      days.forEach(d => { if (src[d]) copy[d] = src[d].map(ex => ({...ex, pct: ex.pct ? [...ex.pct] : null})) })
+      const copy = { pctLabel: src.pctLabel || '', w1note: src.w1note || '', ranges: JSON.parse(JSON.stringify(src.ranges || DEFAULT_BLOCK_RANGES[toB])) }
+      days.forEach(d => { if (src[d]) copy[d] = src[d].map(ex => ({...ex, customPct: ex.customPct ? [...ex.customPct] : null})) })
       return { ...prev, [toB]: copy }
     })
     flash('Block ' + fromB + ' copied to Block ' + toB)
+  }
+
+  const setRange = (cat, idx, val) => {
+    const num = val === '' ? 0 : parseInt(val) || 0
+    setBlocks(prev => {
+      const b = { ...prev[editBlock] }
+      const r = { ...(b.ranges || {}) }
+      const arr = [...(r[cat] || DEFAULT_BLOCK_RANGES[editBlock][cat])]
+      arr[idx] = num
+      r[cat] = arr
+      b.ranges = r
+      return { ...prev, [editBlock]: b }
+    })
+  }
+
+  // Resolve the final pct array for an exercise
+  const resolvePct = (ex, blockNum) => {
+    if (ex.pctCat === 'none') return null
+    if (ex.pctCat === 'custom' && ex.customPct) return ex.customPct.map(p => p / 100)
+    // Auto or explicit category
+    const cat = (ex.pctCat === 'auto') ? detectPctCategory(ex.exercise) : ex.pctCat
+    if (!cat) return null
+    const ranges = blocks[blockNum]?.ranges || DEFAULT_BLOCK_RANGES[blockNum]
+    const r = ranges[cat]
+    if (!r) return null
+    return r.map(p => p / 100)
   }
 
   const buildTemplateObj = () => {
@@ -1753,7 +1873,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
         bd[d] = {
           header: dayHeaders[d] || (d.replace('day','') + ' Day'),
           exercises: exs.map(ex => {
-            const pctArr = ex.pct && ex.pct.length === 3 && ex.pct.some(p => p > 0) ? ex.pct.map(p => p/100) : null
+            const pctArr = resolvePct(ex, b)
             return mkEx(ex.series, ex.exercise, parseInt(ex.sets)||3, ex.reps, pctArr, ex.prKey, ex.note)
           })
         }
@@ -1774,10 +1894,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     if (error) { flash('Error: ' + error.message); return }
     setCustomTemplates(prev => ({ ...prev, [id]: obj }))
     flash('Saved "' + label + '"!')
-    if (!editingId) {
-      setTier(id); setBlock(1); setTab('builder')
-      resetForm()
-    }
+    if (!editingId) { setTier(id); setBlock(1); setTab('builder'); resetForm() }
   }
 
   const deleteTemplate = async (key) => {
@@ -1791,6 +1908,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   }
 
   const bData = blocks[editBlock] || {}
+  const ranges = bData.ranges || DEFAULT_BLOCK_RANGES[editBlock]
   const sty = {
     input: { border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' },
     smBtn: { background: '#111', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.5, textTransform: 'uppercase' },
@@ -1798,11 +1916,14 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     section: { marginBottom: 16 },
     label: { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 },
   }
-
   const customKeys = Object.keys(customTemplates)
 
+  const CatBadge = ({ cat }) => cat ? (
+    <span style={{ fontSize: 8, fontWeight: 700, color: PCT_CAT_COLORS[cat] || '#555', letterSpacing: 0.5 }}>{cat}</span>
+  ) : <span style={{ fontSize: 8, color: '#ccc' }}>—</span>
+
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 20px' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '16px 20px' }}>
       {/* Existing custom templates */}
       {customKeys.length > 0 && (
         <div style={sty.section}>
@@ -1813,8 +1934,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                 <span style={{ flex: 1, fontWeight: 600 }}>{customTemplates[k].label}</span>
                 <button onClick={() => editExisting(k)} style={sty.smBtnLight}>Edit</button>
                 <button onClick={() => { setTier(k); setBlock(1); setTab('builder') }} style={sty.smBtnLight}>Use</button>
-                <button onClick={() => deleteTemplate(k)}
-                  style={{ ...sty.smBtnLight, color: '#c00', borderColor: '#c00' }}>Delete</button>
+                <button onClick={() => deleteTemplate(k)} style={{ ...sty.smBtnLight, color: '#c00', borderColor: '#c00' }}>Delete</button>
               </div>
             ))}
           </div>
@@ -1825,8 +1945,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
       <div style={sty.section}>
         <div style={sty.label}>{editingId ? 'Editing: ' + label : 'Start New Template'}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={copyFrom} onChange={e => { if (e.target.value) loadTemplate(e.target.value) }}
-            style={sty.input}>
+          <select value={copyFrom} onChange={e => { if (e.target.value) loadTemplate(e.target.value) }} style={sty.input}>
             <option value="">Copy from existing...</option>
             {Object.entries(allTemplates).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
           </select>
@@ -1849,10 +1968,8 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           <div style={sty.label}>Days</div>
           <div style={{ display: 'flex', gap: 4 }}>
             {DAY_OPTIONS.map(d => (
-              <button key={d} onClick={() => {
-                setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort())
-              }}
-              style={{ padding: '5px 14px', border: '1px solid #bbb', background: days.includes(d) ? '#111' : '#fff', color: days.includes(d) ? '#fff' : '#555', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button key={d} onClick={() => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort())}
+                style={{ padding: '5px 14px', border: '1px solid #bbb', background: days.includes(d) ? '#111' : '#fff', color: days.includes(d) ? '#fff' : '#555', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {DAY_LABELS[d]}
               </button>
             ))}
@@ -1863,22 +1980,22 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           <div style={{ display: 'flex', gap: 4 }}>
             {days.map(d => (
               <input key={d} value={dayHeaders[d]} onChange={e => setDayHeaders(prev => ({...prev, [d]: e.target.value}))}
-                style={{ ...sty.input, width: 100, fontSize: 11 }} placeholder={DAY_LABELS[d] + ' Day'} />
+                style={{ ...sty.input, width: 110, fontSize: 11 }} placeholder={DAY_LABELS[d] + ' Day'} />
             ))}
           </div>
         </div>
       </div>
 
       {/* Block selector */}
-      <div style={{ ...sty.section, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div style={sty.label}>Editing Block</div>
+      <div style={{ ...sty.section, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={sty.label}>Block</div>
         {[1,2,3].map(b => (
           <button key={b} onClick={() => setEditBlock(b)}
             style={{ padding: '5px 18px', border: '1px solid #bbb', background: editBlock === b ? '#111' : '#fff', color: editBlock === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
             {b}
           </button>
         ))}
-        <span style={{ fontSize: 10, color: '#999', marginLeft: 8 }}>|</span>
+        <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>|</span>
         <select onChange={e => { const v = e.target.value; if (v) { const [f,t] = v.split('>'); copyBlockTo(parseInt(f),parseInt(t)) } e.target.value='' }}
           style={{ ...sty.input, fontSize: 10 }}>
           <option value="">Copy block...</option>
@@ -1888,16 +2005,60 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
         </select>
         <div style={{ marginLeft: 12, display: 'flex', gap: 8 }}>
           <div>
-            <span style={{ fontSize: 8, color: '#888' }}>% Range </span>
+            <span style={{ fontSize: 8, color: '#888' }}>Label </span>
             <input value={bData.pctLabel||''} onChange={e => setBlocks(prev => ({...prev, [editBlock]: {...(prev[editBlock]||{}), pctLabel: e.target.value}}))}
               style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65-75%" />
           </div>
           <div>
-            <span style={{ fontSize: 8, color: '#888' }}>Wk1 Note </span>
+            <span style={{ fontSize: 8, color: '#888' }}>Wk1 </span>
             <input value={bData.w1note||''} onChange={e => setBlocks(prev => ({...prev, [editBlock]: {...(prev[editBlock]||{}), w1note: e.target.value}}))}
               style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65% only" />
           </div>
         </div>
+      </div>
+
+      {/* Category Percentage Ranges */}
+      <div style={{ ...sty.section, background: '#fff', border: '1px solid #ddd', padding: '10px 14px' }}>
+        <div style={{ ...sty.label, marginBottom: 8 }}>Block {editBlock} — Percentage Ranges by Category</div>
+        <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 500 }}>
+          <thead>
+            <tr>
+              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'left', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Category</th>
+              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Wk 1 %</th>
+              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Wk 2-3 Lo %</th>
+              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Wk 2-3 Hi %</th>
+              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'left', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Exercises</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CATS.map(cat => {
+              const r = ranges[cat] || DEFAULT_BLOCK_RANGES[editBlock][cat]
+              const catDesc = {
+                STR: 'Back Squat, Deadlift, Bench, Press',
+                OLY: 'Snatch, Clean, Jerk, Front Squat, Push Press',
+                PULL: 'Clean Pull, Snatch Pull',
+                PWR: 'Power Snatch, Power Clean variants',
+              }
+              return (
+                <tr key={cat}>
+                  <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee' }}>
+                    <span style={{ fontWeight: 700, color: PCT_CAT_COLORS[cat], fontSize: 11 }}>{cat}</span>
+                    <span style={{ fontSize: 8, color: '#aaa', marginLeft: 4 }}>{PCT_CAT_LABELS[cat]}</span>
+                  </td>
+                  {[0,1,2].map(idx => (
+                    <td key={idx} style={{ padding: '4px 4px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
+                      <input value={r[idx]||''} onChange={e => setRange(cat, idx, e.target.value)}
+                        style={{ width: 38, border: '1px solid #ccc', borderRadius: 2, fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '3px 2px', fontFamily: 'inherit', outline: 'none', color: PCT_CAT_COLORS[cat] }} />
+                    </td>
+                  ))}
+                  <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee', fontSize: 8, color: '#999', fontStyle: 'italic' }}>
+                    {catDesc[cat]}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* Day exercise tables */}
@@ -1912,64 +2073,84 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
             <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
               <thead>
                 <tr>
-                  {['#','Exercise','Sets','Reps','% W1','% W2-3 Lo','% W2-3 Hi','Note',''].map((h,hi) => (
+                  {['#','Exercise','Sets','Reps','% Cat','Custom %','Note',''].map((h,hi) => (
                     <th key={hi} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', borderBottom: '1.5px solid #111', padding: '3px 4px', textAlign: 'left', color: '#555', background: '#fafafa' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {exs.map((ex, idx) => (
-                  <tr key={idx}>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 36 }}>
-                      <input value={ex.series} onChange={e => updateEx(d, idx, 'series', e.target.value)}
-                        style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 180 }}>
-                      <ExerciseInput value={ex.exercise} onChange={v => updateEx(d, idx, 'exercise', v)} library={library} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 40 }}>
-                      <input value={ex.sets} onChange={e => updateEx(d, idx, 'sets', e.target.value)}
-                        style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
-                      <input value={ex.reps} onChange={e => updateEx(d, idx, 'reps', e.target.value)}
-                        style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
-                      <input value={ex.pct?.[0] ?? ''} onChange={e => {
-                        const v = e.target.value; const cur = ex.pct || [0,0,0]
-                        updateEx(d, idx, 'pct', [v==='' ? 0 : parseInt(v)||0, cur[1], cur[2]])
-                      }}
-                        placeholder="—" style={{ width: 34, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 10, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent', color: '#555' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
-                      <input value={ex.pct?.[1] ?? ''} onChange={e => {
-                        const v = e.target.value; const cur = ex.pct || [0,0,0]
-                        updateEx(d, idx, 'pct', [cur[0], v==='' ? 0 : parseInt(v)||0, cur[2]])
-                      }}
-                        placeholder="—" style={{ width: 34, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 10, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent', color: '#555' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
-                      <input value={ex.pct?.[2] ?? ''} onChange={e => {
-                        const v = e.target.value; const cur = ex.pct || [0,0,0]
-                        updateEx(d, idx, 'pct', [cur[0], cur[1], v==='' ? 0 : parseInt(v)||0])
-                      }}
-                        placeholder="—" style={{ width: 34, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 10, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent', color: '#555' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 60 }}>
-                      <input value={ex.note} onChange={e => updateEx(d, idx, 'note', e.target.value)}
-                        placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} />
-                    </td>
-                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 2px', width: 60, whiteSpace: 'nowrap' }}>
-                      <button onClick={() => moveEx(d, idx, -1)} disabled={idx===0}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===0 ? '#ddd' : '#555', padding: '0 2px' }}>▲</button>
-                      <button onClick={() => moveEx(d, idx, 1)} disabled={idx===exs.length-1}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===exs.length-1 ? '#ddd' : '#555', padding: '0 2px' }}>▼</button>
-                      <button onClick={() => removeEx(d, idx)}
-                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#c00', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>×</button>
-                    </td>
-                  </tr>
-                ))}
+                {exs.map((ex, idx) => {
+                  const detected = detectPctCategory(ex.exercise)
+                  const effectiveCat = ex.pctCat === 'auto' ? detected : (CATS.includes(ex.pctCat) ? ex.pctCat : null)
+                  const showCustom = ex.pctCat === 'custom'
+                  return (
+                    <tr key={idx}>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 36 }}>
+                        <input value={ex.series} onChange={e => updateEx(d, idx, 'series', e.target.value)}
+                          style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} />
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 180 }}>
+                        <ExerciseInput value={ex.exercise} onChange={v => updateEx(d, idx, 'exercise', v)} library={library} />
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 40 }}>
+                        <input value={ex.sets} onChange={e => updateEx(d, idx, 'sets', e.target.value)}
+                          style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
+                        <input value={ex.reps} onChange={e => updateEx(d, idx, 'reps', e.target.value)}
+                          style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 80 }}>
+                        <select value={ex.pctCat} onChange={e => {
+                          const v = e.target.value
+                          const updated = [...getExs(d)]
+                          updated[idx] = { ...updated[idx], pctCat: v }
+                          if (v !== 'custom') updated[idx].customPct = null
+                          if (v === 'custom' && !updated[idx].customPct) {
+                            const r = ranges[detected] || ranges.STR || [60,60,70]
+                            updated[idx].customPct = [...r]
+                          }
+                          setExs(d, updated)
+                        }}
+                          style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 3px', fontFamily: 'inherit', background: '#fff', width: 70, fontWeight: 600, color: effectiveCat ? PCT_CAT_COLORS[effectiveCat] : '#555' }}>
+                          <option value="auto">{detected ? 'Auto (' + detected + ')' : 'Auto (—)'}</option>
+                          <option value="none">None</option>
+                          {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                          <option value="custom">Custom</option>
+                        </select>
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 110 }}>
+                        {showCustom ? (
+                          <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                            {[0,1,2].map(pi => (
+                              <input key={pi} value={ex.customPct?.[pi] ?? ''} onChange={e => {
+                                const v = e.target.value; const cur = ex.customPct || [0,0,0]
+                                const next = [...cur]; next[pi] = v === '' ? 0 : parseInt(v)||0
+                                updateEx(d, idx, 'customPct', next)
+                              }}
+                                placeholder={pi===0?'W1':pi===1?'Lo':'Hi'}
+                                style={{ width: 28, border: '1px solid #ccc', borderRadius: 2, fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '2px 1px', fontFamily: 'inherit', outline: 'none', color: '#555' }} />
+                            ))}
+                          </div>
+                        ) : effectiveCat ? (
+                          <span style={{ fontSize: 9, color: '#aaa' }}>{(ranges[effectiveCat]||[])[0]}% | {(ranges[effectiveCat]||[])[1]}–{(ranges[effectiveCat]||[])[2]}%</span>
+                        ) : <span style={{ fontSize: 9, color: '#ddd' }}>—</span>}
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 60 }}>
+                        <input value={ex.note} onChange={e => updateEx(d, idx, 'note', e.target.value)}
+                          placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} />
+                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 2px', width: 60, whiteSpace: 'nowrap' }}>
+                        <button onClick={() => moveEx(d, idx, -1)} disabled={idx===0}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===0 ? '#ddd' : '#555', padding: '0 2px' }}>&#9650;</button>
+                        <button onClick={() => moveEx(d, idx, 1)} disabled={idx===exs.length-1}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===exs.length-1 ? '#ddd' : '#555', padding: '0 2px' }}>&#9660;</button>
+                        <button onClick={() => removeEx(d, idx)}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#c00', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>&times;</button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
             {exs.length === 0 && <div style={{ padding: 12, color: '#aaa', fontStyle: 'italic', textAlign: 'center', background: '#fff', borderBottom: '1px solid #ddd' }}>No exercises — click + Exercise</div>}
@@ -1986,7 +2167,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
         {editingId && (
           <button onClick={() => { setTier(editingId); setBlock(1); setTab('builder'); resetForm() }}
             style={{ padding: '10px 24px', background: '#fff', color: '#111', border: '2px solid #111', fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Go to Builder →
+            Go to Builder &#8594;
           </button>
         )}
       </div>
