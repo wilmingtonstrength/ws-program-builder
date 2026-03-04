@@ -1168,11 +1168,11 @@ export default function App() {
   const [cellNotes, setCellNotes] = useState({ ...DEFAULT_CELL_NOTES })
   const [saving, setSaving] = useState(false)
   const [library, setLibrary] = useState(() => {
-    // Deep copy LIBRARY so we can mutate
     const copy = {}
     Object.entries(LIBRARY).forEach(([k,v]) => { copy[k] = [...v] })
     return copy
   })
+  const [customTemplates, setCustomTemplates] = useState({})
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
@@ -1213,6 +1213,13 @@ export default function App() {
         setCellNotes(noteMap)
       }
       setStatus('Ready')
+      // Load custom templates
+      const { data: ctData } = await sb.from('custom_templates').select('*')
+      if (ctData && ctData.length > 0) {
+        const ctMap = {}
+        ctData.forEach(r => { try { ctMap[r.id] = JSON.parse(r.template_json) } catch(e) {} })
+        setCustomTemplates(ctMap)
+      }
     }
     load()
   }, [])
@@ -1260,8 +1267,9 @@ export default function App() {
     ['bench_press','Bench'],['press','Press'],['push_press','Push Press'],['_overhead','Overhead']
   ]
 
-  const tD = TEMPLATES[tier]
-  const bD = tD.blocks[block]
+  const allTemplates = { ...TEMPLATES, ...customTemplates }
+  const tD = allTemplates[tier] || TEMPLATES.beginner
+  const bD = tD.blocks[block] || tD.blocks[1]
   const isOly = !['gpp_2day','gpp_3day','upper_lower'].includes(tier)
   const ath = athletes.find(a => a.id === athleteId)
   const filteredAth = athletes.filter(a => (a.first_name + ' ' + a.last_name).toLowerCase().includes(search.toLowerCase()))
@@ -1269,12 +1277,20 @@ export default function App() {
 
   const getExs = (day) => bD[day].exercises.map((ex, i) => {
     const k = `${tier}-${block}-${day}-${i}`
-    if (!edits[k]) return ex
-    const merged = { ...ex, ...edits[k] }
+    const edit = edits[k] || {}
+    const merged = { ...ex, ...edit }
     // If template has an array prKey (complex), don't let a saved string prKey override it
-    if (Array.isArray(ex.prKey) && typeof edits[k].prKey === 'string') {
+    if (Array.isArray(ex.prKey) && typeof edit.prKey === 'string') {
       merged.prKey = ex.prKey
     }
+    // Build per-week pct overrides
+    const pctOv = {}
+    ;[1,2,3].forEach(w => {
+      const v = parseFloat(edit['pct_w' + w])
+      if (!isNaN(v)) pctOv[w] = v
+    })
+    merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
+    delete merged.pct_w1; delete merged.pct_w2; delete merged.pct_w3
     return merged
   })
 
@@ -1334,7 +1350,7 @@ export default function App() {
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', display: 'flex' }}>
-        {[['builder','Program Builder'],['library','Manage Library']].map(([t,label]) => (
+        {[['builder','Program Builder'],['templates','Create Template'],['library','Manage Library']].map(([t,label]) => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '10px 20px', border: 'none', borderBottom: t === tab ? '3px solid #111' : '3px solid transparent',
             background: 'transparent', fontWeight: t === tab ? 800 : 400, fontSize: 12, cursor: 'pointer',
@@ -1344,6 +1360,19 @@ export default function App() {
       </div>
       {tab === 'library' ? (
         <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
+      ) : tab === 'templates' ? (
+        <TemplateCreator
+          allTemplates={allTemplates}
+          customTemplates={customTemplates}
+          setCustomTemplates={setCustomTemplates}
+          library={library}
+          saving={saving}
+          setSaving={setSaving}
+          sb={sb}
+          setTier={setTier}
+          setBlock={setBlock}
+          setTab={setTab}
+        />
       ) : (
       <div>
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -1351,7 +1380,7 @@ export default function App() {
           <div style={lbl}>Template</div>
           <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1) }}
             style={{ border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit' }}>
-            {Object.entries(TEMPLATES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
+            {Object.entries(allTemplates).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
           </select>
         </div>
         <div>
@@ -1588,6 +1617,383 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
   )
 }
 
+function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, library, saving, setSaving, sb, setTier, setBlock, setTab }) {
+  const [templateId, setTemplateId] = useState('')
+  const [label, setLabel] = useState('')
+  const [days, setDays] = useState(['dayA','dayB'])
+  const [dayHeaders, setDayHeaders] = useState({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' })
+  const [blocks, setBlocks] = useState({ 1:{}, 2:{}, 3:{} })
+  const [editBlock, setEditBlock] = useState(1)
+  const [msg, setMsg] = useState('')
+  const [copyFrom, setCopyFrom] = useState('')
+  const [editingId, setEditingId] = useState(null)
+
+  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
+
+  const DAY_OPTIONS = ['dayA','dayB','dayC','dayD']
+  const DAY_LABELS = { dayA:'A', dayB:'B', dayC:'C', dayD:'D' }
+
+  const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,30)
+
+  const resetForm = () => {
+    setTemplateId(''); setLabel(''); setDays(['dayA','dayB'])
+    setDayHeaders({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' })
+    setBlocks({ 1:{}, 2:{}, 3:{} }); setEditBlock(1); setCopyFrom(''); setEditingId(null)
+  }
+
+  const loadTemplate = (key) => {
+    const t = allTemplates[key]
+    if (!t) return
+    setCopyFrom(key)
+    setLabel(t.label + ' (copy)')
+    setTemplateId(slugify(t.label) + '_copy')
+    setDays([...t.days])
+    const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
+    Object.keys(t.blocks).forEach(b => {
+      t.days.forEach(d => { if (t.blocks[b][d]?.header) dh[d] = t.blocks[b][d].header })
+    })
+    setDayHeaders(dh)
+    const bks = {}
+    ;[1,2,3].forEach(b => {
+      bks[b] = { pctLabel: t.blocks[b]?.pctLabel || '', w1note: t.blocks[b]?.w1note || '' }
+      t.days.forEach(d => {
+        const dayData = t.blocks[b]?.[d]
+        if (dayData) {
+          bks[b][d] = dayData.exercises.map(ex => ({
+            series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
+            pct: ex.pct ? ex.pct.map(p => Math.round(p*100)) : null,
+            prKey: ex.prKey, note: ex.note || ''
+          }))
+        }
+      })
+    })
+    setBlocks(bks)
+  }
+
+  const editExisting = (key) => {
+    const t = customTemplates[key]
+    if (!t) return
+    setEditingId(key)
+    setLabel(t.label)
+    setTemplateId(key)
+    setDays([...t.days])
+    const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
+    Object.keys(t.blocks).forEach(b => {
+      t.days.forEach(d => { if (t.blocks[b][d]?.header) dh[d] = t.blocks[b][d].header })
+    })
+    setDayHeaders(dh)
+    const bks = {}
+    ;[1,2,3].forEach(b => {
+      bks[b] = { pctLabel: t.blocks[b]?.pctLabel || '', w1note: t.blocks[b]?.w1note || '' }
+      t.days.forEach(d => {
+        const dayData = t.blocks[b]?.[d]
+        if (dayData) {
+          bks[b][d] = dayData.exercises.map(ex => ({
+            series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
+            pct: ex.pct ? ex.pct.map(p => Math.round(p*100)) : null,
+            prKey: ex.prKey, note: ex.note || ''
+          }))
+        }
+      })
+    })
+    setBlocks(bks)
+  }
+
+  const getExs = (d) => blocks[editBlock]?.[d] || []
+  const setExs = (d, exs) => {
+    setBlocks(prev => ({ ...prev, [editBlock]: { ...prev[editBlock], [d]: exs } }))
+  }
+
+  const addEx = (d) => {
+    const cur = getExs(d)
+    const nextSeries = cur.length === 0 ? 'A1' : cur[cur.length-1].series
+    setExs(d, [...cur, { series: nextSeries, exercise: '', sets: '3', reps: '8', pct: null, prKey: null, note: '' }])
+  }
+
+  const updateEx = (d, idx, field, val) => {
+    const cur = [...getExs(d)]
+    cur[idx] = { ...cur[idx], [field]: val }
+    if (field === 'exercise') cur[idx].prKey = EXERCISE_PR_KEYS[val] || null
+    setExs(d, cur)
+  }
+
+  const removeEx = (d, idx) => {
+    const cur = [...getExs(d)]
+    cur.splice(idx, 1)
+    setExs(d, cur)
+  }
+
+  const moveEx = (d, idx, dir) => {
+    const cur = [...getExs(d)]
+    const ni = idx + dir
+    if (ni < 0 || ni >= cur.length) return
+    ;[cur[idx], cur[ni]] = [cur[ni], cur[idx]]
+    setExs(d, cur)
+  }
+
+  const copyBlockTo = (fromB, toB) => {
+    setBlocks(prev => {
+      const src = prev[fromB] || {}
+      const copy = { pctLabel: src.pctLabel || '', w1note: src.w1note || '' }
+      days.forEach(d => { if (src[d]) copy[d] = src[d].map(ex => ({...ex, pct: ex.pct ? [...ex.pct] : null})) })
+      return { ...prev, [toB]: copy }
+    })
+    flash('Block ' + fromB + ' copied to Block ' + toB)
+  }
+
+  const buildTemplateObj = () => {
+    const obj = { label, days: [...days], blocks: {} }
+    ;[1,2,3].forEach(b => {
+      const bData = blocks[b] || {}
+      const bd = {}
+      if (bData.pctLabel) bd.pctLabel = bData.pctLabel
+      if (bData.w1note) bd.w1note = bData.w1note
+      days.forEach(d => {
+        const exs = bData[d] || []
+        bd[d] = {
+          header: dayHeaders[d] || (d.replace('day','') + ' Day'),
+          exercises: exs.map(ex => {
+            const pctArr = ex.pct && ex.pct.length === 3 && ex.pct.some(p => p > 0) ? ex.pct.map(p => p/100) : null
+            return mkEx(ex.series, ex.exercise, parseInt(ex.sets)||3, ex.reps, pctArr, ex.prKey, ex.note)
+          })
+        }
+      })
+      obj.blocks[b] = bd
+    })
+    return obj
+  }
+
+  const saveTemplate = async () => {
+    const id = editingId || slugify(templateId || label)
+    if (!id || !label.trim()) { flash('Need a name'); return }
+    if (!editingId && TEMPLATES[id]) { flash('Cannot overwrite built-in template'); return }
+    const obj = buildTemplateObj()
+    setSaving(true)
+    const { error } = await sb.from('custom_templates').upsert({ id, template_json: JSON.stringify(obj), updated_at: new Date().toISOString() }, { onConflict: 'id' })
+    setSaving(false)
+    if (error) { flash('Error: ' + error.message); return }
+    setCustomTemplates(prev => ({ ...prev, [id]: obj }))
+    flash('Saved "' + label + '"!')
+    if (!editingId) {
+      setTier(id); setBlock(1); setTab('builder')
+      resetForm()
+    }
+  }
+
+  const deleteTemplate = async (key) => {
+    if (!window.confirm('Delete "' + (customTemplates[key]?.label || key) + '"?')) return
+    setSaving(true)
+    await sb.from('custom_templates').delete().eq('id', key)
+    setSaving(false)
+    setCustomTemplates(prev => { const n = {...prev}; delete n[key]; return n })
+    if (editingId === key) resetForm()
+    flash('Deleted')
+  }
+
+  const bData = blocks[editBlock] || {}
+  const sty = {
+    input: { border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit', outline: 'none' },
+    smBtn: { background: '#111', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.5, textTransform: 'uppercase' },
+    smBtnLight: { background: '#fff', color: '#333', border: '1px solid #bbb', padding: '4px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+    section: { marginBottom: 16 },
+    label: { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 },
+  }
+
+  const customKeys = Object.keys(customTemplates)
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 20px' }}>
+      {/* Existing custom templates */}
+      {customKeys.length > 0 && (
+        <div style={sty.section}>
+          <div style={sty.label}>Your Custom Templates</div>
+          <div style={{ border: '1px solid #ddd', background: '#fff' }}>
+            {customKeys.map(k => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #eee', gap: 8 }}>
+                <span style={{ flex: 1, fontWeight: 600 }}>{customTemplates[k].label}</span>
+                <button onClick={() => editExisting(k)} style={sty.smBtnLight}>Edit</button>
+                <button onClick={() => { setTier(k); setBlock(1); setTab('builder') }} style={sty.smBtnLight}>Use</button>
+                <button onClick={() => deleteTemplate(k)}
+                  style={{ ...sty.smBtnLight, color: '#c00', borderColor: '#c00' }}>Delete</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Copy from / start fresh */}
+      <div style={sty.section}>
+        <div style={sty.label}>{editingId ? 'Editing: ' + label : 'Start New Template'}</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={copyFrom} onChange={e => { if (e.target.value) loadTemplate(e.target.value) }}
+            style={sty.input}>
+            <option value="">Copy from existing...</option>
+            {Object.entries(allTemplates).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
+          </select>
+          <span style={{ fontSize: 11, color: '#999' }}>or</span>
+          <button onClick={resetForm} style={sty.smBtn}>Start Fresh</button>
+          {editingId && <button onClick={resetForm} style={sty.smBtnLight}>Cancel Edit</button>}
+          {msg && <span style={{ fontSize: 11, color: '#090', background: '#e8ffe8', padding: '2px 8px', borderRadius: 3, marginLeft: 8 }}>{msg}</span>}
+          {saving && <span style={{ fontSize: 11, color: '#999', marginLeft: 8 }}>Saving...</span>}
+        </div>
+      </div>
+
+      {/* Template name and days */}
+      <div style={{ ...sty.section, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={sty.label}>Template Name</div>
+          <input value={label} onChange={e => { setLabel(e.target.value); if (!editingId) setTemplateId(slugify(e.target.value)) }}
+            placeholder="e.g. Upper Body Only" style={{ ...sty.input, width: 220 }} />
+        </div>
+        <div>
+          <div style={sty.label}>Days</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {DAY_OPTIONS.map(d => (
+              <button key={d} onClick={() => {
+                setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort())
+              }}
+              style={{ padding: '5px 14px', border: '1px solid #bbb', background: days.includes(d) ? '#111' : '#fff', color: days.includes(d) ? '#fff' : '#555', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {DAY_LABELS[d]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={sty.label}>Day Headers</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {days.map(d => (
+              <input key={d} value={dayHeaders[d]} onChange={e => setDayHeaders(prev => ({...prev, [d]: e.target.value}))}
+                style={{ ...sty.input, width: 100, fontSize: 11 }} placeholder={DAY_LABELS[d] + ' Day'} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Block selector */}
+      <div style={{ ...sty.section, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={sty.label}>Editing Block</div>
+        {[1,2,3].map(b => (
+          <button key={b} onClick={() => setEditBlock(b)}
+            style={{ padding: '5px 18px', border: '1px solid #bbb', background: editBlock === b ? '#111' : '#fff', color: editBlock === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {b}
+          </button>
+        ))}
+        <span style={{ fontSize: 10, color: '#999', marginLeft: 8 }}>|</span>
+        <select onChange={e => { const v = e.target.value; if (v) { const [f,t] = v.split('>'); copyBlockTo(parseInt(f),parseInt(t)) } e.target.value='' }}
+          style={{ ...sty.input, fontSize: 10 }}>
+          <option value="">Copy block...</option>
+          {[1,2,3].flatMap(f => [1,2,3].filter(t => t!==f).map(t => (
+            <option key={f+''+t} value={f+'>'+t}>Block {f} → Block {t}</option>
+          )))}
+        </select>
+        <div style={{ marginLeft: 12, display: 'flex', gap: 8 }}>
+          <div>
+            <span style={{ fontSize: 8, color: '#888' }}>% Range </span>
+            <input value={bData.pctLabel||''} onChange={e => setBlocks(prev => ({...prev, [editBlock]: {...(prev[editBlock]||{}), pctLabel: e.target.value}}))}
+              style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65-75%" />
+          </div>
+          <div>
+            <span style={{ fontSize: 8, color: '#888' }}>Wk1 Note </span>
+            <input value={bData.w1note||''} onChange={e => setBlocks(prev => ({...prev, [editBlock]: {...(prev[editBlock]||{}), w1note: e.target.value}}))}
+              style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65% only" />
+          </div>
+        </div>
+      </div>
+
+      {/* Day exercise tables */}
+      {days.map(d => {
+        const exs = getExs(d)
+        return (
+          <div key={d} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '4px 8px', background: '#efefef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{dayHeaders[d] || (DAY_LABELS[d] + ' Day')}</span>
+              <button onClick={() => addEx(d)} style={sty.smBtn}>+ Exercise</button>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
+              <thead>
+                <tr>
+                  {['#','Exercise','Sets','Reps','% W1','% W2-3 Lo','% W2-3 Hi','Note',''].map((h,hi) => (
+                    <th key={hi} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', borderBottom: '1.5px solid #111', padding: '3px 4px', textAlign: 'left', color: '#555', background: '#fafafa' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {exs.map((ex, idx) => (
+                  <tr key={idx}>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 36 }}>
+                      <input value={ex.series} onChange={e => updateEx(d, idx, 'series', e.target.value)}
+                        style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 180 }}>
+                      <ExerciseInput value={ex.exercise} onChange={v => updateEx(d, idx, 'exercise', v)} library={library} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 40 }}>
+                      <input value={ex.sets} onChange={e => updateEx(d, idx, 'sets', e.target.value)}
+                        style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
+                      <input value={ex.reps} onChange={e => updateEx(d, idx, 'reps', e.target.value)}
+                        style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
+                      <input value={ex.pct?.[0] ?? ''} onChange={e => {
+                        const v = e.target.value; const cur = ex.pct || [0,0,0]
+                        updateEx(d, idx, 'pct', [v==='' ? 0 : parseInt(v)||0, cur[1], cur[2]])
+                      }}
+                        placeholder="—" style={{ width: 34, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 10, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent', color: '#555' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
+                      <input value={ex.pct?.[1] ?? ''} onChange={e => {
+                        const v = e.target.value; const cur = ex.pct || [0,0,0]
+                        updateEx(d, idx, 'pct', [cur[0], v==='' ? 0 : parseInt(v)||0, cur[2]])
+                      }}
+                        placeholder="—" style={{ width: 34, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 10, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent', color: '#555' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
+                      <input value={ex.pct?.[2] ?? ''} onChange={e => {
+                        const v = e.target.value; const cur = ex.pct || [0,0,0]
+                        updateEx(d, idx, 'pct', [cur[0], cur[1], v==='' ? 0 : parseInt(v)||0])
+                      }}
+                        placeholder="—" style={{ width: 34, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 10, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent', color: '#555' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 60 }}>
+                      <input value={ex.note} onChange={e => updateEx(d, idx, 'note', e.target.value)}
+                        placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} />
+                    </td>
+                    <td style={{ borderBottom: '1px solid #ddd', padding: '3px 2px', width: 60, whiteSpace: 'nowrap' }}>
+                      <button onClick={() => moveEx(d, idx, -1)} disabled={idx===0}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===0 ? '#ddd' : '#555', padding: '0 2px' }}>▲</button>
+                      <button onClick={() => moveEx(d, idx, 1)} disabled={idx===exs.length-1}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===exs.length-1 ? '#ddd' : '#555', padding: '0 2px' }}>▼</button>
+                      <button onClick={() => removeEx(d, idx)}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#c00', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>×</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {exs.length === 0 && <div style={{ padding: 12, color: '#aaa', fontStyle: 'italic', textAlign: 'center', background: '#fff', borderBottom: '1px solid #ddd' }}>No exercises — click + Exercise</div>}
+          </div>
+        )
+      })}
+
+      {/* Save button */}
+      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+        <button onClick={saveTemplate}
+          style={{ padding: '10px 32px', background: '#111', color: '#fff', border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
+          {editingId ? 'Update Template' : 'Save & Use Template'}
+        </button>
+        {editingId && (
+          <button onClick={() => { setTier(editingId); setBlock(1); setTab('builder'); resetForm() }}
+            style={{ padding: '10px 24px', background: '#fff', color: '#111', border: '2px solid #111', fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Go to Builder →
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: compact ? 4 : 8, paddingBottom: compact ? 4 : 8, borderBottom: '2px solid #111' }}>
@@ -1627,6 +2033,48 @@ function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
         )
       })}
     </div>
+    </div>
+  )
+}
+
+function PctEdit({ isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, onChange }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState('')
+
+  const displayText = () => {
+    if (isOverridden) return overrideVal + '%'
+    if (defaultPct != null) return defaultPct + '%'
+    if (rangeLo != null && rangeHi != null) return rangeLo === rangeHi ? rangeLo + '%' : rangeLo + '-' + rangeHi + '%'
+    return ''
+  }
+
+  const startEdit = () => {
+    setVal(isOverridden ? String(overrideVal) : '')
+    setEditing(true)
+  }
+
+  const finish = () => {
+    setEditing(false)
+    const v = val.trim()
+    if (v === '' || v === 'x' || v === 'X') { onChange(null); return }
+    const num = parseInt(v)
+    if (!isNaN(num) && num > 0 && num <= 150) onChange(num)
+  }
+
+  if (editing) return (
+    <div className="no-print" style={{ position: 'absolute', bottom: 1, right: 2, zIndex: 5, display: 'flex', alignItems: 'baseline' }}>
+      <input autoFocus value={val} onChange={e => setVal(e.target.value)}
+        onBlur={finish} onKeyDown={e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') setEditing(false) }}
+        placeholder={isOverridden ? 'x=reset' : (defaultPct || rangeLo || '')}
+        style={{ width: 32, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }}
+      /><span style={{ fontSize: 7, color: '#0055bb' }}>%</span>
+    </div>
+  )
+  return (
+    <div className="no-print" onClick={startEdit}
+      style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }}
+      title="Click to override %">
+      {displayText()}
     </div>
   )
 }
@@ -1679,14 +2127,20 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
 
   const getHint = (wk) => {
     if (!ex.pct) return ''
+    // Check for per-week override
+    const ov = ex.pctOverrides?.[wk]
+    if (ov != null) {
+      return pr ? r5(pr * ov) + ' lbs' : Math.round(ov * 100) + '%'
+    }
+    // Default: original range behavior
     if (wk === 1) return pr ? r5(pr * ex.pct[0]) + ' lbs' : Math.round(ex.pct[0] * 100) + '%'
     if (wk === 2 || wk === 3) {
       if (pr) {
         const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
-        return lo === hi ? lo + ' lbs' : lo + '–' + hi
+        return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
       }
       const lo = Math.round(ex.pct[1] * 100), hi = Math.round(ex.pct[2] * 100)
-      return lo === hi ? lo + '%' : lo + '–' + hi + '%'
+      return lo === hi ? lo + '%' : lo + '\u2013' + hi + '%'
     }
     return ''
   }
@@ -1700,6 +2154,11 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const noteKey = `${tier}-${block}-${dk}-${i}-${wk}`
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
     const hint = getHint(wk)
+    const hasPct = ex.pct && wk <= 3
+    const isOverridden = ex.pctOverrides?.[wk] != null
+    const curPct = isOverridden
+      ? Math.round(ex.pctOverrides[wk] * 100)
+      : (wk === 1 ? Math.round(ex.pct?.[0] * 100) : null)
 
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
@@ -1716,6 +2175,22 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             width: 'calc(100% - 6px)',
           }}
         />
+        {hasPct && (
+          <PctEdit
+            isOverridden={isOverridden}
+            defaultPct={wk === 1 ? Math.round(ex.pct[0]*100) : null}
+            rangeLo={wk > 1 ? Math.round(ex.pct[1]*100) : null}
+            rangeHi={wk > 1 ? Math.round(ex.pct[2]*100) : null}
+            overrideVal={isOverridden ? Math.round(ex.pctOverrides[wk]*100) : null}
+            onChange={v => {
+              if (v === null) {
+                setEdit(dk, i, 'pct_w' + wk, '')
+              } else {
+                setEdit(dk, i, 'pct_w' + wk, String(v / 100))
+              }
+            }}
+          />
+        )}
         <div style={{ height: 46 }}></div>
       </td>
     )
