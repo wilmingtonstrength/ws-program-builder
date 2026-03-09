@@ -7,6 +7,7 @@ const sb = createClient(
 )
 
 function r5(v) { return Math.round(v / 5) * 5 }
+function rKg(lbs) { return Math.round(lbs / 2.2046 * 2) / 2 }
 function mkEx(s, e, st, r, p, pk, n) {
   return { series: s, exercise: e, sets: String(st), reps: String(r), pct: p || null, prKey: pk || null, note: n || '' }
 }
@@ -18,9 +19,7 @@ const WU_B_press = mkEx('WU', 'Tall Clean + Press', 1, '5+5', null, null, 'bar')
 const STR_B1 = [0.60, 0.60, 0.70]
 const STR_B2 = [0.70, 0.70, 0.80]
 const STR_B3 = [0.75, 0.75, 0.80]
-const FS_B1 = STR_B1
-const FS_B2 = STR_B2
-const FS_B3 = STR_B3
+const FS_B1 = STR_B1; const FS_B2 = STR_B2; const FS_B3 = STR_B3
 const OLY_B1 = [0.65, 0.65, 0.75]
 const OLY_B2 = [0.75, 0.75, 0.85]
 const OLY_B3 = [0.75, 0.75, 0.85]
@@ -35,27 +34,20 @@ const CJ_HEAVY_B2 = [0.80, 0.80, 0.90]
 const CJ_HEAVY_B3 = [0.80, 0.80, 0.90]
 
 const DEFAULT_BLOCK_RANGES = {
-  1: { STR: [60, 60, 70], OLY: [65, 65, 75], PULL: [85, 85, 95], PWR: [55, 55, 65] },
-  2: { STR: [70, 70, 80], OLY: [75, 75, 85], PULL: [95, 95, 110], PWR: [65, 65, 75] },
-  3: { STR: [75, 75, 80], OLY: [75, 75, 85], PULL: [95, 95, 120], PWR: [70, 70, 80] },
+  1: { STR: [60,60,70], OLY: [65,65,75], PULL: [85,85,95], PWR: [55,55,65] },
+  2: { STR: [70,70,80], OLY: [75,75,85], PULL: [95,95,110], PWR: [65,65,75] },
+  3: { STR: [75,75,80], OLY: [75,75,85], PULL: [95,95,120], PWR: [70,70,80] },
 }
 
 function detectPctCategory(name) {
   if (!name) return null
   const n = name.toLowerCase()
-  // Pulls first (before oly check since they contain clean/snatch keywords)
   if ((n.includes('pull') || n.includes('high pull')) && (n.includes('clean') || n.includes('snatch'))) return 'PULL'
-  // Power variants
   if (n.includes('power') && (n.includes('snatch') || n.includes('clean'))) return 'PWR'
-  // Olympic lifts
   if (n.includes('snatch') || n.includes('clean') || n.includes('jerk')) return 'OLY'
-  if (['front squat','front squat he','push press','ohs',
-       'sa kb push press','double kb push press'].includes(n)) return 'OLY'
-  // Complexes with overhead
+  if (['front squat','front squat he','push press','ohs','sa kb push press','double kb push press'].includes(n)) return 'OLY'
   if (n.includes('tall clean') || n.includes('pp clean')) return 'OLY'
-  // Strength
-  if (['back squat','back squat he','deadlift','sumo deadlift','trap bar deadlift',
-       'bench press','press','behind-the-neck press','db bench press'].includes(n)) return 'STR'
+  if (['back squat','back squat he','deadlift','sumo deadlift','trap bar deadlift','bench press','press','behind-the-neck press','db bench press'].includes(n)) return 'STR'
   return null
 }
 
@@ -66,56 +58,39 @@ const LIBRARY = {
   'Snatch': [
     'Hang Snatch','Power Position Snatch','Low Hang Snatch','No Foot Snatch',
     'No Foot No Hook Snatch','Pause at Knee Snatch','Hang Power Snatch',
-    'Power Position Power Snatch','Low Hang Power Snatch','Tall Snatch',
-    '3-Position Snatch',
-    // Snatch complexes
+    'Power Position Power Snatch','Low Hang Power Snatch','Tall Snatch','3-Position Snatch',
     'PP Snatch + Hang Snatch','PP Snatch + OHS','Hang Snatch + OHS',
     'Tall Snatch + OHS','PP Snatch + Hang Snatch + OHS',
   ],
   'Clean': [
     'Hang Clean','Power Position Clean','Low Hang Clean','No Foot Clean',
     'No Foot No Hook Clean','Pause at Knee Clean','Hang Power Clean',
-    'Power Position Power Clean','Low Hang Power Clean','Tall Clean',
-    '3-Position Clean',
-    // Clean-only complexes
+    'Power Position Power Clean','Low Hang Power Clean','Tall Clean','3-Position Clean',
     'PP Clean + Hang Clean','PAK Clean Pull + Clean Pull',
   ],
   'Jerk': [
     'Push Jerk','Power Jerk','Split Jerk',
     'Behind-the-Neck Push Jerk','Behind-the-Neck Power Jerk','Behind-the-Neck Split Jerk',
     'Pause Jerk','Tall Jerk',
-    // Clean + Jerk complexes (jerk is limiting lift)
     'Clean + Jerk','Hang Clean + Jerk','PP Clean + Jerk',
     'Hang Clean + Push Jerk','Low Hang Clean + Pause Jerk',
   ],
   'Overhead': [
-    'Press','Push Press',
-    'Behind-the-Neck Press',
-    'SA KB Overhead Press','Double KB Overhead Press',
-    'SA KB Push Press','Double KB Push Press',
-    // Clean + overhead complexes (overhead is limiting lift)
+    'Press','Push Press','Behind-the-Neck Press',
+    'SA KB Overhead Press','Double KB Overhead Press','SA KB Push Press','Double KB Push Press',
     'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
-    'PP Clean + Push Press + Front Squat',
-    'Tall Clean + Push Press','Tall Clean + Press',
+    'PP Clean + Push Press + Front Squat','Tall Clean + Push Press','Tall Clean + Press',
   ],
   'Squat': [
     'Front Squat','Back Squat','Goblet Squat','OHS',
     'Front Squat HE','Back Squat HE','Goblet Squat HE',
     'Double KB Front Squat','Zercher Squat',
   ],
-  'Overhead': [
-    'Press','Push Press','Push Jerk','Power Jerk','Split Jerk',
-    'Behind-the-Neck Press','Behind-the-Neck Push Jerk',
-    'Behind-the-Neck Power Jerk','Behind-the-Neck Split Jerk',
-    'SA KB Overhead Press','Double KB Overhead Press',
-    'SA KB Push Press','Double KB Push Press',
-  ],
   'Pulls / Hinge': [
     'Deadlift','Sumo Deadlift','Trap Bar Deadlift','KB Deadlift','RDL','DB RDL',
     'Clean Pull','Pause at Knee Clean Pull','3-Position Clean Pull',
     'Hang Clean High Pull','PAK Clean Pull','PAK Clean Pull + Clean Pull',
-    'Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull',
-    'Hang Snatch High Pull',
+    'Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull','Hang Snatch High Pull',
   ],
   'Horizontal Row': [
     'KOB Row','SA KOB Row','Chainsaw Row','Bent-Over Row',
@@ -126,9 +101,7 @@ const LIBRARY = {
     'Bench Press','DB Bench Press','DB Incline Press',
     'Push Up','Hand Release Push Up','Deficit Push Up','Dips',
   ],
-  'Vertical Pull': [
-    'Chin Up','Pull Up','Lat Pulldown','SA Lat Pulldown','Pullovers','Flywheel Lat Pulldown',
-  ],
+  'Vertical Pull': ['Chin Up','Pull Up','Lat Pulldown','SA Lat Pulldown','Pullovers','Flywheel Lat Pulldown'],
   'Unilateral / Single Leg': [
     'RFE Split Squat','FFE Split Squat','Ipsilateral Split Squat',
     'Contralateral Split Squat','Reverse Lunge','Split Squat',
@@ -150,8 +123,7 @@ const LIBRARY = {
     'Side Plank','QL Raise','Copenhagen Plank','Paloff Press',
     'Flywheel Rotation','Suitcase Carry','SA Front Rack Carry',
     'Barbell Side Bend','Get-Up','KB Windmill',
-    'Half Kneeling Flywheel Cable Lift','Half Kneeling Flywheel Cable Chop',
-    'Landmine Anti-Rotation',
+    'Half Kneeling Flywheel Cable Lift','Half Kneeling Flywheel Cable Chop','Landmine Anti-Rotation',
   ],
   'Shoulder Girdle': [
     'Isohold Lateral Raises','TRX Ys','TRX Ws','YWTs',
@@ -167,71 +139,67 @@ const LIBRARY = {
     'Pro Agility','Plyo Warmup',
   ],
 }
-const PATTERN_KEYS = Object.keys(LIBRARY)
 
 const EXERCISE_PR_KEYS = {
-  'Back Squat': 'back_squat', 'Back Squat HE': 'back_squat',
-  'Front Squat': 'front_squat', 'Front Squat HE': 'front_squat', 'OHS': 'front_squat',
-  'Bench Press': 'bench_press', 'DB Bench Press': 'bench_press',
-  'Deadlift': 'deadlift', 'Sumo Deadlift': 'deadlift', 'Trap Bar Deadlift': 'deadlift',
-  'Press': 'press', 'Behind-the-Neck Press': 'press',
-  'Push Press': 'push_press', 'Behind-the-Neck Push Jerk': 'push_press',
-  'Push Jerk': 'jerk', 'Power Jerk': 'jerk', 'Split Jerk': 'jerk',
-  'Behind-the-Neck Power Jerk': 'jerk', 'Behind-the-Neck Split Jerk': 'jerk',
-  'Hang Snatch': 'snatch', 'Power Position Snatch': 'snatch', 'Low Hang Snatch': 'snatch',
-  'No Foot Snatch': 'snatch', 'Hang Power Snatch': 'snatch', 'Tall Snatch': 'snatch',
-  'PP Snatch + OHS': ['snatch','front_squat'], 'Hang Snatch + OHS': ['snatch','front_squat'], 'Tall Snatch + OHS': ['snatch','front_squat'], '3-Position Snatch': 'snatch',
-  'Hang Clean': 'clean', 'Power Position Clean': 'clean', 'Low Hang Clean': 'clean',
-  'No Foot Clean': 'clean', 'Hang Power Clean': 'clean', 'Tall Clean': 'clean',
-  // Complexes: array of keys — runtime picks the MIN across all that exist
-  // Overhead variants include press/push_press/jerk/overhead so legacy data is found
-  'PP Clean + Press': ['clean','press','push_press','jerk','overhead'],
-  'PP Clean + Push Press': ['clean','press','push_press','jerk','overhead'],
-  'Hang Clean + Push Press': ['clean','press','push_press','jerk','overhead'],
-  'PP Clean + Hang Clean': 'clean',
-  'Hang Clean + Front Squat': ['clean','front_squat'],
-  'PP Clean + Push Press + Front Squat': ['clean','press','push_press','jerk','overhead','front_squat'],
-  'Hang Clean + Push Jerk': ['clean','press','push_press','jerk','overhead'],
-  'Low Hang Clean + Pause Jerk': ['clean','press','push_press','jerk','overhead'],
-  '3-Position Clean': 'clean',
-  'Tall Clean + Push Press': ['clean','press','push_press','jerk','overhead'],
-  'Tall Clean + Press': ['clean','press','push_press','jerk','overhead'],
-  'Clean + Jerk': ['clean','press','push_press','jerk','overhead'],
-  'Hang Clean + Jerk': ['clean','press','push_press','jerk','overhead'],
-  'PP Clean + Jerk': ['clean','press','push_press','jerk','overhead'],
-  'Chin Up': 'chin_up', 'Pull Up': 'chin_up',
+  'Back Squat':'back_squat','Back Squat HE':'back_squat',
+  'Front Squat':'front_squat','Front Squat HE':'front_squat','OHS':'front_squat',
+  'Bench Press':'bench_press','DB Bench Press':'bench_press',
+  'Deadlift':'deadlift','Sumo Deadlift':'deadlift','Trap Bar Deadlift':'deadlift',
+  'Press':'press','Behind-the-Neck Press':'press',
+  'Push Press':'push_press','Behind-the-Neck Push Jerk':'push_press',
+  'Push Jerk':'jerk','Power Jerk':'jerk','Split Jerk':'jerk',
+  'Behind-the-Neck Power Jerk':'jerk','Behind-the-Neck Split Jerk':'jerk',
+  'Hang Snatch':'snatch','Power Position Snatch':'snatch','Low Hang Snatch':'snatch',
+  'No Foot Snatch':'snatch','Hang Power Snatch':'snatch','Tall Snatch':'snatch',
+  'PP Snatch + OHS':['snatch','front_squat'],'Hang Snatch + OHS':['snatch','front_squat'],
+  'Tall Snatch + OHS':['snatch','front_squat'],'3-Position Snatch':'snatch',
+  'Hang Clean':'clean','Power Position Clean':'clean','Low Hang Clean':'clean',
+  'No Foot Clean':'clean','Hang Power Clean':'clean','Tall Clean':'clean',
+  'PP Clean + Press':['clean','press','push_press','jerk','overhead'],
+  'PP Clean + Push Press':['clean','press','push_press','jerk','overhead'],
+  'Hang Clean + Push Press':['clean','press','push_press','jerk','overhead'],
+  'PP Clean + Hang Clean':'clean',
+  'Hang Clean + Front Squat':['clean','front_squat'],
+  'PP Clean + Push Press + Front Squat':['clean','press','push_press','jerk','overhead','front_squat'],
+  'Hang Clean + Push Jerk':['clean','press','push_press','jerk','overhead'],
+  'Low Hang Clean + Pause Jerk':['clean','press','push_press','jerk','overhead'],
+  '3-Position Clean':'clean',
+  'Tall Clean + Push Press':['clean','press','push_press','jerk','overhead'],
+  'Tall Clean + Press':['clean','press','push_press','jerk','overhead'],
+  'Clean + Jerk':['clean','press','push_press','jerk','overhead'],
+  'Hang Clean + Jerk':['clean','press','push_press','jerk','overhead'],
+  'PP Clean + Jerk':['clean','press','push_press','jerk','overhead'],
+  'Chin Up':'chin_up','Pull Up':'chin_up',
 }
 
 const DEFAULT_CELL_NOTES = {
-  'beginner-3-dayA-1-2': '2RM', 'beginner-3-dayA-1-3': 'MAX',
-  'beginner-3-dayA-2-2': '3RM', 'beginner-3-dayA-2-3': 'MAX',
-  'beginner-3-dayA-3-2': '2RM', 'beginner-3-dayA-3-3': 'MAX',
-  'beginner-3-dayB-1-2': '3RM', 'beginner-3-dayB-1-3': 'MAX',
-  'beginner-3-dayB-2-2': '2RM', 'beginner-3-dayB-2-3': 'MAX',
-  'beginner-3-dayB-3-2': '3RM', 'beginner-3-dayB-3-3': 'MAX',
-  'oly_athlete-1-dayA-1-4': 'RM', 'oly_athlete-1-dayA-2-4': 'RM', 'oly_athlete-1-dayA-3-4': 'RM',
-  'oly_athlete-1-dayB-1-4': 'RM', 'oly_athlete-1-dayB-2-4': 'RM', 'oly_athlete-1-dayB-3-4': 'RM',
-  'oly_athlete-2-dayA-1-4': 'RM', 'oly_athlete-2-dayA-2-4': 'RM', 'oly_athlete-2-dayA-3-4': 'RM',
-  'oly_athlete-2-dayB-1-4': 'RM', 'oly_athlete-2-dayB-2-4': 'RM', 'oly_athlete-2-dayB-3-4': 'RM',
-  'oly_athlete-3-dayA-1-2': '2RM', 'oly_athlete-3-dayA-1-3': 'MAX',
-  'oly_athlete-3-dayA-2-2': '3RM', 'oly_athlete-3-dayA-2-3': 'MAX',
-  'oly_athlete-3-dayA-3-2': '2RM', 'oly_athlete-3-dayA-3-3': 'MAX',
-  'oly_athlete-3-dayB-1-2': '2RM', 'oly_athlete-3-dayB-1-3': 'MAX',
-  'oly_athlete-3-dayB-2-2': '2RM', 'oly_athlete-3-dayB-2-3': 'MAX',
-  'oly_athlete-3-dayB-3-2': '3RM', 'oly_athlete-3-dayB-3-3': 'MAX',
-  'oly_adv-1-dayA-1-4': 'RM', 'oly_adv-1-dayA-2-4': 'RM', 'oly_adv-1-dayA-3-4': 'RM',
-  'oly_adv-1-dayB-1-4': 'RM', 'oly_adv-1-dayB-2-4': 'RM', 'oly_adv-1-dayB-3-4': 'RM',
-  'oly_adv-2-dayA-1-4': 'RM', 'oly_adv-2-dayA-2-4': 'RM', 'oly_adv-2-dayA-3-4': 'RM',
-  'oly_adv-2-dayB-1-4': 'RM', 'oly_adv-2-dayB-2-4': 'RM', 'oly_adv-2-dayB-3-4': 'RM',
-  'oly_adv-3-dayA-1-2': '2RM', 'oly_adv-3-dayA-1-3': 'MAX',
-  'oly_adv-3-dayA-2-2': '3RM', 'oly_adv-3-dayA-2-3': 'MAX',
-  'oly_adv-3-dayA-3-2': '3RM', 'oly_adv-3-dayA-3-3': 'MAX',
-  'oly_adv-3-dayB-1-2': '2RM',
-  'oly_adv-3-dayB-2-2': '2RM', 'oly_adv-3-dayB-2-3': 'MAX',
-  'oly_adv-3-dayB-3-3': 'MAX',
+  'beginner-3-dayA-1-2':'2RM','beginner-3-dayA-1-3':'MAX',
+  'beginner-3-dayA-2-2':'3RM','beginner-3-dayA-2-3':'MAX',
+  'beginner-3-dayA-3-2':'2RM','beginner-3-dayA-3-3':'MAX',
+  'beginner-3-dayB-1-2':'3RM','beginner-3-dayB-1-3':'MAX',
+  'beginner-3-dayB-2-2':'2RM','beginner-3-dayB-2-3':'MAX',
+  'beginner-3-dayB-3-2':'3RM','beginner-3-dayB-3-3':'MAX',
+  'oly_athlete-1-dayA-1-4':'RM','oly_athlete-1-dayA-2-4':'RM','oly_athlete-1-dayA-3-4':'RM',
+  'oly_athlete-1-dayB-1-4':'RM','oly_athlete-1-dayB-2-4':'RM','oly_athlete-1-dayB-3-4':'RM',
+  'oly_athlete-2-dayA-1-4':'RM','oly_athlete-2-dayA-2-4':'RM','oly_athlete-2-dayA-3-4':'RM',
+  'oly_athlete-2-dayB-1-4':'RM','oly_athlete-2-dayB-2-4':'RM','oly_athlete-2-dayB-3-4':'RM',
+  'oly_athlete-3-dayA-1-2':'2RM','oly_athlete-3-dayA-1-3':'MAX',
+  'oly_athlete-3-dayA-2-2':'3RM','oly_athlete-3-dayA-2-3':'MAX',
+  'oly_athlete-3-dayA-3-2':'2RM','oly_athlete-3-dayA-3-3':'MAX',
+  'oly_athlete-3-dayB-1-2':'2RM','oly_athlete-3-dayB-1-3':'MAX',
+  'oly_athlete-3-dayB-2-2':'2RM','oly_athlete-3-dayB-2-3':'MAX',
+  'oly_athlete-3-dayB-3-2':'3RM','oly_athlete-3-dayB-3-3':'MAX',
+  'oly_adv-1-dayA-1-4':'RM','oly_adv-1-dayA-2-4':'RM','oly_adv-1-dayA-3-4':'RM',
+  'oly_adv-1-dayB-1-4':'RM','oly_adv-1-dayB-2-4':'RM','oly_adv-1-dayB-3-4':'RM',
+  'oly_adv-2-dayA-1-4':'RM','oly_adv-2-dayA-2-4':'RM','oly_adv-2-dayA-3-4':'RM',
+  'oly_adv-2-dayB-1-4':'RM','oly_adv-2-dayB-2-4':'RM','oly_adv-2-dayB-3-4':'RM',
+  'oly_adv-3-dayA-1-2':'2RM','oly_adv-3-dayA-1-3':'MAX',
+  'oly_adv-3-dayA-2-2':'3RM','oly_adv-3-dayA-2-3':'MAX',
+  'oly_adv-3-dayA-3-2':'3RM','oly_adv-3-dayA-3-3':'MAX',
+  'oly_adv-3-dayB-1-2':'2RM',
+  'oly_adv-3-dayB-2-2':'2RM','oly_adv-3-dayB-2-3':'MAX',
+  'oly_adv-3-dayB-3-3':'MAX',
 }
-
-const ADULT_TEMPLATES = ['adult_oly', 'gpp_2day', 'gpp_3day', 'upper_lower']
 
 const TEMPLATES = {
   beginner: {
@@ -292,11 +260,10 @@ const TEMPLATES = {
       }
     }
   },
-
   oly_athlete: {
     label: 'Oly Athlete', days: ['dayA','dayB'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
@@ -315,7 +282,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
@@ -334,7 +301,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -354,11 +321,10 @@ const TEMPLATES = {
       }
     }
   },
-
   oly_adv: {
     label: 'Oly ADV Athlete', days: ['dayA','dayB'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch + OHS',4,'1+2+1',OLY_B1,['snatch','front_squat']),
@@ -377,7 +343,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch + OHS',4,'2+1',OLY_B2,['snatch','front_squat']),
@@ -396,7 +362,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-90%', w1note: '75% only',
+        pctLabel:'75-90%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -416,7 +382,6 @@ const TEMPLATES = {
       }
     }
   },
-
   gpp_2day: {
     label: 'GPP 2-Day', days: ['dayA','dayB'], blocks: {
       1: {
@@ -475,11 +440,10 @@ const TEMPLATES = {
       }
     }
   },
-
   adult_oly: {
     label: 'Adult Weightlifting 2-Day', days: ['dayA','dayB'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
@@ -500,7 +464,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
@@ -521,7 +485,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -543,11 +507,10 @@ const TEMPLATES = {
       }
     }
   },
-
   oly_2day: {
     label: 'Olympic Lifting 2-Day', days: ['dayA','dayB'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
@@ -566,7 +529,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
@@ -585,7 +548,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -605,11 +568,10 @@ const TEMPLATES = {
       }
     }
   },
-
   oly_power_3day: {
     label: '3-Day Oly + Power', days: ['dayA','dayB','dayC'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
@@ -637,7 +599,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
@@ -665,7 +627,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -694,11 +656,10 @@ const TEMPLATES = {
       }
     }
   },
-
   oly_power_4day: {
     label: '4-Day Oly + Power + Plyo', days: ['dayA','dayB','dayC','dayD'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','PP Snatch + Hang Snatch',4,'2+1',OLY_B1,'snatch'),
@@ -733,7 +694,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
@@ -768,7 +729,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -804,7 +765,6 @@ const TEMPLATES = {
       }
     }
   },
-
   gpp_3day: {
     label: 'GPP 3-Day', days: ['dayA','dayB','dayC'], blocks: {
       1: {
@@ -887,7 +847,6 @@ const TEMPLATES = {
       }
     }
   },
-
   upper_lower: {
     label: 'Upper / Lower Split', days: ['dayA','dayB','dayC','dayD'], blocks: {
       1: {
@@ -976,11 +935,10 @@ const TEMPLATES = {
       }
     }
   },
-
   oly_4day: {
     label: 'Olympic Lifting 4-Day', days: ['dayA','dayB','dayC','dayD'], blocks: {
       1: {
-        pctLabel: '65-75%', w1note: '65% only',
+        pctLabel:'65-75%', w1note:'65% only',
         dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'3',OLY_B1,'snatch'),
@@ -1013,7 +971,7 @@ const TEMPLATES = {
         ]}
       },
       2: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B2,'snatch'),
@@ -1046,7 +1004,7 @@ const TEMPLATES = {
         ]}
       },
       3: {
-        pctLabel: '75-85%', w1note: '75% only',
+        pctLabel:'75-85%', w1note:'75% only',
         dayA: { header: 'A Day — Snatch + C&J + Squat', exercises: [
           WU_A,
           mkEx('A1','Hang Snatch',4,'2',OLY_B3,'snatch'),
@@ -1080,36 +1038,29 @@ const TEMPLATES = {
       }
     }
   },
-
   hs_tech_speed: {
     label: 'HS Technique + Speed', days: ['dayA'], blocks: {
-      1: {
-        dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
-          mkEx('B1','PP Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
-          mkEx('C1','Hang Clean',4,'3',OLY_B1,'clean'),
-          mkEx('D1','PAK Clean Pull + Clean Pull',3,'3',PULL_B1,'clean'),
-          mkEx('E1','Nordic Hamstring Curl',3,'8'),
-        ]}
-      },
-      2: {
-        dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
-          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
-          mkEx('C1','Hang Clean',4,'2',OLY_B2,'clean'),
-          mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B2,'clean'),
-          mkEx('E1','Glute Ham Raise',3,'8'),
-        ]}
-      },
-      3: {
-        dayA: { header: 'A Day', exercises: [
-          mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
-          mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
-          mkEx('C1','Hang Clean',4,'2',OLY_B3,'clean'),
-          mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B3,'clean'),
-          mkEx('E1','Razor Curl',3,'8'),
-        ]}
-      }
+      1: { dayA: { header: 'A Day', exercises: [
+        mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
+        mkEx('B1','PP Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
+        mkEx('C1','Hang Clean',4,'3',OLY_B1,'clean'),
+        mkEx('D1','PAK Clean Pull + Clean Pull',3,'3',PULL_B1,'clean'),
+        mkEx('E1','Nordic Hamstring Curl',3,'8'),
+      ]}},
+      2: { dayA: { header: 'A Day', exercises: [
+        mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
+        mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
+        mkEx('C1','Hang Clean',4,'2',OLY_B2,'clean'),
+        mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B2,'clean'),
+        mkEx('E1','Glute Ham Raise',3,'8'),
+      ]}},
+      3: { dayA: { header: 'A Day', exercises: [
+        mkEx('A1','Acceleration / Change of Direction',"10'",'1'),
+        mkEx('B1','PP Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
+        mkEx('C1','Hang Clean',4,'2',OLY_B3,'clean'),
+        mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B3,'clean'),
+        mkEx('E1','Razor Curl',3,'8'),
+      ]}}
     }
   },
 }
@@ -1118,9 +1069,7 @@ const TEMPLATES = {
 function ExerciseInput({ value, onChange, library: libProp }) {
   const lib = libProp || LIBRARY
   const [pattern, setPattern] = useState(() => {
-    for (const [p, exs] of Object.entries(lib)) {
-      if (exs.includes(value)) return p
-    }
+    for (const [p, exs] of Object.entries(lib)) { if (exs.includes(value)) return p }
     return ''
   })
   const [text, setText] = useState(value)
@@ -1143,14 +1092,14 @@ function ExerciseInput({ value, onChange, library: libProp }) {
   const handleSelect = (ex) => { setText(ex); onChange(ex); setShowDrop(false) }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} style={{ position: 'relative', flex: 1 }}>
       <select value={pattern} onChange={e => handlePatternChange(e.target.value)}
         style={{ fontSize: 8, color: '#aaa', border: 'none', background: 'transparent', padding: '0 0 1px 0', cursor: 'pointer', width: '100%', outline: 'none' }}>
         <option value="">— pattern —</option>
         {Object.keys(lib).map(p => <option key={p} value={p}>{p}</option>)}
       </select>
       <input type="text" value={text} onChange={handleTextChange}
-        onFocus={() => { if (pattern) { setFiltered(LIBRARY[pattern] || []); setShowDrop(true) } }}
+        onFocus={() => { if (pattern) { setFiltered(lib[pattern] || []); setShowDrop(true) } }}
         placeholder="exercise..."
         style={{ width: '100%', border: 'none', borderBottom: '1px dashed #bbb', background: 'transparent', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', outline: 'none', padding: '1px 0' }} />
       {showDrop && filtered.length > 0 && (
@@ -1195,6 +1144,7 @@ export default function App() {
   const [edits, setEdits] = useState({})
   const [cellNotes, setCellNotes] = useState({ ...DEFAULT_CELL_NOTES })
   const [saving, setSaving] = useState(false)
+  const [kgExercises, setKgExercises] = useState(new Set())
   const [library, setLibrary] = useState(() => {
     const copy = {}
     Object.entries(LIBRARY).forEach(([k,v]) => { copy[k] = [...v] })
@@ -1204,9 +1154,17 @@ export default function App() {
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
+  const toggleKg = (exerciseName) => {
+    setKgExercises(prev => {
+      const next = new Set(prev)
+      next.has(exerciseName) ? next.delete(exerciseName) : next.add(exerciseName)
+      return next
+    })
+  }
+
   useEffect(() => {
     async function load() {
-      const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').in('status', ['active', 'Active']).order('first_name')
+      const { data: ath, error } = await sb.from('athletes').select('id,first_name,last_name').in('status', ['active','Active']).order('first_name')
       if (error) { setStatus('Error: ' + error.message); return }
       setAthletes(ath)
       setStatus('Fetching PRs...')
@@ -1224,7 +1182,7 @@ export default function App() {
       if (savedEdits && savedEdits.length > 0) {
         const editMap = {}
         savedEdits.forEach(r => {
-          if (r.field === 'prKey') return // prKey always comes from template, never from saved edits
+          if (r.field === 'prKey') return
           const k = `${r.template}-${r.block}-${r.day}-${r.ex_index}`
           if (!editMap[k]) editMap[k] = {}
           editMap[k][r.field] = r.value
@@ -1234,20 +1192,29 @@ export default function App() {
       const { data: savedNotes } = await sb.from('program_cell_notes').select('*')
       if (savedNotes && savedNotes.length > 0) {
         const noteMap = { ...DEFAULT_CELL_NOTES }
-        savedNotes.forEach(r => {
-          const k = `${r.template}-${r.block}-${r.day}-${r.ex_index}-${r.week}`
-          noteMap[k] = r.value
-        })
+        savedNotes.forEach(r => { noteMap[`${r.template}-${r.block}-${r.day}-${r.ex_index}-${r.week}`] = r.value })
         setCellNotes(noteMap)
       }
-      setStatus('Ready')
-      // Load custom templates
       const { data: ctData } = await sb.from('custom_templates').select('*')
       if (ctData && ctData.length > 0) {
         const ctMap = {}
         ctData.forEach(r => { try { ctMap[r.id] = JSON.parse(r.template_json) } catch(e) {} })
         setCustomTemplates(ctMap)
       }
+      // FIX: load custom library exercises persisted in Supabase
+      const { data: libData } = await sb.from('library_exercises').select('category,exercise')
+      if (libData && libData.length > 0) {
+        setLibrary(prev => {
+          const updated = {}
+          Object.entries(prev).forEach(([k,v]) => { updated[k] = [...v] })
+          libData.forEach(({ category, exercise }) => {
+            if (!updated[category]) updated[category] = [exercise]
+            else if (!updated[category].includes(exercise)) updated[category].push(exercise)
+          })
+          return updated
+        })
+      }
+      setStatus('Ready')
     }
     load()
   }, [])
@@ -1260,34 +1227,22 @@ export default function App() {
 
   const getPR = (aId, tid) => {
     if (Array.isArray(tid)) {
-      // Split into clean/squat keys vs overhead keys
       const overheadKeys = ['press','push_press','jerk','overhead']
       const structuralKeys = tid.filter(t => !overheadKeys.includes(t))
       const ohKeys = tid.filter(t => overheadKeys.includes(t))
-      // Get best available overhead value (max across jerk/press/push_press/overhead)
       const ohVals = ohKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
       const bestOH = ohVals.length ? Math.max(...ohVals) : null
-      // Get structural values (clean, front_squat, etc)
       const structVals = structuralKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
-      // Min of best overhead vs structural lifts
       const all = [...structVals, ...(bestOH ? [bestOH] : [])]
       return all.length ? Math.min(...all) : null
     }
     return prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
   }
-
   const getOverheadPR = (aId) => {
-    const vals = ['press', 'push_press', 'jerk', 'overhead'].map(t => getPR(aId, t)).filter(Boolean)
+    const vals = ['press','push_press','jerk','overhead'].map(t => getPR(aId, t)).filter(Boolean)
     return vals.length ? Math.max(...vals) : null
   }
-
-  // For press/push_press/jerk: fall back to best overhead across all variants
-  const getOverheadVariantPR = (aId, primaryKey) => {
-    const direct = getPR(aId, primaryKey)
-    if (direct) return direct
-    // Fall back to best across all overhead variants (jerk, press, push_press, overhead)
-    return getOverheadPR(aId)
-  }
+  const getOverheadVariantPR = (aId, primaryKey) => { const d = getPR(aId, primaryKey); return d || getOverheadPR(aId) }
 
   const PKS = [
     ['snatch','Snatch'],['clean','Clean'],['deadlift','Deadlift'],
@@ -1307,16 +1262,9 @@ export default function App() {
     const k = `${tier}-${block}-${day}-${i}`
     const edit = edits[k] || {}
     const merged = { ...ex, ...edit }
-    // If template has an array prKey (complex), don't let a saved string prKey override it
-    if (Array.isArray(ex.prKey) && typeof edit.prKey === 'string') {
-      merged.prKey = ex.prKey
-    }
-    // Build per-week pct overrides
+    if (Array.isArray(ex.prKey) && typeof edit.prKey === 'string') merged.prKey = ex.prKey
     const pctOv = {}
-    ;[1,2,3].forEach(w => {
-      const v = parseFloat(edit['pct_w' + w])
-      if (!isNaN(v)) pctOv[w] = v
-    })
+    ;[1,2,3].forEach(w => { const v = parseFloat(edit['pct_w' + w]); if (!isNaN(v)) pctOv[w] = v })
     merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
     delete merged.pct_w1; delete merged.pct_w2; delete merged.pct_w3
     return merged
@@ -1324,7 +1272,6 @@ export default function App() {
 
   const setEdit = (day, i, field, value) => {
     const k = `${tier}-${block}-${day}-${i}`
-    // When exercise name changes, auto-detect and update prKey too
     if (field === 'exercise') {
       const detectedKey = EXERCISE_PR_KEYS[value] || null
       setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), exercise: value, prKey: detectedKey } }))
@@ -1333,7 +1280,6 @@ export default function App() {
       saveTimers.current[timerKey] = setTimeout(async () => {
         setSaving(true)
         await sb.from('program_edits').upsert({ template: tier, block, day, ex_index: i, field: 'exercise', value, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,field' })
-        // Do NOT save prKey — it always derives from the template at runtime
         setSaving(false)
       }, 800)
       return
@@ -1343,9 +1289,7 @@ export default function App() {
     if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
     saveTimers.current[timerKey] = setTimeout(async () => {
       setSaving(true)
-      await sb.from('program_edits').upsert({
-        template: tier, block, day, ex_index: i, field, value, updated_at: new Date().toISOString()
-      }, { onConflict: 'template,block,day,ex_index,field' })
+      await sb.from('program_edits').upsert({ template: tier, block, day, ex_index: i, field, value, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,field' })
       setSaving(false)
     }, 800)
   }
@@ -1362,9 +1306,7 @@ export default function App() {
     if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
     saveTimers.current[timerKey] = setTimeout(async () => {
       setSaving(true)
-      await sb.from('program_cell_notes').upsert({
-        template: tmpl, block: blk, day, ex_index: exIdx, week: wk, value: val, updated_at: new Date().toISOString()
-      }, { onConflict: 'template,block,day,ex_index,week' })
+      await sb.from('program_cell_notes').upsert({ template: tmpl, block: blk, day, ex_index: exIdx, week: wk, value: val, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,week' })
       setSaving(false)
     }, 800)
   }
@@ -1379,131 +1321,95 @@ export default function App() {
       )}
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', display: 'flex' }}>
         {[['builder','Program Builder'],['templates','Create Template'],['library','Manage Library']].map(([t,label]) => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '10px 20px', border: 'none', borderBottom: t === tab ? '3px solid #111' : '3px solid transparent',
-            background: 'transparent', fontWeight: t === tab ? 800 : 400, fontSize: 12, cursor: 'pointer',
-            fontFamily: 'inherit', letterSpacing: 1, textTransform: 'uppercase'
-          }}>{label}</button>
+          <button key={t} onClick={() => setTab(t)} style={{ padding: '10px 20px', border: 'none', borderBottom: t === tab ? '3px solid #111' : '3px solid transparent', background: 'transparent', fontWeight: t === tab ? 800 : 400, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</button>
         ))}
       </div>
       {tab === 'library' ? (
         <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
       ) : tab === 'templates' ? (
-        <TemplateCreator
-          allTemplates={allTemplates}
-          customTemplates={customTemplates}
-          setCustomTemplates={setCustomTemplates}
-          library={library}
-          saving={saving}
-          setSaving={setSaving}
-          sb={sb}
-          setTier={setTier}
-          setBlock={setBlock}
-          setTab={setTab}
-        />
+        <TemplateCreator allTemplates={allTemplates} customTemplates={customTemplates} setCustomTemplates={setCustomTemplates} library={library} saving={saving} setSaving={setSaving} sb={sb} setTier={setTier} setBlock={setBlock} setTab={setTab} />
       ) : (
-      <div>
-      <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
-          <div style={lbl}>Template</div>
-          <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1) }}
-            style={{ border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit' }}>
-            {Object.entries(allTemplates).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <div style={lbl}>Block</div>
-          <div style={{ display: 'flex', gap: 2 }}>
-            {[1, 2, 3].map(b => (
-              <button key={b} onClick={() => setBlock(b)}
-                style={{ padding: '5px 16px', border: '1px solid #bbb', background: block === b ? '#111' : '#fff', color: block === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {b}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div ref={athRef} style={{ position: 'relative', minWidth: 220 }}>
-          <div style={lbl}>Athlete</div>
-          {ath && !showAthDrop ? (
-            <div onClick={() => setShowAthDrop(true)}
-              style={{ padding: '5px 10px', border: '1px solid #e8b000', background: '#fffbe6', display: 'flex', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, minWidth: 200 }}>
-              <span>{ath.first_name} {ath.last_name}</span>
-              <span onClick={e => { e.stopPropagation(); setAthleteId(null); setSearch('') }} style={{ color: '#999', marginLeft: 8, fontWeight: 400 }}>×</span>
-            </div>
-          ) : (
+          <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div>
-              <input value={search} onChange={e => { setSearch(e.target.value); setShowAthDrop(true) }}
-                onFocus={() => setShowAthDrop(true)} placeholder="Search athlete..."
-                style={{ width: '100%', padding: '5px 8px', border: '1px solid #bbb', fontSize: 12, fontFamily: 'inherit' }} />
-              {showAthDrop && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #999', borderTop: 'none', maxHeight: 220, overflowY: 'auto', zIndex: 999, boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}>
-                  {filteredAth.slice(0, 40).map(a => (
-                    <div key={a.id} onMouseDown={() => { setAthleteId(a.id); setSearch(''); setShowAthDrop(false) }}
-                      style={{ padding: '7px 10px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: 12 }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
-                      onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-                      {a.first_name} {a.last_name}
+              <div style={lbl}>Template</div>
+              <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1) }} style={{ border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit' }}>
+                {Object.entries(allTemplates).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={lbl}>Block</div>
+              <div style={{ display: 'flex', gap: 2 }}>
+                {[1,2,3].map(b => (
+                  <button key={b} onClick={() => setBlock(b)} style={{ padding: '5px 16px', border: '1px solid #bbb', background: block === b ? '#111' : '#fff', color: block === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{b}</button>
+                ))}
+              </div>
+            </div>
+            <div ref={athRef} style={{ position: 'relative', minWidth: 220 }}>
+              <div style={lbl}>Athlete</div>
+              {ath && !showAthDrop ? (
+                <div onClick={() => setShowAthDrop(true)} style={{ padding: '5px 10px', border: '1px solid #e8b000', background: '#fffbe6', display: 'flex', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, minWidth: 200 }}>
+                  <span>{ath.first_name} {ath.last_name}</span>
+                  <span onClick={e => { e.stopPropagation(); setAthleteId(null); setSearch('') }} style={{ color: '#999', marginLeft: 8, fontWeight: 400 }}>×</span>
+                </div>
+              ) : (
+                <div>
+                  <input value={search} onChange={e => { setSearch(e.target.value); setShowAthDrop(true) }} onFocus={() => setShowAthDrop(true)} placeholder="Search athlete..." style={{ width: '100%', padding: '5px 8px', border: '1px solid #bbb', fontSize: 12, fontFamily: 'inherit' }} />
+                  {showAthDrop && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #999', borderTop: 'none', maxHeight: 220, overflowY: 'auto', zIndex: 999, boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}>
+                      {filteredAth.slice(0, 40).map(a => (
+                        <div key={a.id} onMouseDown={() => { setAthleteId(a.id); setSearch(''); setShowAthDrop(false) }} style={{ padding: '7px 10px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: 12 }} onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                          {a.first_name} {a.last_name}
+                        </div>
+                      ))}
+                      {filteredAth.length === 0 && <div style={{ padding: '7px 10px', color: '#aaa' }}>No results</div>}
                     </div>
-                  ))}
-                  {filteredAth.length === 0 && <div style={{ padding: '7px 10px', color: '#aaa' }}>No results</div>}
+                  )}
                 </div>
               )}
             </div>
+            {saving && <div style={{ fontSize: 10, color: '#aaa', alignSelf: 'center' }}>Saving...</div>}
+            <button onClick={() => window.print()} style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>Print / PDF</button>
+          </div>
+
+          <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+            <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
+            <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
+            {page1Days.map(dk => (
+              <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
+                setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
+                library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+            ))}
+          </div>
+
+          {page2Days.length > 0 && (
+            <div id="sheet2" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+              <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} compact />
+              {page2Days.map(dk => (
+                <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
+                  setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
+                  library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+              ))}
+            </div>
           )}
+
+          <style>{`
+            * { box-sizing: border-box; }
+            @media print {
+              @page { size: letter portrait; margin: 0.4in }
+              body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .no-print { display: none !important }
+              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
+              #sheet2 { page-break-before: always; }
+            }
+          `}</style>
         </div>
-        {saving && <div style={{ fontSize: 10, color: '#aaa', alignSelf: 'center' }}>Saving...</div>}
-        <button onClick={() => window.print()}
-          style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>
-          Print / PDF
-        </button>
-      </div>
-
-      <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
-        <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
-        <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
-        {page1Days.map(dk => (
-          <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
-            setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library} />
-        ))}
-      </div>
-
-      {page2Days.length > 0 && (
-        <div id="sheet2" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
-          <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} compact />
-          {page2Days.map(dk => (
-            <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
-              setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} />
-          ))}
-        </div>
-      )}
-
-      <style>{`
-        * { box-sizing: border-box; }
-        @media print {
-          @page { size: letter portrait; margin: 0.4in }
-          body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .no-print { display: none !important }
-          #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
-          #sheet2 { page-break-before: always; }
-        }
-      `}</style>
-      </div>
       )}
     </div>
   )
 }
 
 const lbl = { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 }
-
-const CATEGORY_PR_KEYS = {
-  'Snatch': 'snatch',
-  'Clean': 'clean',
-  'Jerk': 'jerk',
-  'Overhead': 'push_press',
-  'Squat': null,
-  'Pulls / Hinge': 'deadlift',
-  'Horizontal Press': 'bench_press',
-}
 
 function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
   const [selectedCat, setSelectedCat] = useState(Object.keys(library)[0])
@@ -1517,8 +1423,7 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
   const addExercise = async () => {
     const ex = newExercise.trim()
     if (!ex || !selectedCat) return
-    const updated = { ...library, [selectedCat]: [...(library[selectedCat] || []), ex] }
-    setLibrary(updated)
+    setLibrary(prev => ({ ...prev, [selectedCat]: [...(prev[selectedCat] || []), ex] }))
     setNewExercise('')
     setSaving(true)
     await sb.from('library_exercises').upsert({ category: selectedCat, exercise: ex }, { onConflict: 'category,exercise' })
@@ -1527,8 +1432,7 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
   }
 
   const removeExercise = async (cat, ex) => {
-    const updated = { ...library, [cat]: library[cat].filter(e => e !== ex) }
-    setLibrary(updated)
+    setLibrary(prev => ({ ...prev, [cat]: prev[cat].filter(e => e !== ex) }))
     setSaving(true)
     await sb.from('library_exercises').delete().eq('category', cat).eq('exercise', ex)
     setSaving(false)
@@ -1537,12 +1441,11 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
 
   const moveExercise = async (ex, fromCat, toCat) => {
     if (fromCat === toCat) return
-    const updated = {
-      ...library,
-      [fromCat]: library[fromCat].filter(e => e !== ex),
-      [toCat]: [...(library[toCat] || []), ex]
-    }
-    setLibrary(updated)
+    setLibrary(prev => ({
+      ...prev,
+      [fromCat]: prev[fromCat].filter(e => e !== ex),
+      [toCat]: [...(prev[toCat] || []), ex]
+    }))
     setSaving(true)
     await sb.from('library_exercises').delete().eq('category', fromCat).eq('exercise', ex)
     await sb.from('library_exercises').upsert({ category: toCat, exercise: ex }, { onConflict: 'category,exercise' })
@@ -1553,11 +1456,8 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
   const addCategory = async () => {
     const cat = newCategory.trim()
     if (!cat || library[cat]) return
-    const updated = { ...library, [cat]: [] }
-    setLibrary(updated)
-    setSelectedCat(cat)
-    setNewCategory('')
-    setAddingCat(false)
+    setLibrary(prev => ({ ...prev, [cat]: [] }))
+    setSelectedCat(cat); setNewCategory(''); setAddingCat(false)
     setSaving(true)
     await sb.from('library_categories').upsert({ category: cat }, { onConflict: 'category' })
     setSaving(false)
@@ -1568,17 +1468,10 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 120px)', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
-      {/* Sidebar */}
       <div style={{ width: 200, borderRight: '2px solid #111', background: '#fafafa', overflowY: 'auto', flexShrink: 0 }}>
-        <div style={{ padding: '8px 12px', fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#555', borderBottom: '1px solid #ddd' }}>
-          Categories
-        </div>
+        <div style={{ padding: '8px 12px', fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', color: '#555', borderBottom: '1px solid #ddd' }}>Categories</div>
         {cats.map(cat => (
-          <div key={cat} onClick={() => setSelectedCat(cat)}
-            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eee',
-              background: selectedCat === cat ? '#111' : 'transparent',
-              color: selectedCat === cat ? '#fff' : '#111',
-              fontWeight: selectedCat === cat ? 700 : 400 }}>
+          <div key={cat} onClick={() => setSelectedCat(cat)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #eee', background: selectedCat === cat ? '#111' : 'transparent', color: selectedCat === cat ? '#fff' : '#111', fontWeight: selectedCat === cat ? 700 : 400 }}>
             <div>{cat}</div>
             <div style={{ fontSize: 10, color: selectedCat === cat ? '#aaa' : '#999' }}>{(library[cat] || []).length} exercises</div>
           </div>
@@ -1592,51 +1485,31 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
               <button onClick={addCategory} style={{ background: '#111', color: '#fff', border: 'none', padding: '4px 8px', cursor: 'pointer', fontSize: 11 }}>+</button>
             </div>
           ) : (
-            <button onClick={() => setAddingCat(true)}
-              style={{ width: '100%', background: 'transparent', border: '1px dashed #bbb', padding: '5px 8px', cursor: 'pointer', fontSize: 11, color: '#666' }}>
-              + Add Category
-            </button>
+            <button onClick={() => setAddingCat(true)} style={{ width: '100%', background: 'transparent', border: '1px dashed #bbb', padding: '5px 8px', cursor: 'pointer', fontSize: 11, color: '#666' }}>+ Add Category</button>
           )}
         </div>
       </div>
-
-      {/* Main */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{selectedCat}</h2>
           {msg && <span style={{ fontSize: 11, color: '#090', background: '#e8ffe8', padding: '2px 8px', borderRadius: 3 }}>{msg}</span>}
           {saving && <span style={{ fontSize: 11, color: '#999' }}>Saving...</span>}
         </div>
-
-        {/* Add exercise bar */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <input value={newExercise} onChange={e => setNewExercise(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addExercise() }}
-            placeholder={`Add exercise to ${selectedCat}...`}
-            style={{ flex: 1, border: '1.5px solid #bbb', padding: '7px 10px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }} />
-          <button onClick={addExercise}
-            style={{ background: '#111', color: '#fff', border: 'none', padding: '7px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'inherit' }}>
-            Add
-          </button>
+          <input value={newExercise} onChange={e => setNewExercise(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addExercise() }}
+            placeholder={`Add exercise to ${selectedCat}...`} style={{ flex: 1, border: '1.5px solid #bbb', padding: '7px 10px', fontSize: 12, fontFamily: 'inherit', outline: 'none' }} />
+          <button onClick={addExercise} style={{ background: '#111', color: '#fff', border: 'none', padding: '7px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'inherit' }}>Add</button>
         </div>
-
-        {/* Exercise list */}
         <div style={{ border: '1px solid #ddd' }}>
-          {(library[selectedCat] || []).length === 0 && (
-            <div style={{ padding: '20px', color: '#aaa', textAlign: 'center', fontStyle: 'italic' }}>No exercises yet</div>
-          )}
+          {(library[selectedCat] || []).length === 0 && <div style={{ padding: '20px', color: '#aaa', textAlign: 'center', fontStyle: 'italic' }}>No exercises yet</div>}
           {(library[selectedCat] || []).map((ex, idx) => (
             <div key={ex} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
               <span style={{ flex: 1, fontWeight: 500 }}>{ex}</span>
-              <select defaultValue="" onChange={e => { if (e.target.value) moveExercise(ex, selectedCat, e.target.value) }}
-                style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 4px', marginRight: 8, fontFamily: 'inherit', color: '#555', background: '#fff' }}>
+              <select defaultValue="" onChange={e => { if (e.target.value) moveExercise(ex, selectedCat, e.target.value) }} style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 4px', marginRight: 8, fontFamily: 'inherit', color: '#555', background: '#fff' }}>
                 <option value="">Move to...</option>
                 {cats.filter(c => c !== selectedCat).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <button onClick={() => removeExercise(selectedCat, ex)}
-                style={{ background: 'none', border: 'none', color: '#c00', cursor: 'pointer', fontSize: 14, fontWeight: 700, padding: '0 4px', lineHeight: 1 }}>
-                ×
-              </button>
+              <button onClick={() => removeExercise(selectedCat, ex)} style={{ background: 'none', border: 'none', color: '#c00', cursor: 'pointer', fontSize: 14, fontWeight: 700, padding: '0 4px', lineHeight: 1 }}>×</button>
             </div>
           ))}
         </div>
@@ -1674,7 +1547,6 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     setBlocks(b); setEditBlock(1); setCopyFrom(''); setEditingId(null)
   }
 
-  // Reverse-detect category from a pct array [w1, w2lo, w2hi] (values 0-1) and block ranges
   const reverseDetectCat = (pctArr, blockRanges) => {
     if (!pctArr || pctArr.length < 3) return null
     const pctInts = pctArr.map(p => Math.round(p * 100))
@@ -1685,69 +1557,9 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     return null
   }
 
-  const loadTemplate = (key) => {
-    const t = allTemplates[key]
-    if (!t) return
-    setCopyFrom(key)
-    setLabel(t.label + ' (copy)')
-    setTemplateId(slugify(t.label) + '_copy')
-    setDays([...t.days])
-    const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
-    // Build block ranges from DEFAULT_BLOCK_RANGES, then try to detect from exercises
-    const bks = {}
-    ;[1,2,3].forEach(b => {
-      const bd = t.blocks[b]
-      const ranges = JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[b]))
-      // Try to detect actual ranges from exercises in this block
-      if (bd) {
-        t.days.forEach(d => {
-          const dayData = bd[d]
-          if (!dayData) return
-          dayData.exercises.forEach(ex => {
-            if (!ex.pct) return
-            const cat = detectPctCategory(ex.exercise)
-            if (cat && !ranges._detected) {
-              const pctInts = ex.pct.map(p => Math.round(p * 100))
-              // Only override if the detected range differs from default
-              if (ranges[cat][0] !== pctInts[0] || ranges[cat][1] !== pctInts[1] || ranges[cat][2] !== pctInts[2]) {
-                ranges[cat] = pctInts
-              }
-            }
-          })
-        })
-      }
-      bks[b] = { pctLabel: bd?.pctLabel || '', w1note: bd?.w1note || '', ranges }
-      if (bd) {
-        t.days.forEach(d => {
-          const dayData = bd[d]
-          if (dayData) {
-            dh[d] = dayData.header || dh[d]
-            bks[b][d] = dayData.exercises.map(ex => {
-              const detected = detectPctCategory(ex.exercise)
-              let pctCat = 'none'
-              if (ex.pct) {
-                const matched = reverseDetectCat(ex.pct, ranges)
-                if (matched) pctCat = 'auto'
-                else pctCat = 'custom'
-              }
-              return {
-                series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
-                pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null,
-                prKey: ex.prKey, note: ex.note || ''
-              }
-            })
-          }
-        })
-      }
-    })
-    setDayHeaders(dh)
-    setBlocks(bks)
-  }
-
-  const editExisting = (key) => {
-    const t = customTemplates[key]
-    if (!t) return
-    setEditingId(key); setLabel(t.label); setTemplateId(key)
+  const loadFromTemplate = (key, suffix) => {
+    const t = allTemplates[key]; if (!t) return
+    setCopyFrom(key); setLabel(t.label + (suffix || ' (copy)')); setTemplateId(slugify(t.label) + (suffix ? '' : '_copy'))
     setDays([...t.days])
     const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
     const bks = {}
@@ -1756,133 +1568,92 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
       const ranges = JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[b]))
       if (bd) {
         t.days.forEach(d => {
-          const dayData = bd[d]
-          if (!dayData) return
+          const dayData = bd[d]; if (!dayData) return
           dayData.exercises.forEach(ex => {
             if (!ex.pct) return
-            const cat = detectPctCategory(ex.exercise)
-            if (cat) {
-              const pctInts = ex.pct.map(p => Math.round(p * 100))
-              if (ranges[cat][0] !== pctInts[0] || ranges[cat][1] !== pctInts[1] || ranges[cat][2] !== pctInts[2]) {
-                ranges[cat] = pctInts
-              }
-            }
+            const cat = detectPctCategory(ex.exercise); if (!cat) return
+            const pctInts = ex.pct.map(p => Math.round(p * 100))
+            if (ranges[cat][0] !== pctInts[0] || ranges[cat][1] !== pctInts[1] || ranges[cat][2] !== pctInts[2]) ranges[cat] = pctInts
           })
         })
       }
       bks[b] = { pctLabel: bd?.pctLabel || '', w1note: bd?.w1note || '', ranges }
       if (bd) {
         t.days.forEach(d => {
-          const dayData = bd[d]
-          if (dayData) {
-            dh[d] = dayData.header || dh[d]
-            bks[b][d] = dayData.exercises.map(ex => {
-              let pctCat = 'none'
-              if (ex.pct) {
-                const matched = reverseDetectCat(ex.pct, ranges)
-                if (matched) pctCat = 'auto'
-                else pctCat = 'custom'
-              }
-              return {
-                series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps,
-                pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null,
-                prKey: ex.prKey, note: ex.note || ''
-              }
-            })
-          }
+          const dayData = bd[d]; if (!dayData) return
+          dh[d] = dayData.header || dh[d]
+          bks[b][d] = dayData.exercises.map(ex => {
+            let pctCat = 'none'
+            if (ex.pct) { pctCat = reverseDetectCat(ex.pct, ranges) ? 'auto' : 'custom' }
+            return { series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps, pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null, prKey: ex.prKey, note: ex.note || '' }
+          })
         })
       }
     })
     setDayHeaders(dh); setBlocks(bks)
   }
 
+  const editExisting = (key) => { setEditingId(key); loadFromTemplate(key, '') }
+
   const getExs = (d) => blocks[editBlock]?.[d] || []
-  const setExs = (d, exs) => {
-    setBlocks(prev => ({ ...prev, [editBlock]: { ...prev[editBlock], [d]: exs } }))
-  }
+  const setExs = (d, exs) => setBlocks(prev => ({ ...prev, [editBlock]: { ...prev[editBlock], [d]: exs } }))
   const addEx = (d) => {
     const cur = getExs(d)
-    const nextSeries = cur.length === 0 ? 'A1' : cur[cur.length-1].series
-    setExs(d, [...cur, { series: nextSeries, exercise: '', sets: '3', reps: '8', pctCat: 'auto', customPct: null, prKey: null, note: '' }])
+    setExs(d, [...cur, { series: cur.length ? cur[cur.length-1].series : 'A1', exercise: '', sets: '3', reps: '8', pctCat: 'auto', customPct: null, prKey: null, note: '' }])
   }
   const updateEx = (d, idx, field, val) => {
-    const cur = [...getExs(d)]
-    cur[idx] = { ...cur[idx], [field]: val }
+    const cur = [...getExs(d)]; cur[idx] = { ...cur[idx], [field]: val }
     if (field === 'exercise') {
       cur[idx].prKey = EXERCISE_PR_KEYS[val] || null
-      // Re-detect category
       const det = detectPctCategory(val)
-      if (cur[idx].pctCat === 'auto' || cur[idx].pctCat === 'none') {
-        cur[idx].pctCat = det ? 'auto' : 'none'
-      }
+      if (cur[idx].pctCat === 'auto' || cur[idx].pctCat === 'none') cur[idx].pctCat = det ? 'auto' : 'none'
     }
     setExs(d, cur)
   }
-  const removeEx = (d, idx) => { const cur = [...getExs(d)]; cur.splice(idx, 1); setExs(d, cur) }
+  const removeEx = (d, idx) => { const cur = [...getExs(d)]; cur.splice(idx,1); setExs(d,cur) }
   const moveEx = (d, idx, dir) => {
     const cur = [...getExs(d)]; const ni = idx + dir
     if (ni < 0 || ni >= cur.length) return
-    ;[cur[idx], cur[ni]] = [cur[ni], cur[idx]]; setExs(d, cur)
+    ;[cur[idx],cur[ni]] = [cur[ni],cur[idx]]; setExs(d,cur)
   }
-
   const copyBlockTo = (fromB, toB) => {
     setBlocks(prev => {
       const src = prev[fromB] || {}
-      const copy = { pctLabel: src.pctLabel || '', w1note: src.w1note || '', ranges: JSON.parse(JSON.stringify(src.ranges || DEFAULT_BLOCK_RANGES[toB])) }
+      const copy = { pctLabel: src.pctLabel||'', w1note: src.w1note||'', ranges: JSON.parse(JSON.stringify(src.ranges || DEFAULT_BLOCK_RANGES[toB])) }
       days.forEach(d => { if (src[d]) copy[d] = src[d].map(ex => ({...ex, customPct: ex.customPct ? [...ex.customPct] : null})) })
       return { ...prev, [toB]: copy }
     })
     flash('Block ' + fromB + ' copied to Block ' + toB)
   }
-
   const setRange = (cat, idx, val) => {
     const num = val === '' ? 0 : parseInt(val) || 0
     setBlocks(prev => {
-      const b = { ...prev[editBlock] }
-      const r = { ...(b.ranges || {}) }
-      const arr = [...(r[cat] || DEFAULT_BLOCK_RANGES[editBlock][cat])]
-      arr[idx] = num
-      r[cat] = arr
-      b.ranges = r
+      const b = { ...prev[editBlock] }; const r = { ...(b.ranges || {}) }
+      const arr = [...(r[cat] || DEFAULT_BLOCK_RANGES[editBlock][cat])]; arr[idx] = num; r[cat] = arr; b.ranges = r
       return { ...prev, [editBlock]: b }
     })
   }
-
-  // Resolve the final pct array for an exercise
   const resolvePct = (ex, blockNum) => {
     if (ex.pctCat === 'none') return null
     if (ex.pctCat === 'custom' && ex.customPct) return ex.customPct.map(p => p / 100)
-    // Auto or explicit category
-    const cat = (ex.pctCat === 'auto') ? detectPctCategory(ex.exercise) : ex.pctCat
+    const cat = ex.pctCat === 'auto' ? detectPctCategory(ex.exercise) : ex.pctCat
     if (!cat) return null
-    const ranges = blocks[blockNum]?.ranges || DEFAULT_BLOCK_RANGES[blockNum]
-    const r = ranges[cat]
-    if (!r) return null
-    return r.map(p => p / 100)
+    const r = (blocks[blockNum]?.ranges || DEFAULT_BLOCK_RANGES[blockNum])[cat]
+    return r ? r.map(p => p / 100) : null
   }
-
   const buildTemplateObj = () => {
     const obj = { label, days: [...days], blocks: {} }
     ;[1,2,3].forEach(b => {
-      const bData = blocks[b] || {}
-      const bd = {}
+      const bData = blocks[b] || {}; const bd = {}
       if (bData.pctLabel) bd.pctLabel = bData.pctLabel
       if (bData.w1note) bd.w1note = bData.w1note
       days.forEach(d => {
-        const exs = bData[d] || []
-        bd[d] = {
-          header: dayHeaders[d] || (d.replace('day','') + ' Day'),
-          exercises: exs.map(ex => {
-            const pctArr = resolvePct(ex, b)
-            return mkEx(ex.series, ex.exercise, parseInt(ex.sets)||3, ex.reps, pctArr, ex.prKey, ex.note)
-          })
-        }
+        bd[d] = { header: dayHeaders[d] || (d.replace('day','') + ' Day'), exercises: (bData[d] || []).map(ex => mkEx(ex.series, ex.exercise, parseInt(ex.sets)||3, ex.reps, resolvePct(ex,b), ex.prKey, ex.note)) }
       })
       obj.blocks[b] = bd
     })
     return obj
   }
-
   const saveTemplate = async () => {
     const id = editingId || slugify(templateId || label)
     if (!id || !label.trim()) { flash('Need a name'); return }
@@ -1896,7 +1667,6 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     flash('Saved "' + label + '"!')
     if (!editingId) { setTier(id); setBlock(1); setTab('builder'); resetForm() }
   }
-
   const deleteTemplate = async (key) => {
     if (!window.confirm('Delete "' + (customTemplates[key]?.label || key) + '"?')) return
     setSaving(true)
@@ -1914,20 +1684,15 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     smBtn: { background: '#111', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.5, textTransform: 'uppercase' },
     smBtnLight: { background: '#fff', color: '#333', border: '1px solid #bbb', padding: '4px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
     section: { marginBottom: 16 },
-    label: { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 },
+    lbl: { fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#555', marginBottom: 3 },
   }
   const customKeys = Object.keys(customTemplates)
 
-  const CatBadge = ({ cat }) => cat ? (
-    <span style={{ fontSize: 8, fontWeight: 700, color: PCT_CAT_COLORS[cat] || '#555', letterSpacing: 0.5 }}>{cat}</span>
-  ) : <span style={{ fontSize: 8, color: '#ccc' }}>—</span>
-
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '16px 20px' }}>
-      {/* Existing custom templates */}
       {customKeys.length > 0 && (
         <div style={sty.section}>
-          <div style={sty.label}>Your Custom Templates</div>
+          <div style={sty.lbl}>Your Custom Templates</div>
           <div style={{ border: '1px solid #ddd', background: '#fff' }}>
             {customKeys.map(k => (
               <div key={k} style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #eee', gap: 8 }}>
@@ -1940,12 +1705,10 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           </div>
         </div>
       )}
-
-      {/* Copy from / start fresh */}
       <div style={sty.section}>
-        <div style={sty.label}>{editingId ? 'Editing: ' + label : 'Start New Template'}</div>
+        <div style={sty.lbl}>{editingId ? 'Editing: ' + label : 'Start New Template'}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={copyFrom} onChange={e => { if (e.target.value) loadTemplate(e.target.value) }} style={sty.input}>
+          <select value={copyFrom} onChange={e => { if (e.target.value) loadFromTemplate(e.target.value) }} style={sty.input}>
             <option value="">Copy from existing...</option>
             {Object.entries(allTemplates).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
           </select>
@@ -1956,19 +1719,16 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           {saving && <span style={{ fontSize: 11, color: '#999', marginLeft: 8 }}>Saving...</span>}
         </div>
       </div>
-
-      {/* Template name and days */}
       <div style={{ ...sty.section, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={sty.label}>Template Name</div>
-          <input value={label} onChange={e => { setLabel(e.target.value); if (!editingId) setTemplateId(slugify(e.target.value)) }}
-            placeholder="e.g. Upper Body Only" style={{ ...sty.input, width: 220 }} />
+          <div style={sty.lbl}>Template Name</div>
+          <input value={label} onChange={e => { setLabel(e.target.value); if (!editingId) setTemplateId(slugify(e.target.value)) }} placeholder="e.g. Upper Body Only" style={{ ...sty.input, width: 220 }} />
         </div>
         <div>
-          <div style={sty.label}>Days</div>
+          <div style={sty.lbl}>Days</div>
           <div style={{ display: 'flex', gap: 4 }}>
             {DAY_OPTIONS.map(d => (
-              <button key={d} onClick={() => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort())}
+              <button key={d} onClick={() => setDays(prev => prev.includes(d) ? prev.filter(x => x!==d) : [...prev,d].sort())}
                 style={{ padding: '5px 14px', border: '1px solid #bbb', background: days.includes(d) ? '#111' : '#fff', color: days.includes(d) ? '#fff' : '#555', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {DAY_LABELS[d]}
               </button>
@@ -1976,92 +1736,50 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           </div>
         </div>
         <div>
-          <div style={sty.label}>Day Headers</div>
+          <div style={sty.lbl}>Day Headers</div>
           <div style={{ display: 'flex', gap: 4 }}>
             {days.map(d => (
-              <input key={d} value={dayHeaders[d]} onChange={e => setDayHeaders(prev => ({...prev, [d]: e.target.value}))}
-                style={{ ...sty.input, width: 110, fontSize: 11 }} placeholder={DAY_LABELS[d] + ' Day'} />
+              <input key={d} value={dayHeaders[d]} onChange={e => setDayHeaders(prev => ({...prev,[d]:e.target.value}))} style={{ ...sty.input, width: 110, fontSize: 11 }} placeholder={DAY_LABELS[d] + ' Day'} />
             ))}
           </div>
         </div>
       </div>
-
-      {/* Block selector */}
       <div style={{ ...sty.section, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={sty.label}>Block</div>
+        <div style={sty.lbl}>Block</div>
         {[1,2,3].map(b => (
-          <button key={b} onClick={() => setEditBlock(b)}
-            style={{ padding: '5px 18px', border: '1px solid #bbb', background: editBlock === b ? '#111' : '#fff', color: editBlock === b ? '#fff' : '#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {b}
-          </button>
+          <button key={b} onClick={() => setEditBlock(b)} style={{ padding: '5px 18px', border: '1px solid #bbb', background: editBlock===b?'#111':'#fff', color: editBlock===b?'#fff':'#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{b}</button>
         ))}
         <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>|</span>
-        <select onChange={e => { const v = e.target.value; if (v) { const [f,t] = v.split('>'); copyBlockTo(parseInt(f),parseInt(t)) } e.target.value='' }}
-          style={{ ...sty.input, fontSize: 10 }}>
+        <select onChange={e => { const v = e.target.value; if (v) { const [f,t] = v.split('>'); copyBlockTo(parseInt(f),parseInt(t)) } e.target.value='' }} style={{ ...sty.input, fontSize: 10 }}>
           <option value="">Copy block...</option>
-          {[1,2,3].flatMap(f => [1,2,3].filter(t => t!==f).map(t => (
-            <option key={f+''+t} value={f+'>'+t}>Block {f} → Block {t}</option>
-          )))}
+          {[1,2,3].flatMap(f => [1,2,3].filter(t=>t!==f).map(t => <option key={f+''+t} value={f+'>'+t}>Block {f} → Block {t}</option>))}
         </select>
         <div style={{ marginLeft: 12, display: 'flex', gap: 8 }}>
-          <div>
-            <span style={{ fontSize: 8, color: '#888' }}>Label </span>
-            <input value={bData.pctLabel||''} onChange={e => setBlocks(prev => ({...prev, [editBlock]: {...(prev[editBlock]||{}), pctLabel: e.target.value}}))}
-              style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65-75%" />
-          </div>
-          <div>
-            <span style={{ fontSize: 8, color: '#888' }}>Wk1 </span>
-            <input value={bData.w1note||''} onChange={e => setBlocks(prev => ({...prev, [editBlock]: {...(prev[editBlock]||{}), w1note: e.target.value}}))}
-              style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65% only" />
-          </div>
+          <div><span style={{ fontSize: 8, color: '#888' }}>Label </span><input value={bData.pctLabel||''} onChange={e => setBlocks(prev => ({...prev,[editBlock]:{...(prev[editBlock]||{}),pctLabel:e.target.value}}))} style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65-75%" /></div>
+          <div><span style={{ fontSize: 8, color: '#888' }}>Wk1 </span><input value={bData.w1note||''} onChange={e => setBlocks(prev => ({...prev,[editBlock]:{...(prev[editBlock]||{}),w1note:e.target.value}}))} style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65% only" /></div>
         </div>
       </div>
-
-      {/* Category Percentage Ranges */}
       <div style={{ ...sty.section, background: '#fff', border: '1px solid #ddd', padding: '10px 14px' }}>
-        <div style={{ ...sty.label, marginBottom: 8 }}>Block {editBlock} — Percentage Ranges by Category</div>
+        <div style={{ ...sty.lbl, marginBottom: 8 }}>Block {editBlock} — Percentage Ranges by Category</div>
         <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 500 }}>
           <thead>
-            <tr>
-              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'left', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Category</th>
-              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Wk 1 %</th>
-              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Wk 2-3 Lo %</th>
-              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Wk 2-3 Hi %</th>
-              <th style={{ fontSize: 8, fontWeight: 700, textAlign: 'left', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>Exercises</th>
-            </tr>
+            <tr>{['Category','Wk 1 %','Wk 2-3 Lo %','Wk 2-3 Hi %','Exercises'].map((h,hi) => <th key={hi} style={{ fontSize: 8, fontWeight: 700, textAlign: hi===0||hi===4?'left':'center', padding: '2px 6px', color: '#777', letterSpacing: 0.5, textTransform: 'uppercase' }}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {CATS.map(cat => {
               const r = ranges[cat] || DEFAULT_BLOCK_RANGES[editBlock][cat]
-              const catDesc = {
-                STR: 'Back Squat, Deadlift, Bench, Press',
-                OLY: 'Snatch, Clean, Jerk, Front Squat, Push Press',
-                PULL: 'Clean Pull, Snatch Pull',
-                PWR: 'Power Snatch, Power Clean variants',
-              }
+              const desc = { STR:'Back Squat, Deadlift, Bench, Press', OLY:'Snatch, Clean, Jerk, Front Squat, Push Press', PULL:'Clean Pull, Snatch Pull', PWR:'Power Snatch, Power Clean variants' }
               return (
                 <tr key={cat}>
-                  <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee' }}>
-                    <span style={{ fontWeight: 700, color: PCT_CAT_COLORS[cat], fontSize: 11 }}>{cat}</span>
-                    <span style={{ fontSize: 8, color: '#aaa', marginLeft: 4 }}>{PCT_CAT_LABELS[cat]}</span>
-                  </td>
-                  {[0,1,2].map(idx => (
-                    <td key={idx} style={{ padding: '4px 4px', borderBottom: '1px solid #eee', textAlign: 'center' }}>
-                      <input value={r[idx]||''} onChange={e => setRange(cat, idx, e.target.value)}
-                        style={{ width: 38, border: '1px solid #ccc', borderRadius: 2, fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '3px 2px', fontFamily: 'inherit', outline: 'none', color: PCT_CAT_COLORS[cat] }} />
-                    </td>
-                  ))}
-                  <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee', fontSize: 8, color: '#999', fontStyle: 'italic' }}>
-                    {catDesc[cat]}
-                  </td>
+                  <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee' }}><span style={{ fontWeight: 700, color: PCT_CAT_COLORS[cat], fontSize: 11 }}>{cat}</span><span style={{ fontSize: 8, color: '#aaa', marginLeft: 4 }}>{PCT_CAT_LABELS[cat]}</span></td>
+                  {[0,1,2].map(idx => <td key={idx} style={{ padding: '4px 4px', borderBottom: '1px solid #eee', textAlign: 'center' }}><input value={r[idx]||''} onChange={e => setRange(cat,idx,e.target.value)} style={{ width: 38, border: '1px solid #ccc', borderRadius: 2, fontSize: 12, fontWeight: 700, textAlign: 'center', padding: '3px 2px', fontFamily: 'inherit', outline: 'none', color: PCT_CAT_COLORS[cat] }} /></td>)}
+                  <td style={{ padding: '4px 6px', borderBottom: '1px solid #eee', fontSize: 8, color: '#999', fontStyle: 'italic' }}>{desc[cat]}</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
-
-      {/* Day exercise tables */}
       {days.map(d => {
         const exs = getExs(d)
         return (
@@ -2072,11 +1790,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
               <thead>
-                <tr>
-                  {['#','Exercise','Sets','Reps','% Cat','Custom %','Note',''].map((h,hi) => (
-                    <th key={hi} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', borderBottom: '1.5px solid #111', padding: '3px 4px', textAlign: 'left', color: '#555', background: '#fafafa' }}>{h}</th>
-                  ))}
-                </tr>
+                <tr>{['#','Exercise','Sets','Reps','% Cat','Custom %','Note',''].map((h,hi) => <th key={hi} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', borderBottom: '1.5px solid #111', padding: '3px 4px', textAlign: 'left', color: '#555', background: '#fafafa' }}>{h}</th>)}</tr>
               </thead>
               <tbody>
                 {exs.map((ex, idx) => {
@@ -2085,34 +1799,17 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                   const showCustom = ex.pctCat === 'custom'
                   return (
                     <tr key={idx}>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 36 }}>
-                        <input value={ex.series} onChange={e => updateEx(d, idx, 'series', e.target.value)}
-                          style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} />
-                      </td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 180 }}>
-                        <ExerciseInput value={ex.exercise} onChange={v => updateEx(d, idx, 'exercise', v)} library={library} />
-                      </td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 40 }}>
-                        <input value={ex.sets} onChange={e => updateEx(d, idx, 'sets', e.target.value)}
-                          style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
-                      </td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}>
-                        <input value={ex.reps} onChange={e => updateEx(d, idx, 'reps', e.target.value)}
-                          style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} />
-                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 36 }}><input value={ex.series} onChange={e => updateEx(d,idx,'series',e.target.value)} style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} /></td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 180 }}><ExerciseInput value={ex.exercise} onChange={v => updateEx(d,idx,'exercise',v)} library={library} /></td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 40 }}><input value={ex.sets} onChange={e => updateEx(d,idx,'sets',e.target.value)} style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} /></td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}><input value={ex.reps} onChange={e => updateEx(d,idx,'reps',e.target.value)} style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} /></td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 80 }}>
                         <select value={ex.pctCat} onChange={e => {
-                          const v = e.target.value
-                          const updated = [...getExs(d)]
-                          updated[idx] = { ...updated[idx], pctCat: v }
+                          const v = e.target.value; const updated = [...getExs(d)]; updated[idx] = { ...updated[idx], pctCat: v }
                           if (v !== 'custom') updated[idx].customPct = null
-                          if (v === 'custom' && !updated[idx].customPct) {
-                            const r = ranges[detected] || ranges.STR || [60,60,70]
-                            updated[idx].customPct = [...r]
-                          }
+                          if (v === 'custom' && !updated[idx].customPct) { const r = ranges[detected] || ranges.STR || [60,60,70]; updated[idx].customPct = [...r] }
                           setExs(d, updated)
-                        }}
-                          style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 3px', fontFamily: 'inherit', background: '#fff', width: 70, fontWeight: 600, color: effectiveCat ? PCT_CAT_COLORS[effectiveCat] : '#555' }}>
+                        }} style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 3px', fontFamily: 'inherit', background: '#fff', width: 70, fontWeight: 600, color: effectiveCat ? PCT_CAT_COLORS[effectiveCat] : '#555' }}>
                           <option value="auto">{detected ? 'Auto (' + detected + ')' : 'Auto (—)'}</option>
                           <option value="none">None</option>
                           {CATS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -2122,31 +1819,17 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                       <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 110 }}>
                         {showCustom ? (
                           <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                            {[0,1,2].map(pi => (
-                              <input key={pi} value={ex.customPct?.[pi] ?? ''} onChange={e => {
-                                const v = e.target.value; const cur = ex.customPct || [0,0,0]
-                                const next = [...cur]; next[pi] = v === '' ? 0 : parseInt(v)||0
-                                updateEx(d, idx, 'customPct', next)
-                              }}
-                                placeholder={pi===0?'W1':pi===1?'Lo':'Hi'}
-                                style={{ width: 28, border: '1px solid #ccc', borderRadius: 2, fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '2px 1px', fontFamily: 'inherit', outline: 'none', color: '#555' }} />
-                            ))}
+                            {[0,1,2].map(pi => <input key={pi} value={ex.customPct?.[pi]??''} onChange={e => { const v=e.target.value; const cur=ex.customPct||[0,0,0]; const next=[...cur]; next[pi]=v===''?0:parseInt(v)||0; updateEx(d,idx,'customPct',next) }} placeholder={pi===0?'W1':pi===1?'Lo':'Hi'} style={{ width: 28, border: '1px solid #ccc', borderRadius: 2, fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '2px 1px', fontFamily: 'inherit', outline: 'none', color: '#555' }} />)}
                           </div>
                         ) : effectiveCat ? (
                           <span style={{ fontSize: 9, color: '#aaa' }}>{(ranges[effectiveCat]||[])[0]}% | {(ranges[effectiveCat]||[])[1]}–{(ranges[effectiveCat]||[])[2]}%</span>
                         ) : <span style={{ fontSize: 9, color: '#ddd' }}>—</span>}
                       </td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 60 }}>
-                        <input value={ex.note} onChange={e => updateEx(d, idx, 'note', e.target.value)}
-                          placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} />
-                      </td>
+                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 60 }}><input value={ex.note} onChange={e => updateEx(d,idx,'note',e.target.value)} placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} /></td>
                       <td style={{ borderBottom: '1px solid #ddd', padding: '3px 2px', width: 60, whiteSpace: 'nowrap' }}>
-                        <button onClick={() => moveEx(d, idx, -1)} disabled={idx===0}
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===0 ? '#ddd' : '#555', padding: '0 2px' }}>&#9650;</button>
-                        <button onClick={() => moveEx(d, idx, 1)} disabled={idx===exs.length-1}
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 10, color: idx===exs.length-1 ? '#ddd' : '#555', padding: '0 2px' }}>&#9660;</button>
-                        <button onClick={() => removeEx(d, idx)}
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: '#c00', fontWeight: 700, padding: '0 3px', lineHeight: 1 }}>&times;</button>
+                        <button onClick={() => moveEx(d,idx,-1)} disabled={idx===0} style={{ border:'none',background:'none',cursor:'pointer',fontSize:10,color:idx===0?'#ddd':'#555',padding:'0 2px' }}>&#9650;</button>
+                        <button onClick={() => moveEx(d,idx,1)} disabled={idx===exs.length-1} style={{ border:'none',background:'none',cursor:'pointer',fontSize:10,color:idx===exs.length-1?'#ddd':'#555',padding:'0 2px' }}>&#9660;</button>
+                        <button onClick={() => removeEx(d,idx)} style={{ border:'none',background:'none',cursor:'pointer',fontSize:13,color:'#c00',fontWeight:700,padding:'0 3px',lineHeight:1 }}>&times;</button>
                       </td>
                     </tr>
                   )
@@ -2157,19 +1840,9 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           </div>
         )
       })}
-
-      {/* Save button */}
       <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-        <button onClick={saveTemplate}
-          style={{ padding: '10px 32px', background: '#111', color: '#fff', border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
-          {editingId ? 'Update Template' : 'Save & Use Template'}
-        </button>
-        {editingId && (
-          <button onClick={() => { setTier(editingId); setBlock(1); setTab('builder'); resetForm() }}
-            style={{ padding: '10px 24px', background: '#fff', color: '#111', border: '2px solid #111', fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Go to Builder &#8594;
-          </button>
-        )}
+        <button onClick={saveTemplate} style={{ padding: '10px 32px', background: '#111', color: '#fff', border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>{editingId ? 'Update Template' : 'Save & Use Template'}</button>
+        {editingId && <button onClick={() => { setTier(editingId); setBlock(1); setTab('builder'); resetForm() }} style={{ padding: '10px 24px', background: '#fff', color: '#111', border: '2px solid #111', fontWeight: 700, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>Go to Builder &#8594;</button>}
       </div>
     </div>
   )
@@ -2180,14 +1853,8 @@ function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: compact ? 4 : 8, paddingBottom: compact ? 4 : 8, borderBottom: '2px solid #111' }}>
       <div>
         <div style={{ fontSize: compact ? 14 : 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{tD.label} — Block {block}</div>
-        <div style={{ fontSize: 13, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>
-          {ath ? ath.first_name + ' ' + ath.last_name : 'Select an athlete above'}
-        </div>
-        {isOly && bD.pctLabel && (
-          <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>
-            Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}
-          </div>
-        )}
+        <div style={{ fontSize: 13, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>{ath ? ath.first_name + ' ' + ath.last_name : 'Select an athlete above'}</div>
+        {isOly && bD.pctLabel && <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}</div>}
       </div>
       <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
         <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
@@ -2197,23 +1864,18 @@ function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   )
 }
 
-function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
+function PRBar({ PKS, ath, getPR, getOverheadPR }) {
   return (
-    <div>
     <div style={{ display: 'flex', border: '1.5px solid #999', marginBottom: 10, overflow: 'hidden' }}>
-      {PKS.map(([k, lb], idx) => {
-        const v = ath
-          ? (k === '_overhead' ? getOverheadPR(ath.id)
-            : getPR(ath.id, k))
-          : null
+      {PKS.map(([k,lb], idx) => {
+        const v = ath ? (k === '_overhead' ? getOverheadPR(ath.id) : getPR(ath.id, k)) : null
         return (
-          <div key={k} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', borderRight: idx < PKS.length - 1 ? '1px solid #bbb' : 'none' }}>
+          <div key={k} style={{ flex: 1, textAlign: 'center', padding: '3px 2px', borderRight: idx < PKS.length-1 ? '1px solid #bbb' : 'none' }}>
             <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: '#777' }}>{lb}</div>
             <div style={{ fontSize: 14, fontWeight: 900, color: v ? '#111' : '#ccc' }}>{v ? Math.round(v) : '—'}</div>
           </div>
         )
       })}
-    </div>
     </div>
   )
 }
@@ -2221,60 +1883,38 @@ function PRBar({ PKS, ath, getPR, getOverheadPR, getOverheadVariantPR }) {
 function PctEdit({ isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, onChange }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
-
   const displayText = () => {
     if (isOverridden) return overrideVal + '%'
     if (defaultPct != null) return defaultPct + '%'
     if (rangeLo != null && rangeHi != null) return rangeLo === rangeHi ? rangeLo + '%' : rangeLo + '-' + rangeHi + '%'
     return ''
   }
-
-  const startEdit = () => {
-    setVal(isOverridden ? String(overrideVal) : '')
-    setEditing(true)
-  }
-
+  const startEdit = () => { setVal(isOverridden ? String(overrideVal) : ''); setEditing(true) }
   const finish = () => {
-    setEditing(false)
-    const v = val.trim()
+    setEditing(false); const v = val.trim()
     if (v === '' || v === 'x' || v === 'X') { onChange(null); return }
-    const num = parseInt(v)
-    if (!isNaN(num) && num > 0 && num <= 150) onChange(num)
+    const num = parseInt(v); if (!isNaN(num) && num > 0 && num <= 150) onChange(num)
   }
-
   if (editing) return (
     <div className="no-print" style={{ position: 'absolute', bottom: 1, right: 2, zIndex: 5, display: 'flex', alignItems: 'baseline' }}>
-      <input autoFocus value={val} onChange={e => setVal(e.target.value)}
-        onBlur={finish} onKeyDown={e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') setEditing(false) }}
+      <input autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={finish} onKeyDown={e => { if (e.key==='Enter') finish(); if (e.key==='Escape') setEditing(false) }}
         placeholder={isOverridden ? 'x=reset' : (defaultPct || rangeLo || '')}
-        style={{ width: 32, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }}
-      /><span style={{ fontSize: 7, color: '#0055bb' }}>%</span>
+        style={{ width: 32, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }} />
+      <span style={{ fontSize: 7, color: '#0055bb' }}>%</span>
     </div>
   )
-  return (
-    <div className="no-print" onClick={startEdit}
-      style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }}
-      title="Click to override %">
-      {displayText()}
-    </div>
-  )
+  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title="Click to override %">{displayText()}</div>
 }
 
-function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library }) {
+function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library, kgExercises, toggleKg }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>
-        {day.header}
-      </div>
+      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>{day.header}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-        <colgroup>
-          <col style={{ width: 26 }} />
-          <col style={{ width: 190 }} />
-          <col /><col /><col /><col />
-        </colgroup>
+        <colgroup><col style={{ width: 26 }} /><col style={{ width: 190 }} /><col /><col /><col /><col /></colgroup>
         <thead>
           <tr>
-            {['#', 'Exercise', 'Week 1', 'Week 2', 'Week 3', 'Week 4'].map((h, i) => (
+            {['#','Exercise','Week 1','Week 2','Week 3','Week 4'].map((h,i) => (
               <th key={i} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', borderRight: i < 5 ? '1px solid #777' : 'none', padding: '3px 4px', textAlign: i <= 1 ? 'left' : 'center', color: '#444', background: '#fff' }}>{h}</th>
             ))}
           </tr>
@@ -2282,8 +1922,9 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
         <tbody>
           {exs.map((ex, i) => (
             <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit}
-              isLast={i === exs.length - 1} isWU={ex.series === 'WU'}
-              cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library} />
+              isLast={i === exs.length-1} isWU={ex.series === 'WU'}
+              cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library}
+              useKg={kgExercises.has(ex.exercise)} toggleKg={toggleKg} />
           ))}
         </tbody>
       </table>
@@ -2291,71 +1932,48 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
   )
 }
 
-function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library }) {
-  // Always derive prKey from EXERCISE_PR_KEYS — never trust saved edits for prKey
-  const effectivePrKey = EXERCISE_PR_KEYS[ex.exercise] !== undefined
-    ? EXERCISE_PR_KEYS[ex.exercise]
-    : ex.prKey
+function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library, useKg, toggleKg }) {
+  const effectivePrKey = EXERCISE_PR_KEYS[ex.exercise] !== undefined ? EXERCISE_PR_KEYS[ex.exercise] : ex.prKey
   const pr = ath && effectivePrKey ? getPR(ath.id, effectivePrKey) : null
   const cellBorder = '1px solid #777'
-  const tdBase = {
-    borderBottom: isLast ? '2px solid #111' : '1px solid #999',
-    borderRight: cellBorder,
-    padding: 0,
-    verticalAlign: 'top',
-    background: isWU ? '#fafafa' : 'transparent',
+  const tdBase = { borderBottom: isLast ? '2px solid #111' : '1px solid #999', borderRight: cellBorder, padding: 0, verticalAlign: 'top', background: isWU ? '#fafafa' : 'transparent' }
+
+  const fmt = (lbs) => {
+    if (useKg) { const kg = rKg(lbs); return kg + ' kg' }
+    return r5(lbs) + ' lbs'
   }
 
   const getHint = (wk) => {
     if (!ex.pct) return ''
-    // Check for per-week override
     const ov = ex.pctOverrides?.[wk]
-    if (ov != null) {
-      return pr ? r5(pr * ov) + ' lbs' : Math.round(ov * 100) + '%'
-    }
-    // Default: original range behavior
-    if (wk === 1) return pr ? r5(pr * ex.pct[0]) + ' lbs' : Math.round(ex.pct[0] * 100) + '%'
+    if (ov != null) return pr ? fmt(pr * ov) : Math.round(ov * 100) + '%'
+    if (wk === 1) return pr ? fmt(pr * ex.pct[0]) : Math.round(ex.pct[0] * 100) + '%'
     if (wk === 2 || wk === 3) {
       if (pr) {
-        const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
+        if (useKg) {
+          const lo = rKg(pr * ex.pct[1]); const hi = rKg(pr * ex.pct[2])
+          return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg'
+        }
+        const lo = r5(pr * ex.pct[1]); const hi = r5(pr * ex.pct[2])
         return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
       }
-      const lo = Math.round(ex.pct[1] * 100), hi = Math.round(ex.pct[2] * 100)
+      const lo = Math.round(ex.pct[1]*100); const hi = Math.round(ex.pct[2]*100)
       return lo === hi ? lo + '%' : lo + '\u2013' + hi + '%'
     }
     return ''
   }
 
   const wkCell = (wk) => {
-    if (isWU) return (
-      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}>
-        <div style={{ height: 46 }}></div>
-      </td>
-    )
+    if (isWU) return <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}><div style={{ height: 46 }}></div></td>
     const noteKey = `${tier}-${block}-${dk}-${i}-${wk}`
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
     const hint = getHint(wk)
     const hasPct = ex.pct && wk <= 3
     const isOverridden = ex.pctOverrides?.[wk] != null
-    const curPct = isOverridden
-      ? Math.round(ex.pctOverrides[wk] * 100)
-      : (wk === 1 ? Math.round(ex.pct?.[0] * 100) : null)
-
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
-        <input
-          value={noteVal}
-          onChange={e => setCellNote(noteKey, e.target.value)}
-          placeholder={hint}
-          style={{
-            position: 'absolute', top: 2, left: 3,
-            fontSize: 8, color: noteVal ? '#111' : '#0055bb',
-            fontWeight: noteVal ? 700 : 600,
-            border: 'none', outline: 'none', background: 'transparent',
-            fontFamily: 'Arial, sans-serif', padding: 0,
-            width: 'calc(100% - 6px)',
-          }}
-        />
+        <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)} placeholder={hint}
+          style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
         {hasPct && (
           <PctEdit
             isOverridden={isOverridden}
@@ -2363,13 +1981,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             rangeLo={wk > 1 ? Math.round(ex.pct[1]*100) : null}
             rangeHi={wk > 1 ? Math.round(ex.pct[2]*100) : null}
             overrideVal={isOverridden ? Math.round(ex.pctOverrides[wk]*100) : null}
-            onChange={v => {
-              if (v === null) {
-                setEdit(dk, i, 'pct_w' + wk, '')
-              } else {
-                setEdit(dk, i, 'pct_w' + wk, String(v / 100))
-              }
-            }}
+            onChange={v => { if (v === null) setEdit(dk, i, 'pct_w' + wk, ''); else setEdit(dk, i, 'pct_w' + wk, String(v/100)) }}
           />
         )}
         <div style={{ height: 46 }}></div>
@@ -2383,7 +1995,16 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
         <EditField value={ex.series} onChange={v => setEdit(dk, i, 'series', v)} style={{ fontSize: 10, fontWeight: 800, color: isWU ? '#bbb' : '#111' }} />
       </td>
       <td style={{ ...tdBase, borderRight: cellBorder, padding: '4px 6px' }}>
-        <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+          <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
+          {/* KG toggle — only on pct-based exercises, hidden on print */}
+          {ex.pct && !isWU && (
+            <button className="no-print" onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
+              style={{ flexShrink: 0, marginTop: 14, padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
+              KG
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
@@ -2391,7 +2012,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           {ex.note && <span style={{ fontSize: 9, color: '#aaa', fontStyle: 'italic', marginLeft: 3 }}>{ex.note}</span>}
         </div>
       </td>
-      {[1, 2, 3, 4].map(wk => wkCell(wk))}
+      {[1,2,3,4].map(wk => wkCell(wk))}
     </tr>
   )
 }
