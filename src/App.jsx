@@ -1263,10 +1263,35 @@ export default function App() {
     const edit = edits[k] || {}
     const merged = { ...ex, ...edit }
     if (Array.isArray(ex.prKey) && typeof edit.prKey === 'string') merged.prKey = ex.prKey
+    // Parse per-week overrides — wk1 single, wk2/3 can be range {lo,hi}
     const pctOv = {}
-    ;[1,2,3].forEach(w => { const v = parseFloat(edit['pct_w' + w]); if (!isNaN(v)) pctOv[w] = v })
+    ;[1,2,3].forEach(w => {
+      const lo = parseFloat(edit['pct_w' + w])
+      if (isNaN(lo)) return
+      if (w > 1) {
+        const hi = parseFloat(edit['pct_w' + w + '_hi'])
+        pctOv[w] = isNaN(hi) ? lo : { lo, hi }
+      } else {
+        pctOv[w] = lo
+      }
+    })
     merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
-    delete merged.pct_w1; delete merged.pct_w2; delete merged.pct_w3
+    delete merged.pct_w1; delete merged.pct_w2; delete merged.pct_w2_hi; delete merged.pct_w3; delete merged.pct_w3_hi
+    // Bug fix: synthesize pct for exercises that don't have it in the template
+    if (!merged.pct) {
+      const bW1 = parseFloat(edit.pct_base_w1)
+      if (!isNaN(bW1)) {
+        const bLo = parseFloat(edit.pct_base_lo)
+        const bHi = parseFloat(edit.pct_base_hi)
+        merged.pct = [bW1, isNaN(bLo) ? bW1 : bLo, isNaN(bHi) ? (isNaN(bLo) ? bW1 : bLo) : bHi]
+      }
+      if (edit.pct_base_prkey && !merged.prKey) merged.prKey = edit.pct_base_prkey
+      else if (!merged.prKey) {
+        const detected = EXERCISE_PR_KEYS[merged.exercise]
+        if (detected) merged.prKey = detected
+      }
+    }
+    delete merged.pct_base_w1; delete merged.pct_base_lo; delete merged.pct_base_hi; delete merged.pct_base_prkey
     return merged
   })
 
@@ -1880,30 +1905,63 @@ function PRBar({ PKS, ath, getPR, getOverheadPR }) {
   )
 }
 
-function PctEdit({ isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, onChange }) {
+function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, onChange }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
+
   const displayText = () => {
-    if (isOverridden) return overrideVal + '%'
+    if (isOverridden) {
+      if (overrideVal != null && typeof overrideVal === 'object') {
+        return overrideVal.lo === overrideVal.hi ? overrideVal.lo + '%' : overrideVal.lo + '-' + overrideVal.hi + '%'
+      }
+      return overrideVal + '%'
+    }
     if (defaultPct != null) return defaultPct + '%'
     if (rangeLo != null && rangeHi != null) return rangeLo === rangeHi ? rangeLo + '%' : rangeLo + '-' + rangeHi + '%'
     return ''
   }
-  const startEdit = () => { setVal(isOverridden ? String(overrideVal) : ''); setEditing(true) }
-  const finish = () => {
-    setEditing(false); const v = val.trim()
-    if (v === '' || v === 'x' || v === 'X') { onChange(null); return }
-    const num = parseInt(v); if (!isNaN(num) && num > 0 && num <= 150) onChange(num)
+
+  const startEdit = () => {
+    if (isOverridden && overrideVal != null) {
+      if (typeof overrideVal === 'object') setVal(overrideVal.lo + '-' + overrideVal.hi)
+      else setVal(String(overrideVal))
+    } else if (wk > 1 && rangeLo != null) {
+      setVal(rangeLo === rangeHi ? String(rangeLo) : rangeLo + '-' + rangeHi)
+    } else {
+      setVal(defaultPct ? String(defaultPct) : '')
+    }
+    setEditing(true)
   }
+
+  const finish = () => {
+    setEditing(false)
+    const v = val.trim()
+    if (v === '' || v === 'x' || v === 'X') { onChange(null); return }
+    // Support "65-75" range input for wk 2-3
+    if (wk > 1 && v.includes('-')) {
+      const parts = v.split('-').map(p => parseInt(p.trim()))
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[0] > 0 && parts[1] > 0) {
+        onChange({ lo: parts[0] / 100, hi: parts[1] / 100 })
+        return
+      }
+    }
+    const num = parseInt(v)
+    if (!isNaN(num) && num > 0 && num <= 150) {
+      if (wk > 1) onChange({ lo: num / 100, hi: num / 100 })
+      else onChange(num)
+    }
+  }
+
+  const inputWidth = wk > 1 ? 44 : 32
   if (editing) return (
     <div className="no-print" style={{ position: 'absolute', bottom: 1, right: 2, zIndex: 5, display: 'flex', alignItems: 'baseline' }}>
       <input autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={finish} onKeyDown={e => { if (e.key==='Enter') finish(); if (e.key==='Escape') setEditing(false) }}
-        placeholder={isOverridden ? 'x=reset' : (defaultPct || rangeLo || '')}
-        style={{ width: 32, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }} />
+        placeholder={wk > 1 ? '65-75' : (defaultPct || rangeLo || '')}
+        style={{ width: inputWidth, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }} />
       <span style={{ fontSize: 7, color: '#0055bb' }}>%</span>
     </div>
   )
-  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title="Click to override %">{displayText()}</div>
+  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title={wk > 1 ? 'Click to override % (e.g. 65-75)' : 'Click to override %'}>{displayText()}</div>
 }
 
 function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library, kgExercises, toggleKg }) {
@@ -1938,6 +1996,34 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   const cellBorder = '1px solid #777'
   const tdBase = { borderBottom: isLast ? '2px solid #111' : '1px solid #999', borderRight: cellBorder, padding: 0, verticalAlign: 'top', background: isWU ? '#fafafa' : 'transparent' }
 
+  const [showPctSetup, setShowPctSetup] = useState(false)
+  const [setupW1, setSetupW1] = useState('65')
+  const [setupRange, setSetupRange] = useState('65-75')
+  const [setupPrKey, setSetupPrKey] = useState('')
+
+  const openPctSetup = () => {
+    const autoKey = Array.isArray(effectivePrKey) ? effectivePrKey[0] : (effectivePrKey || '')
+    setSetupPrKey(autoKey)
+    setSetupW1('65'); setSetupRange('65-75')
+    setShowPctSetup(true)
+  }
+  const confirmPct = () => {
+    const w1 = parseInt(setupW1) / 100
+    if (isNaN(w1) || w1 <= 0) return
+    const parts = setupRange.split('-').map(p => parseInt(p.trim()))
+    const lo = (!isNaN(parts[0]) && parts[0] > 0 ? parts[0] : parseInt(setupW1)) / 100
+    const hi = (parts.length === 2 && !isNaN(parts[1]) && parts[1] > 0 ? parts[1] : parts[0]) / 100
+    setEdit(dk, i, 'pct_base_w1', String(w1))
+    setEdit(dk, i, 'pct_base_lo', String(lo))
+    setEdit(dk, i, 'pct_base_hi', String(hi))
+    if (setupPrKey) setEdit(dk, i, 'pct_base_prkey', setupPrKey)
+    setShowPctSetup(false)
+  }
+  const removePct = () => {
+    ;['pct_base_w1','pct_base_lo','pct_base_hi','pct_base_prkey'].forEach(f => setEdit(dk, i, f, ''))
+    setShowPctSetup(false)
+  }
+
   const fmt = (lbs) => {
     if (useKg) { const kg = rKg(lbs); return kg + ' kg' }
     return r5(lbs) + ' lbs'
@@ -1946,18 +2032,27 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   const getHint = (wk) => {
     if (!ex.pct) return ''
     const ov = ex.pctOverrides?.[wk]
-    if (ov != null) return pr ? fmt(pr * ov) : Math.round(ov * 100) + '%'
+    if (ov != null) {
+      if (typeof ov === 'object') {
+        if (pr) {
+          if (useKg) { const lo = rKg(pr * ov.lo), hi = rKg(pr * ov.hi); return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg' }
+          const lo = r5(pr * ov.lo), hi = r5(pr * ov.hi); return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
+        }
+        const lo = Math.round(ov.lo*100), hi = Math.round(ov.hi*100); return lo === hi ? lo + '%' : lo + '\u2013' + hi + '%'
+      }
+      return pr ? fmt(pr * ov) : Math.round(ov * 100) + '%'
+    }
     if (wk === 1) return pr ? fmt(pr * ex.pct[0]) : Math.round(ex.pct[0] * 100) + '%'
     if (wk === 2 || wk === 3) {
       if (pr) {
         if (useKg) {
-          const lo = rKg(pr * ex.pct[1]); const hi = rKg(pr * ex.pct[2])
+          const lo = rKg(pr * ex.pct[1]), hi = rKg(pr * ex.pct[2])
           return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg'
         }
-        const lo = r5(pr * ex.pct[1]); const hi = r5(pr * ex.pct[2])
+        const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
         return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
       }
-      const lo = Math.round(ex.pct[1]*100); const hi = Math.round(ex.pct[2]*100)
+      const lo = Math.round(ex.pct[1]*100), hi = Math.round(ex.pct[2]*100)
       return lo === hi ? lo + '%' : lo + '\u2013' + hi + '%'
     }
     return ''
@@ -1969,19 +2064,32 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
     const hint = getHint(wk)
     const hasPct = ex.pct && wk <= 3
-    const isOverridden = ex.pctOverrides?.[wk] != null
+    const ov = ex.pctOverrides?.[wk]
+    const isOverridden = ov != null
+    const overrideVal = ov == null ? null : (typeof ov === 'object' ? { lo: Math.round(ov.lo*100), hi: Math.round(ov.hi*100) } : Math.round(ov*100))
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
         <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)} placeholder={hint}
           style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
         {hasPct && (
           <PctEdit
+            wk={wk}
             isOverridden={isOverridden}
             defaultPct={wk === 1 ? Math.round(ex.pct[0]*100) : null}
             rangeLo={wk > 1 ? Math.round(ex.pct[1]*100) : null}
             rangeHi={wk > 1 ? Math.round(ex.pct[2]*100) : null}
-            overrideVal={isOverridden ? Math.round(ex.pctOverrides[wk]*100) : null}
-            onChange={v => { if (v === null) setEdit(dk, i, 'pct_w' + wk, ''); else setEdit(dk, i, 'pct_w' + wk, String(v/100)) }}
+            overrideVal={overrideVal}
+            onChange={v => {
+              if (v === null) {
+                setEdit(dk, i, 'pct_w' + wk, '')
+                if (wk > 1) setEdit(dk, i, 'pct_w' + wk + '_hi', '')
+              } else if (typeof v === 'object') {
+                setEdit(dk, i, 'pct_w' + wk, String(v.lo))
+                setEdit(dk, i, 'pct_w' + wk + '_hi', String(v.hi))
+              } else {
+                setEdit(dk, i, 'pct_w' + wk, String(v / 100))
+              }
+            }}
           />
         )}
         <div style={{ height: 46 }}></div>
@@ -1997,14 +2105,43 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       <td style={{ ...tdBase, borderRight: cellBorder, padding: '4px 6px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
           <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
-          {/* KG toggle — only on pct-based exercises, hidden on print */}
-          {ex.pct && !isWU && (
-            <button className="no-print" onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
-              style={{ flexShrink: 0, marginTop: 14, padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
-              KG
-            </button>
-          )}
+          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 14, flexShrink: 0 }}>
+            {ex.pct && !isWU && (
+              <button onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
+                style={{ padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
+                KG
+              </button>
+            )}
+            {!ex.pct && !isWU && (
+              <button onClick={() => showPctSetup ? setShowPctSetup(false) : openPctSetup()} title="Add percentage loading"
+                style={{ padding: '1px 3px', fontSize: 7, fontWeight: 800, border: '1px solid', borderColor: showPctSetup ? '#888' : '#ddd', background: showPctSetup ? '#f0f0f0' : 'transparent', color: showPctSetup ? '#555' : '#ccc', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
+                %
+              </button>
+            )}
+          </div>
         </div>
+        {showPctSetup && !isWU && (
+          <div className="no-print" style={{ marginTop: 4, padding: '5px 6px', background: '#f8f8f8', border: '1px solid #ccc', borderRadius: 2, fontSize: 9 }}>
+            <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase' }}>PR:</span>
+              <select value={setupPrKey} onChange={e => setSetupPrKey(e.target.value)}
+                style={{ fontSize: 9, border: '1px solid #ccc', padding: '1px 3px', fontFamily: 'inherit', background: '#fff', maxWidth: 90 }}>
+                <option value="">auto</option>
+                {[['snatch','Snatch'],['clean','Clean'],['jerk','Jerk'],['deadlift','Deadlift'],['front_squat','Front Sq'],['back_squat','Back Sq'],['bench_press','Bench'],['press','Press'],['push_press','Push Press'],['chin_up','Chin Up']].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase' }}>W1:</span>
+              <input value={setupW1} onChange={e => setSetupW1(e.target.value)} placeholder="65"
+                style={{ width: 28, border: '1px solid #ccc', borderRadius: 2, fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '1px 2px', fontFamily: 'inherit', outline: 'none' }} />
+              <span style={{ color: '#999', fontSize: 8 }}>%</span>
+              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase' }}>Rng:</span>
+              <input value={setupRange} onChange={e => setSetupRange(e.target.value)} placeholder="65-75"
+                style={{ width: 44, border: '1px solid #ccc', borderRadius: 2, fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '1px 2px', fontFamily: 'inherit', outline: 'none' }} />
+              <span style={{ color: '#999', fontSize: 8 }}>%</span>
+              <button onClick={confirmPct} style={{ background: '#111', color: '#fff', border: 'none', padding: '2px 7px', fontSize: 9, fontWeight: 700, cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>✓</button>
+              <button onClick={removePct} style={{ background: 'none', color: '#c00', border: '1px solid #c00', padding: '1px 5px', fontSize: 9, cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>×</button>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
