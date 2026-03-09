@@ -2157,8 +2157,8 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
         <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
-          placeholder={hint || (isWk4 ? 'heavy single / notes...' : '')}
-          style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : (isWk4 && !hint ? '#ccc' : '#0055bb'), fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
+          placeholder={hint}
+          style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
         {hasPct && (
           <PctEdit
             wk={wk}
@@ -2239,7 +2239,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
               value={ex.note}
               onChange={v => setEdit(dk, i, 'note', v)}
               placeholder="add note..."
-              style={{ fontSize: 9, color: '#888', fontStyle: 'italic', marginLeft: 3 }}
+              style={{ fontSize: 9, color: '#111', fontWeight: 800, marginLeft: 3 }}
             />
           ) : (
             <span className="no-print">
