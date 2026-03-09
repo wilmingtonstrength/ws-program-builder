@@ -79,6 +79,7 @@ const LIBRARY = {
     'Press','Push Press','Behind-the-Neck Press',
     'SA KB Overhead Press','Double KB Overhead Press','SA KB Push Press','Double KB Push Press',
     'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
+    'Power Clean + Push Press','Hang Power Clean + Push Press','Low Hang Power Clean + Push Press',
     'PP Clean + Push Press + Front Squat','Tall Clean + Push Press','Tall Clean + Press',
   ],
   'Squat': [
@@ -141,34 +142,59 @@ const LIBRARY = {
 }
 
 const EXERCISE_PR_KEYS = {
+  // Squat
   'Back Squat':'back_squat','Back Squat HE':'back_squat',
   'Front Squat':'front_squat','Front Squat HE':'front_squat','OHS':'front_squat',
+  // Horizontal press
   'Bench Press':'bench_press','DB Bench Press':'bench_press',
+  // Hinge
   'Deadlift':'deadlift','Sumo Deadlift':'deadlift','Trap Bar Deadlift':'deadlift',
+  // Overhead press
   'Press':'press','Behind-the-Neck Press':'press',
-  'Push Press':'push_press','Behind-the-Neck Push Jerk':'push_press',
+  'Push Press':'push_press','Behind-the-Neck Push Press':'push_press',
+  // Jerk variants
   'Push Jerk':'jerk','Power Jerk':'jerk','Split Jerk':'jerk',
-  'Behind-the-Neck Power Jerk':'jerk','Behind-the-Neck Split Jerk':'jerk',
+  'Pause Jerk':'jerk','Tall Jerk':'jerk',
+  'Behind-the-Neck Push Jerk':'jerk','Behind-the-Neck Power Jerk':'jerk','Behind-the-Neck Split Jerk':'jerk',
+  // Snatch variants
   'Hang Snatch':'snatch','Power Position Snatch':'snatch','Low Hang Snatch':'snatch',
-  'No Foot Snatch':'snatch','Hang Power Snatch':'snatch','Tall Snatch':'snatch',
+  'No Foot Snatch':'snatch','No Foot No Hook Snatch':'snatch',
+  'Hang Power Snatch':'snatch','Power Position Power Snatch':'snatch','Low Hang Power Snatch':'snatch',
+  'Pause at Knee Snatch':'snatch','Tall Snatch':'snatch','3-Position Snatch':'snatch',
   'PP Snatch + OHS':['snatch','front_squat'],'Hang Snatch + OHS':['snatch','front_squat'],
-  'Tall Snatch + OHS':['snatch','front_squat'],'3-Position Snatch':'snatch',
+  'Tall Snatch + OHS':['snatch','front_squat'],'PP Snatch + Hang Snatch + OHS':['snatch','front_squat'],
+  'PP Snatch + Hang Snatch':'snatch',
+  // Clean variants
   'Hang Clean':'clean','Power Position Clean':'clean','Low Hang Clean':'clean',
-  'No Foot Clean':'clean','Hang Power Clean':'clean','Tall Clean':'clean',
+  'No Foot Clean':'clean','No Foot No Hook Clean':'clean',
+  'Hang Power Clean':'clean','Power Position Power Clean':'clean','Low Hang Power Clean':'clean',
+  'Pause at Knee Clean':'clean','Tall Clean':'clean','3-Position Clean':'clean',
+  // Power clean combos
+  'Power Clean':'clean',
+  'Power Clean + Push Press':['clean','press','push_press','jerk','overhead'],
+  'Hang Power Clean + Push Press':['clean','press','push_press','jerk','overhead'],
+  // Clean combos
   'PP Clean + Press':['clean','press','push_press','jerk','overhead'],
   'PP Clean + Push Press':['clean','press','push_press','jerk','overhead'],
   'Hang Clean + Push Press':['clean','press','push_press','jerk','overhead'],
   'PP Clean + Hang Clean':'clean',
   'Hang Clean + Front Squat':['clean','front_squat'],
+  'PP Clean + Front Squat':['clean','front_squat'],
   'PP Clean + Push Press + Front Squat':['clean','press','push_press','jerk','overhead','front_squat'],
   'Hang Clean + Push Jerk':['clean','press','push_press','jerk','overhead'],
   'Low Hang Clean + Pause Jerk':['clean','press','push_press','jerk','overhead'],
-  '3-Position Clean':'clean',
   'Tall Clean + Push Press':['clean','press','push_press','jerk','overhead'],
   'Tall Clean + Press':['clean','press','push_press','jerk','overhead'],
   'Clean + Jerk':['clean','press','push_press','jerk','overhead'],
   'Hang Clean + Jerk':['clean','press','push_press','jerk','overhead'],
   'PP Clean + Jerk':['clean','press','push_press','jerk','overhead'],
+  'Hang Clean + Push Press + Front Squat':['clean','press','push_press','jerk','overhead','front_squat'],
+  // Pulls
+  'Clean Pull':'clean','Pause at Knee Clean Pull':'clean','3-Position Clean Pull':'clean',
+  'Hang Clean High Pull':'clean','PAK Clean Pull':'clean','PAK Clean Pull + Clean Pull':'clean',
+  'Snatch Pull':'snatch','Pause at Knee Snatch Pull':'snatch','3-Position Snatch Pull':'snatch',
+  'Hang Snatch High Pull':'snatch',
+  // Pull-up
   'Chin Up':'chin_up','Pull Up':'chin_up',
 }
 
@@ -1066,6 +1092,27 @@ const TEMPLATES = {
 }
 
 
+// Name-based PR key detection — covers exercises not explicitly in EXERCISE_PR_KEYS
+function detectPrKey(name) {
+  if (!name) return null
+  const n = name.toLowerCase()
+  // Check explicit map first
+  if (EXERCISE_PR_KEYS[name] !== undefined) return EXERCISE_PR_KEYS[name]
+  // Name-based fallback
+  if (n.includes('snatch')) return 'snatch'
+  if (n.includes('clean') && (n.includes('jerk') || n.includes('push jerk') || n.includes('push press')))
+    return ['clean','press','push_press','jerk','overhead']
+  if (n.includes('clean')) return 'clean'
+  if (n.includes('jerk') || n.includes('push press')) return ['press','push_press','jerk','overhead']
+  if (n.includes('front squat') || n.includes('ohs')) return 'front_squat'
+  if (n.includes('back squat')) return 'back_squat'
+  if (n.includes('deadlift')) return 'deadlift'
+  if (n.includes('bench press')) return 'bench_press'
+  if (n.includes('press')) return 'press'
+  if (n.includes('chin up') || n.includes('pull up')) return 'chin_up'
+  return null
+}
+
 function ExerciseInput({ value, onChange, library: libProp }) {
   const lib = libProp || LIBRARY
   const [pattern, setPattern] = useState(() => {
@@ -1077,7 +1124,15 @@ function ExerciseInput({ value, onChange, library: libProp }) {
   const [filtered, setFiltered] = useState([])
   const ref = useRef(null)
 
-  useEffect(() => { setText(value) }, [value])
+  useEffect(() => {
+    setText(value)
+    // Re-sync pattern when value is set externally (e.g. loaded from Supabase)
+    if (value) {
+      for (const [p, exs] of Object.entries(lib)) {
+        if (exs.includes(value)) { setPattern(p); return }
+      }
+    }
+  }, [value])
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowDrop(false) }
     document.addEventListener('mousedown', handler)
@@ -1118,26 +1173,35 @@ function ExerciseInput({ value, onChange, library: libProp }) {
   )
 }
 
-function EditField({ value, onChange, style = {} }) {
+function EditField({ value, onChange, style = {}, placeholder = '' }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(value)
   useEffect(() => { setVal(value) }, [value])
-  const finish = () => { setEditing(false); if (val.trim()) onChange(val.trim()) }
+  const finish = () => {
+    setEditing(false)
+    const trimmed = val.trim()
+    if (trimmed !== value) onChange(trimmed)
+  }
   if (editing) return (
     <input autoFocus value={val} onChange={e => setVal(e.target.value)}
       onBlur={finish} onKeyDown={e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') { setVal(value); setEditing(false) } }}
-      style={{ border: 'none', borderBottom: '2px solid #111', background: 'transparent', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', outline: 'none', padding: 0, width: 40, ...style }} />
+      placeholder={placeholder}
+      style={{ border: 'none', borderBottom: '2px solid #111', background: 'transparent', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', outline: 'none', padding: 0, width: 80, ...style }} />
   )
-  return <span onClick={() => setEditing(true)} style={{ cursor: 'pointer', borderBottom: '1px dashed #ccc', ...style }}>{value}</span>
+  return (
+    <span onClick={() => setEditing(true)} style={{ cursor: 'pointer', borderBottom: '1px dashed #ccc', ...style }}>
+      {value || <span style={{ color: '#ccc', fontStyle: 'italic', fontWeight: 400 }}>{placeholder}</span>}
+    </span>
+  )
 }
 
 export default function App() {
   const [athletes, setAthletes] = useState([])
   const [prs, setPrs] = useState({})
-  const [athleteId, setAthleteId] = useState(null)
-  const [tab, setTab] = useState('builder')
-  const [tier, setTier] = useState('beginner')
-  const [block, setBlock] = useState(1)
+  const [athleteId, setAthleteId] = useState(() => { try { return JSON.parse(localStorage.getItem('ws_athleteId')) || null } catch { return null } })
+  const [tab, setTab] = useState(() => localStorage.getItem('ws_tab') || 'builder')
+  const [tier, setTier] = useState(() => localStorage.getItem('ws_tier') || 'beginner')
+  const [block, setBlock] = useState(() => parseInt(localStorage.getItem('ws_block')) || 1)
   const [search, setSearch] = useState('')
   const [showAthDrop, setShowAthDrop] = useState(false)
   const [status, setStatus] = useState('Loading...')
@@ -1161,6 +1225,13 @@ export default function App() {
       return next
     })
   }
+
+  // Persist last-used state so page reloads in the same spot
+  useEffect(() => { localStorage.setItem('ws_tab', tab) }, [tab])
+  useEffect(() => { localStorage.setItem('ws_tier', tier) }, [tier])
+  useEffect(() => { localStorage.setItem('ws_block', String(block)) }, [block])
+  useEffect(() => { localStorage.setItem('ws_athleteId', JSON.stringify(athleteId)) }, [athleteId])
+  useEffect(() => { localStorage.setItem('ws_tab', tab) }, [tab])
 
   useEffect(() => {
     async function load() {
@@ -1230,16 +1301,31 @@ export default function App() {
       const overheadKeys = ['press','push_press','jerk','overhead']
       const structuralKeys = tid.filter(t => !overheadKeys.includes(t))
       const ohKeys = tid.filter(t => overheadKeys.includes(t))
-      const ohVals = ohKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
-      const bestOH = ohVals.length ? Math.max(...ohVals) : null
       const structVals = structuralKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
-      const all = [...structVals, ...(bestOH ? [bestOH] : [])]
-      return all.length ? Math.min(...all) : null
+      // Structural keys (clean, squat, etc.) are the limiting factor — use them if present
+      if (structVals.length > 0) return Math.min(...structVals)
+      // Fallback: best overhead-type PR only if no structural found
+      const ohVals = ohKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
+      return ohVals.length ? Math.max(...ohVals) : null
     }
-    return prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
+    const direct = prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
+    if (direct) return direct
+    // Fallback chains — important for jerk/press variants where athletes may only have one OH test
+    const PR_FALLBACKS = {
+      jerk: ['push_press', 'press', 'overhead'],
+      push_press: ['press', 'overhead'],
+      press: ['push_press', 'overhead'],
+      overhead: ['push_press', 'press', 'jerk'],
+    }
+    for (const fb of (PR_FALLBACKS[tid] || [])) {
+      const v = prs[aId + '-' + fb] || prs[String(aId) + '-' + fb]
+      if (v != null) return v
+    }
+    return null
   }
   const getOverheadPR = (aId) => {
-    const vals = ['press','push_press','jerk','overhead'].map(t => getPR(aId, t)).filter(Boolean)
+    // Use direct prs lookup to avoid recursive fallback loops
+    const vals = ['press','push_press','jerk','overhead'].map(t => prs[aId + '-' + t] || prs[String(aId) + '-' + t]).filter(Boolean)
     return vals.length ? Math.max(...vals) : null
   }
   const getOverheadVariantPR = (aId, primaryKey) => { const d = getPR(aId, primaryKey); return d || getOverheadPR(aId) }
@@ -1261,7 +1347,7 @@ export default function App() {
   const getExs = (day) => bD[day].exercises.map((ex, i) => {
     const k = `${tier}-${block}-${day}-${i}`
     const edit = edits[k] || {}
-    const merged = { ...ex, ...edit }
+    const merged = { ...ex, note: ex.note || '', ...edit }
     if (Array.isArray(ex.prKey) && typeof edit.prKey === 'string') merged.prKey = ex.prKey
     // Parse per-week overrides — wk1 single, wk2/3 can be range {lo,hi}
     const pctOv = {}
@@ -1298,7 +1384,7 @@ export default function App() {
   const setEdit = (day, i, field, value) => {
     const k = `${tier}-${block}-${day}-${i}`
     if (field === 'exercise') {
-      const detectedKey = EXERCISE_PR_KEYS[value] || null
+      const detectedKey = detectPrKey(value)
       setEdits(prev => ({ ...prev, [k]: { ...(prev[k] || {}), exercise: value, prKey: detectedKey } }))
       const timerKey = `${k}-exercise`
       if (saveTimers.current[timerKey]) clearTimeout(saveTimers.current[timerKey])
@@ -2067,10 +2153,12 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const ov = ex.pctOverrides?.[wk]
     const isOverridden = ov != null
     const overrideVal = ov == null ? null : (typeof ov === 'object' ? { lo: Math.round(ov.lo*100), hi: Math.round(ov.hi*100) } : Math.round(ov*100))
+    const isWk4 = wk === 4
     return (
       <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
-        <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)} placeholder={hint}
-          style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
+        <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
+          placeholder={hint || (isWk4 ? 'heavy single / notes...' : '')}
+          style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : (isWk4 && !hint ? '#ccc' : '#0055bb'), fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
         {hasPct && (
           <PctEdit
             wk={wk}
@@ -2146,7 +2234,14 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
           <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 13, fontWeight: 800 }} />
-          {ex.note && <span style={{ fontSize: 9, color: '#aaa', fontStyle: 'italic', marginLeft: 3 }}>{ex.note}</span>}
+          {!isWU && (
+            <EditField
+              value={ex.note || ''}
+              onChange={v => setEdit(dk, i, 'note', v)}
+              placeholder="add note..."
+              style={{ fontSize: 9, color: '#999', fontStyle: 'italic', marginLeft: 3 }}
+            />
+          )}
         </div>
       </td>
       {[1,2,3,4].map(wk => wkCell(wk))}
