@@ -169,26 +169,26 @@ const EXERCISE_PR_KEYS = {
   'No Foot Clean':'clean','No Foot No Hook Clean':'clean',
   'Hang Power Clean':'clean','Power Position Power Clean':'clean','Low Hang Power Clean':'clean',
   'Pause at Knee Clean':'clean','Tall Clean':'clean','3-Position Clean':'clean',
-  // Power clean combos
+  // Power clean combos — push press limiting factor
   'Power Clean':'clean',
-  'Power Clean + Push Press':['clean','press','push_press','jerk','overhead'],
-  'Hang Power Clean + Push Press':['clean','press','push_press','jerk','overhead'],
-  // Clean combos
-  'PP Clean + Press':['clean','press','push_press','jerk','overhead'],
-  'PP Clean + Push Press':['clean','press','push_press','jerk','overhead'],
-  'Hang Clean + Push Press':['clean','press','push_press','jerk','overhead'],
+  'Power Clean + Push Press':['clean','push_press'],
+  'Hang Power Clean + Push Press':['clean','push_press'],
+  // Clean combos — specific overhead limiting factor
+  'PP Clean + Press':['clean','press'],
+  'PP Clean + Push Press':['clean','push_press'],
+  'Hang Clean + Push Press':['clean','push_press'],
   'PP Clean + Hang Clean':'clean',
   'Hang Clean + Front Squat':['clean','front_squat'],
   'PP Clean + Front Squat':['clean','front_squat'],
-  'PP Clean + Push Press + Front Squat':['clean','press','push_press','jerk','overhead','front_squat'],
-  'Hang Clean + Push Jerk':['clean','press','push_press','jerk','overhead'],
-  'Low Hang Clean + Pause Jerk':['clean','press','push_press','jerk','overhead'],
-  'Tall Clean + Push Press':['clean','press','push_press','jerk','overhead'],
-  'Tall Clean + Press':['clean','press','push_press','jerk','overhead'],
-  'Clean + Jerk':['clean','press','push_press','jerk','overhead'],
-  'Hang Clean + Jerk':['clean','press','push_press','jerk','overhead'],
-  'PP Clean + Jerk':['clean','press','push_press','jerk','overhead'],
-  'Hang Clean + Push Press + Front Squat':['clean','press','push_press','jerk','overhead','front_squat'],
+  'PP Clean + Push Press + Front Squat':['clean','push_press','front_squat'],
+  'Hang Clean + Push Jerk':['clean','jerk'],
+  'Low Hang Clean + Pause Jerk':['clean','jerk'],
+  'Tall Clean + Push Press':['clean','push_press'],
+  'Tall Clean + Press':['clean','press'],
+  'Clean + Jerk':['clean','jerk'],
+  'Hang Clean + Jerk':['clean','jerk'],
+  'PP Clean + Jerk':['clean','jerk'],
+  'Hang Clean + Push Press + Front Squat':['clean','push_press','front_squat'],
   // Pulls
   'Clean Pull':'clean','Pause at Knee Clean Pull':'clean','3-Position Clean Pull':'clean',
   'Hang Clean High Pull':'clean','PAK Clean Pull':'clean','PAK Clean Pull + Clean Pull':'clean',
@@ -2234,14 +2234,23 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
           <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 13, fontWeight: 800 }} />
-          {!isWU && (
+          {!isWU && (ex.note ? (
             <EditField
-              value={ex.note || ''}
+              value={ex.note}
               onChange={v => setEdit(dk, i, 'note', v)}
               placeholder="add note..."
-              style={{ fontSize: 9, color: '#999', fontStyle: 'italic', marginLeft: 3 }}
+              style={{ fontSize: 9, color: '#888', fontStyle: 'italic', marginLeft: 3 }}
             />
-          )}
+          ) : (
+            <span className="no-print">
+              <EditField
+                value=""
+                onChange={v => setEdit(dk, i, 'note', v)}
+                placeholder="add note..."
+                style={{ fontSize: 9, color: '#999', fontStyle: 'italic', marginLeft: 3 }}
+              />
+            </span>
+          ))}
         </div>
       </td>
       {[1,2,3,4].map(wk => wkCell(wk))}
