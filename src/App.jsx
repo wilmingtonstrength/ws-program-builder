@@ -363,10 +363,13 @@ const SV_PCT = {
   press: { 1: [0.60,0.78], 2: [0.70,0.85], 3: [0.75,0.88] },
 }
 
+// Rep ranges [lo, hi] — randomized per week for variety + bar speed emphasis
 const SV_BASE_REPS = {
-  comp: { 1: 3, 2: 2, 3: 2 }, pull: { 1: 4, 2: 3, 3: 3 },
-  squat: { 1: 4, 2: 3, 3: 3 }, jerk: { 1: 3, 2: 2, 3: 2 },
-  press: { 1: 5, 2: 3, 3: 3 },
+  comp:  { 1: [2,4], 2: [1,3], 3: [1,2] },
+  pull:  { 1: [3,5], 2: [2,4], 3: [2,3] },
+  squat: { 1: [3,6], 2: [3,5], 3: [2,4] },
+  jerk:  { 1: [2,4], 2: [1,3], 3: [1,2] },
+  press: { 1: [3,6], 2: [3,5], 3: [2,4] },
 }
 const SV_BASE_SETS = {
   comp: { 1: 5, 2: 5, 3: 5 }, pull: { 1: 4, 2: 4, 3: 4 },
@@ -401,7 +404,7 @@ function svDetectGroup(name) {
 function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
   const baseSets = SV_BASE_SETS[groupType][block]
   const [pctLo, pctHi] = SV_PCT[groupType][block]
-  const baseReps = opts.reps || String(SV_BASE_REPS[groupType][block])
+  const repRange = SV_BASE_REPS[groupType][block]
   const blockShift = block === 1 ? 0 : block === 2 ? 0.02 : 0.04
 
   const wd = {}
@@ -430,7 +433,8 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
     }
 
     const name = typeof chosen === 'string' ? chosen : chosen.name
-    const reps = (typeof chosen === 'object' && chosen.reps) ? chosen.reps : baseReps
+    // Randomize reps within range (complexes use their own fixed reps)
+    const reps = (typeof chosen === 'object' && chosen.reps) ? chosen.reps : (opts.reps || String(randInt(repRange[0], repRange[1], rng)))
 
     // Percentage: scale through range, higher weeks push toward top
     const tierScale = { HIGH: 0.7 + rng() * 0.3, MEDIUM: 0.4 + rng() * 0.35, MOD_LOW: 0.15 + rng() * 0.3, TEST: 0.8 + rng() * 0.2 }
@@ -2906,14 +2910,14 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       <td style={{ ...tdBase, borderRight: cellBorder, padding: '4px 6px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
           {ex.weekData ? (
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#111' }}>{ex.exercise}</div>
-              <div style={{ fontSize: 8, color: '#888', fontWeight: 600, letterSpacing: 0.5 }}>{ex.svGroup}</div>
+            <div style={{ flex: 1, padding: '2px 0' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#333', lineHeight: 1.3 }}>{ex.exercise}</div>
+              <div style={{ fontSize: 7, color: '#aaa', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>{ex.svGroup}</div>
             </div>
           ) : (
             <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
           )}
-          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 14, flexShrink: 0 }}>
+          <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: ex.weekData ? 4 : 14, flexShrink: 0 }}>
             {((ex.pct && !isWU) || ex.weekData) && (
               <button onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
                 style={{ padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
