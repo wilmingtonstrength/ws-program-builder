@@ -235,16 +235,16 @@ const SV_SN_PWR = ['Power Snatch','Hang Power Snatch','Power Position Power Snat
 // Clean variations
 const SV_CL = ['Hang Clean','Power Clean','Hang Power Clean','Low Hang Clean','Clean from Blocks','Power Position Clean']
 // Clean + Jerk + FS complexes (richer pool with FS folded in)
+// FS complexes duplicated for higher weighting — they should appear ~50% of the time
 const SV_CJ_CX = [
   { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
+  { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
   { name: 'Hang Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
+  { name: 'Hang Clean + Front Squat', reps: '2+1', prKey: ['clean','front_squat'] },
   { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' },
   { name: 'Hang Clean + Jerk', reps: '1+1', prKey: 'jerk' },
-  { name: 'Hang Clean + Push Jerk', reps: '1+1', prKey: 'jerk' },
   { name: 'Clean Pull + Hang Clean', reps: '1+1', prKey: 'clean' },
   { name: 'Clean Pull + Clean', reps: '1+1', prKey: 'clean' },
-  { name: 'PP Clean + Hang Clean', reps: '2+1', prKey: 'clean' },
-  { name: 'Hang Clean + Front Squat', reps: '2+1', prKey: ['clean','front_squat'] },
 ]
 // Power clean complexes
 const SV_CL_PWR_CX = [
@@ -255,13 +255,13 @@ const SV_CL_PWR_CX = [
 
 // Jerk / OH complexes (richer: PP+PJ+SJ, etc.)
 const SV_JERK_CX = [
-  { name: 'Push Press + Push Jerk', reps: '2+1', prKey: 'jerk' },
-  { name: 'Push Press + Split Jerk', reps: '2+1', prKey: 'jerk' },
   { name: 'Push Press + Power Jerk + Split Jerk', reps: '1+1+1', prKey: 'jerk' },
   { name: 'Push Press + Push Jerk + Split Jerk', reps: '1+1+1', prKey: 'jerk' },
+  { name: 'Push Press + Push Jerk', reps: '2+1', prKey: 'jerk' },
+  { name: 'Push Press + Split Jerk', reps: '2+1', prKey: 'jerk' },
+  { name: 'Front Squat + Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
   { name: 'Front Squat + Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
   { name: 'Front Squat + Push Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
-  { name: 'PP Clean + Push Press', reps: '1+3', prKey: 'push_press' },
 ]
 const SV_JERK_SINGLE = ['Split Jerk','Power Jerk','Push Jerk','Behind-the-Neck Push Jerk']
 const SV_PRESS = ['Push Press','Behind-the-Neck Press']
@@ -285,12 +285,17 @@ const SV_BSQ = ['Back Squat','Pause Back Squat']
 const SV_FSQ = ['Front Squat','Pause Front Squat']
 
 // Accessories
+const SV_CORE_ACC = [
+  { name: 'Plank', sets: 3, reps: '30sec' },
+  { name: 'Hollow Hold', sets: 3, reps: '30sec' },
+  { name: 'Dead Bug', sets: 3, reps: '8ea' },
+  { name: 'Paloff Press', sets: 3, reps: '10ea' },
+  { name: 'Side Plank', sets: 3, reps: '30sec' },
+  { name: 'Hollow Rocks', sets: 3, reps: '10' },
+]
 const SV_OPT_ACC = [
   { name: 'Chin Up', sets: 3, reps: '8' },
   { name: 'Nordic Hip Hinge', sets: 3, reps: '8' },
-  { name: 'Bent-Over Row', sets: 3, reps: '8' },
-  { name: 'Chest Supported Row', sets: 3, reps: '10' },
-  { name: 'SA KOB Row', sets: 3, reps: '8ea' },
 ]
 
 // Add new complexes to EXERCISE_PR_KEYS so percentages work
@@ -380,21 +385,35 @@ function sovietWeekData(group, block, reps, wave, rng) {
   return wd
 }
 
+// Soviet exercise group detection for analytics
+function svDetectGroup(name) {
+  const n = name.toLowerCase()
+  if (n.includes('snatch') && (n.includes('pull') || n.includes('dl'))) return 'G3'
+  if (n.includes('clean') && (n.includes('pull') || n.includes('dl'))) return 'G3'
+  if (n.includes('rdl') || n.includes('good morning') || n.includes('back extension')) return 'G3'
+  if (n.includes('snatch')) return 'G1'
+  if (n.includes('clean') && (n.includes('jerk') || n.includes('front squat'))) return 'G2'
+  if (n.includes('clean')) return 'G2'
+  if (n.includes('jerk') || n.includes('push press') || n.includes('press')) return 'G5'
+  if (n.includes('squat')) return 'G4'
+  return null
+}
+
 // Create a Soviet exercise with weekData attached
 function svEx(series, name, group, block, reps, prKey, wave, rng, note) {
   const wd = sovietWeekData(group, block, reps, wave, rng)
-  // Use week 1 values as the "default" display
   const ex = mkEx(series, name, wd[1].sets, wd[1].reps, [wd[1].pct, wd[2].pct, wd[3].pct], prKey || EXERCISE_PR_KEYS[name] || null, note || '')
   ex.weekData = wd
+  ex.svGroup = svDetectGroup(name)
   return ex
 }
 
 function svExComplex(series, cx, group, block, wave, rng) {
   const wd = sovietWeekData(group, block, cx.reps, wave, rng)
-  // Complexes: slightly lower pct
   ;[1,2,3,4].forEach(w => { wd[w].pct = Math.round((wd[w].pct - 0.04) * 100) / 100 })
   const ex = mkEx(series, cx.name, wd[1].sets, cx.reps, [wd[1].pct, wd[2].pct, wd[3].pct], cx.prKey || EXERCISE_PR_KEYS[cx.name] || null)
   ex.weekData = wd
+  ex.svGroup = svDetectGroup(cx.name)
   return ex
 }
 
@@ -441,7 +460,7 @@ const SOVIET_4DAY = {
       }
       // G3: Snatch Pull
       exs.push(svEx('C1', pick(SV_SN_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      // ACC
+      // ACC: Back Extension (only on pull day)
       exs.push(mkEx('D1', 'Back Extension', 3, '10-15', null, null))
       return exs
     }
@@ -456,9 +475,12 @@ const SOVIET_4DAY = {
       // G5: Jerk single from rack
       exs.push(svEx('B1', pick(SV_JERK_SINGLE, rng), 'jerk', b, String(SV_BASE_REPS.jerk[b]), null, w, rng))
       // G4: Front Squat (standalone, unless already in complex above)
-      exs.push(svEx('C1', pick(SV_FSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'front_squat', w, rng))
-      // ACC
-      exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
+      const hasFS = cx.name.includes('Front Squat')
+      if (!hasFS) {
+        exs.push(svEx('C1', pick(SV_FSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'front_squat', w, rng))
+      }
+      // ACC: Good Morning (only on squat-heavy days)
+      exs.push(mkEx(hasFS ? 'C1' : 'D1', 'Good Morning', 3, '8', null, null))
       return exs
     }
   },
@@ -473,8 +495,8 @@ const SOVIET_4DAY = {
       exs.push(svExComplex('B1', cx, 'comp', b, w, rng))
       // G3: Pull variation
       exs.push(svEx('C1', pick([...SV_CL_PULL, ...SV_SN_PULL], rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      // ACC
-      const acc = pick(SV_OPT_ACC, rng)
+      // ACC: Core exercise (not rows)
+      const acc = pick(SV_CORE_ACC, rng)
       exs.push(mkEx('D1', acc.name, acc.sets, acc.reps, null, null))
       return exs
     }
@@ -536,14 +558,14 @@ const SOVIET_3DAY = {
       // G5: Jerk complex (PP+PJ+SJ, FS+Jerk, etc.)
       const cx = pick(SV_JERK_CX, rng)
       exs.push(svExComplex('A1', cx, 'jerk', b, w, rng))
-      // G5: Press or light technique
+      // G5: Press
       const pp = pick(SV_PRESS, rng)
       const ppPrKey = pp === 'Push Press' ? 'push_press' : 'press'
       exs.push(svEx('B1', pp, 'press', b, String(SV_BASE_REPS.press[b]), ppPrKey, w, rng))
       // G4: Back Squat
       exs.push(svEx('C1', pick(SV_BSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'back_squat', w, rng))
-      // ACC
-      const acc = pick(SV_OPT_ACC, rng)
+      // ACC: Core exercise
+      const acc = pick(SV_CORE_ACC, rng)
       exs.push(mkEx('D1', acc.name, acc.sets, acc.reps, null, null))
       return exs
     }
@@ -1961,26 +1983,32 @@ export default function App() {
             <button onClick={() => window.print()} style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>Print / PDF</button>
           </div>
 
-          <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
-            <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
-            <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
-            {page1Days.map(dk => (
-              <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
-                setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
-                library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
-            ))}
-          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px' }}>
+            <div style={{ flex: '0 1 auto' }}>
+              <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+                <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
+                <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
+                {page1Days.map(dk => (
+                  <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
+                    setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
+                    library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+                ))}
+              </div>
 
-          {page2Days.length > 0 && (
-            <div id="sheet2" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
-              <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} compact />
-              {page2Days.map(dk => (
-                <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
-                  setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
-                  library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
-              ))}
+              {page2Days.length > 0 && (
+                <div id="sheet2" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+                  <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} compact />
+                  {page2Days.map(dk => (
+                    <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
+                      setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
+                      library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+
+            {isSoviet && <SovietAnalytics bD={bD} days={days} />}
+          </div>
 
           <style>{`
             * { box-sizing: border-box; }
@@ -2437,6 +2465,146 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   )
 }
 
+function SovietAnalytics({ bD, days }) {
+  if (!bD || !bD._meta) return null
+  const SV_GROUP_NAMES = { G1: 'Snatch', G2: 'Clean', G3: 'Pulls', G4: 'Squats', G5: 'Overhead' }
+  const SV_GROUP_COLORS = { G1: '#c44', G2: '#2277bb', G3: '#666', G4: '#2a8a2a', G5: '#b08020' }
+
+  // Compute per-week analytics
+  const weekStats = [1,2,3,4].map(wk => {
+    let totalReps = 0, weightedPct = 0, peakPct = 0, peakEx = ''
+    const groups = { G1: 0, G2: 0, G3: 0, G4: 0, G5: 0 }
+    const zones = { '55-69': 0, '70-79': 0, '80-89': 0, '90+': 0 }
+    days.forEach(dk => {
+      (bD[dk]?.exercises || []).forEach(ex => {
+        if (!ex.weekData || ex.series === 'WU') return
+        const wd = ex.weekData[wk]
+        if (!wd) return
+        const repsStr = String(wd.reps)
+        let rc = 0
+        if (repsStr.includes('+')) { rc = repsStr.split('+').reduce((s,v) => s + (parseInt(v)||0), 0) }
+        else { rc = parseInt(repsStr) || 0 }
+        const vol = wd.sets * rc
+        totalReps += vol
+        weightedPct += wd.pct * vol
+        if (wd.pct > peakPct) { peakPct = wd.pct; peakEx = ex.exercise }
+        if (ex.svGroup && groups[ex.svGroup] !== undefined) groups[ex.svGroup] += vol
+        const pctInt = Math.round(wd.pct * 100)
+        if (pctInt >= 90) zones['90+'] += vol
+        else if (pctInt >= 80) zones['80-89'] += vol
+        else if (pctInt >= 70) zones['70-79'] += vol
+        else zones['55-69'] += vol
+      })
+    })
+    return { totalReps, avgInt: totalReps > 0 ? (weightedPct / totalReps) * 100 : 0, peakPct: Math.round(peakPct * 100), peakEx, groups, zones }
+  })
+
+  // Block totals
+  const blockReps = weekStats.reduce((s,w) => s + w.totalReps, 0)
+  const blockGroups = { G1: 0, G2: 0, G3: 0, G4: 0, G5: 0 }
+  const blockZones = { '55-69': 0, '70-79': 0, '80-89': 0, '90+': 0 }
+  weekStats.forEach(w => {
+    Object.keys(blockGroups).forEach(g => { blockGroups[g] += w.groups[g] })
+    Object.keys(blockZones).forEach(z => { blockZones[z] += w.zones[z] })
+  })
+  const blockAvgInt = blockReps > 0 ? weekStats.reduce((s,w) => s + w.avgInt * w.totalReps, 0) / blockReps : 0
+
+  const [selWeek, setSelWeek] = useState(1)
+  const ws = weekStats[selWeek - 1]
+
+  const bar = (val, max, color) => {
+    const pct = max > 0 ? Math.min(val / max * 100, 100) : 0
+    return <div style={{ width: '100%', height: 10, background: '#eee', borderRadius: 2, overflow: 'hidden' }}><div style={{ width: pct + '%', height: '100%', background: color, borderRadius: 2 }} /></div>
+  }
+
+  const maxGroupReps = Math.max(...Object.values(ws.groups), 1)
+  const maxBlockGroup = Math.max(...Object.values(blockGroups), 1)
+  const maxZone = Math.max(...Object.values(ws.zones), 1)
+  const maxWeekVol = Math.max(...weekStats.map(w => w.totalReps), 1)
+
+  const s = { section: { marginBottom: 12 }, label: { fontSize: 8, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#555', marginBottom: 4 }, row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, marginBottom: 3 }, val: { fontWeight: 800, fontSize: 12 } }
+
+  return (
+    <div className="no-print" style={{ width: 280, flexShrink: 0, background: '#fff', border: '1px solid #ddd', padding: '12px 14px', fontSize: 10, fontFamily: 'Arial, sans-serif', alignSelf: 'flex-start', position: 'sticky', top: 10 }}>
+      <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', borderBottom: '2px solid #111', paddingBottom: 4, marginBottom: 10 }}>Block Analytics</div>
+
+      <div style={s.section}>
+        <div style={{ display: 'flex', gap: 2, marginBottom: 6 }}>
+          {[1,2,3,4].map(w => (
+            <button key={w} onClick={() => setSelWeek(w)} style={{ flex: 1, padding: '4px 0', border: '1px solid #ccc', background: selWeek === w ? '#111' : '#fff', color: selWeek === w ? '#fff' : '#555', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Wk {w}</button>
+          ))}
+        </div>
+        <div style={s.label}>Week {selWeek} — {bD._meta.weeklyWave[selWeek-1]}</div>
+        <div style={{ ...s.row, marginBottom: 6 }}>
+          <span>Total Reps</span><span style={s.val}>{ws.totalReps}</span>
+        </div>
+        <div style={{ ...s.row, marginBottom: 6 }}>
+          <span>Avg Intensity</span><span style={{ ...s.val, color: ws.avgInt >= 73 && ws.avgInt <= 77 ? '#2a8a2a' : '#c44' }}>{ws.avgInt.toFixed(1)}%</span>
+        </div>
+        <div style={{ ...s.row, marginBottom: 8 }}>
+          <span>Peak</span><span style={{ fontSize: 10, fontWeight: 600 }}>{ws.peakPct}% ({ws.peakEx.split('+')[0].trim().split(' ').slice(0,2).join(' ')})</span>
+        </div>
+      </div>
+
+      <div style={s.section}>
+        <div style={s.label}>Volume by Group — Wk {selWeek}</div>
+        {Object.entries(SV_GROUP_NAMES).map(([g, name]) => (
+          <div key={g} style={{ marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
+              <span style={{ color: SV_GROUP_COLORS[g], fontWeight: 700 }}>{name}</span>
+              <span style={{ fontWeight: 600 }}>{ws.groups[g]} <span style={{ color: '#999' }}>({ws.totalReps > 0 ? Math.round(ws.groups[g] / ws.totalReps * 100) : 0}%)</span></span>
+            </div>
+            {bar(ws.groups[g], maxGroupReps, SV_GROUP_COLORS[g])}
+          </div>
+        ))}
+      </div>
+
+      <div style={s.section}>
+        <div style={s.label}>Intensity Zones — Wk {selWeek}</div>
+        {[['55-69', '#88b'], ['70-79', '#4a4'], ['80-89', '#c80'], ['90+', '#c44']].map(([z, col]) => (
+          <div key={z} style={{ marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
+              <span style={{ fontWeight: 600 }}>{z}%</span>
+              <span style={{ fontWeight: 600 }}>{ws.zones[z]} <span style={{ color: '#999' }}>({ws.totalReps > 0 ? Math.round(ws.zones[z] / ws.totalReps * 100) : 0}%)</span></span>
+            </div>
+            {bar(ws.zones[z], maxZone, col)}
+          </div>
+        ))}
+      </div>
+
+      <div style={s.section}>
+        <div style={s.label}>Block Trend</div>
+        {weekStats.map((w, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 9, fontWeight: 600, width: 28, flexShrink: 0 }}>Wk {i+1}</span>
+            <div style={{ flex: 1 }}>{bar(w.totalReps, maxWeekVol, selWeek === i+1 ? '#111' : '#bbb')}</div>
+            <span style={{ fontSize: 9, fontWeight: 700, width: 24, textAlign: 'right' }}>{w.totalReps}</span>
+          </div>
+        ))}
+        <div style={{ ...s.row, marginTop: 6, borderTop: '1px solid #ddd', paddingTop: 4 }}>
+          <span>Block Total</span><span style={s.val}>{blockReps}</span>
+        </div>
+        <div style={s.row}>
+          <span>Block Avg Int</span><span style={{ ...s.val, color: blockAvgInt >= 73 && blockAvgInt <= 77 ? '#2a8a2a' : '#c44' }}>{blockAvgInt.toFixed(1)}%</span>
+        </div>
+      </div>
+
+      <div style={s.section}>
+        <div style={s.label}>Block Group Distribution</div>
+        {Object.entries(SV_GROUP_NAMES).map(([g, name]) => (
+          <div key={g} style={{ marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
+              <span style={{ color: SV_GROUP_COLORS[g], fontWeight: 700 }}>{name}</span>
+              <span style={{ fontWeight: 600 }}>{blockGroups[g]} <span style={{ color: '#999' }}>({blockReps > 0 ? Math.round(blockGroups[g] / blockReps * 100) : 0}%)</span></span>
+            </div>
+            {bar(blockGroups[g], maxBlockGroup, SV_GROUP_COLORS[g])}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: compact ? 4 : 8, paddingBottom: compact ? 4 : 8, borderBottom: '2px solid #111' }}>
@@ -2534,7 +2702,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>{day.header}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-        <colgroup><col style={{ width: 26 }} /><col style={{ width: 190 }} /><col /><col /><col /><col /></colgroup>
+        <colgroup><col style={{ width: 26 }} /><col style={{ width: 220 }} /><col /><col /><col /><col /></colgroup>
         <thead>
           <tr>
             {['#','Exercise','Week 1','Week 2','Week 3','Week 4'].map((h,i) => (
@@ -2595,12 +2763,21 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   }
 
   const getHint = (wk) => {
-    // Soviet weekData: show per-week sets×reps @ weight/pct
+    // Soviet weekData: show per-week sets×reps @ weight range (±4%)
     if (ex.weekData && ex.weekData[wk]) {
       const wd = ex.weekData[wk]
       const label = wd.sets + '\u00d7' + wd.reps
-      if (pr) return label + ' @ ' + fmt(pr * wd.pct)
-      return label + ' @ ' + Math.round(wd.pct * 100) + '%'
+      if (pr) {
+        const lo = wd.pct - 0.04, hi = wd.pct + 0.04
+        if (useKg) {
+          const loKg = rKg(pr * lo), hiKg = rKg(pr * hi)
+          return label + ' @ ' + loKg + '\u2013' + hiKg + ' kg'
+        }
+        const loLbs = r5(pr * lo), hiLbs = r5(pr * hi)
+        return label + ' @ ' + loLbs + '\u2013' + hiLbs
+      }
+      const loPct = Math.round((wd.pct - 0.04) * 100), hiPct = Math.round((wd.pct + 0.04) * 100)
+      return label + ' @ ' + loPct + '\u2013' + hiPct + '%'
     }
     if (!ex.pct) return ''
     const ov = ex.pctOverrides?.[wk]
