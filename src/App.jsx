@@ -432,10 +432,13 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
 
     // Percentage: scale through range, higher weeks push toward top
     const tierScale = { HIGH: 0.7 + rng() * 0.3, MEDIUM: 0.4 + rng() * 0.35, MOD_LOW: 0.15 + rng() * 0.3, TEST: 0.8 + rng() * 0.2 }
-    const pct = Math.round(Math.min(
+    let pct = Math.round(Math.min(
       pctLo + (pctHi - pctLo) * tierScale[tier] + blockShift,
       1.15
     ) * 100) / 100
+    // Power variants cap: power snatch/clean ~75-80% of full lift max, so cap at 80%
+    const isPower = name.toLowerCase().includes('power') && !name.toLowerCase().includes('push')
+    if (isPower && (groupType === 'comp') && pct > 0.80) pct = Math.round((0.75 + rng() * 0.05) * 100) / 100
 
     // Adjust reps based on intensity and week type
     let wkReps = reps
@@ -2475,6 +2478,25 @@ function SovietAnalytics({ bD, days }) {
   const distColor = (pct, g) => { const [lo,hi] = SV_GROUP_TARGETS[g]; if (pct >= lo && pct <= hi) return '#2a8a2a'; const off = pct < lo ? lo - pct : pct - hi; return off <= 5 ? '#c80' : '#c44' }
   const SV_GROUP_COLORS = { G1: '#c44', G2: '#2277bb', G3: '#666', G4: '#2a8a2a', G5: '#b08020' }
 
+  // Split complex reps across groups: "Snatch Pull + Hang Snatch" "1+1" → G3:1rep + G1:1rep
+  const splitComplexVol = (exName, repsStr, sets) => {
+    const parts = (exName || '').split(' + ')
+    const repParts = String(repsStr).split('+').map(r => parseInt(r) || 0)
+    const result = []
+    parts.forEach((part, idx) => {
+      const g = svDetectGroup(part.trim())
+      const reps = idx < repParts.length ? repParts[idx] : (repParts[repParts.length - 1] || 0)
+      if (g) result.push({ group: g, vol: sets * reps })
+    })
+    // If only 1 part (not a complex), return all vol to that group
+    if (result.length === 0) {
+      const g = svDetectGroup(exName)
+      const totalReps = repParts.reduce((s, v) => s + v, 0)
+      if (g) result.push({ group: g, vol: sets * totalReps })
+    }
+    return result
+  }
+
   // Compute per-week analytics
   const weekStats = [1,2,3,4].map(wk => {
     let totalReps = 0, weightedPct = 0, peakPct = 0, peakEx = ''
@@ -2492,10 +2514,12 @@ function SovietAnalytics({ bD, days }) {
         const vol = wd.sets * rc
         totalReps += vol
         weightedPct += wd.pct * vol
-        if (wd.pct > peakPct) { peakPct = wd.pct; peakEx = ex.exercise }
-        // Detect group from per-week exercise name so pull+lift combos count correctly
-        const wkGroup = wd.exercise ? svDetectGroup(wd.exercise) : ex.svGroup
-        if (wkGroup && groups[wkGroup] !== undefined) groups[wkGroup] += vol
+        if (wd.pct > peakPct) { peakPct = wd.pct; peakEx = wd.exercise || ex.exercise }
+        // Split complex volume across groups
+        const splits = splitComplexVol(wd.exercise || ex.exercise, wd.reps, wd.sets)
+        splits.forEach(s => { if (groups[s.group] !== undefined) groups[s.group] += s.vol })
+        // If no splits resolved, fall back to row-level group
+        if (splits.length === 0 && ex.svGroup && groups[ex.svGroup] !== undefined) groups[ex.svGroup] += vol
         const pctInt = Math.round(wd.pct * 100)
         if (pctInt >= 90) zones['90+'] += vol
         else if (pctInt >= 80) zones['80-89'] += vol
