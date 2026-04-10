@@ -363,12 +363,12 @@ const SV_PCT = {
 
 const SV_BASE_REPS = {
   comp: { 1: 3, 2: 2, 3: 2 }, pull: { 1: 4, 2: 3, 3: 3 },
-  squat: { 1: 5, 2: 4, 3: 3 }, jerk: { 1: 3, 2: 2, 3: 2 },
-  press: { 1: 5, 2: 4, 3: 3 },
+  squat: { 1: 4, 2: 3, 3: 3 }, jerk: { 1: 3, 2: 2, 3: 2 },
+  press: { 1: 5, 2: 3, 3: 3 },
 }
 const SV_BASE_SETS = {
-  comp: { 1: 4, 2: 5, 3: 5 }, pull: { 1: 3, 2: 4, 3: 4 },
-  squat: { 1: 4, 2: 4, 3: 5 }, jerk: { 1: 4, 2: 5, 3: 5 },
+  comp: { 1: 5, 2: 5, 3: 5 }, pull: { 1: 4, 2: 4, 3: 4 },
+  squat: { 1: 3, 2: 4, 3: 4 }, jerk: { 1: 4, 2: 5, 3: 5 },
   press: { 1: 3, 2: 4, 3: 4 },
 }
 
@@ -2498,8 +2498,9 @@ function SovietAnalytics({ bD, days }) {
   }
 
   // Compute per-week analytics
+  // Note: ARI and peak exclude pulls (G3) — pulls are % of competition lift, not true intensity
   const weekStats = [1,2,3,4].map(wk => {
-    let totalReps = 0, weightedPct = 0, peakPct = 0, peakEx = ''
+    let totalReps = 0, ariReps = 0, ariWeighted = 0, peakPct = 0, peakEx = ''
     const groups = { G1: 0, G2: 0, G3: 0, G4: 0, G5: 0 }
     const zones = { '55-69': 0, '70-79': 0, '80-89': 0, '90+': 0 }
     days.forEach(dk => {
@@ -2513,21 +2514,29 @@ function SovietAnalytics({ bD, days }) {
         else { rc = parseInt(repsStr) || 0 }
         const vol = wd.sets * rc
         totalReps += vol
-        weightedPct += wd.pct * vol
-        if (wd.pct > peakPct) { peakPct = wd.pct; peakEx = wd.exercise || ex.exercise }
         // Split complex volume across groups
         const splits = splitComplexVol(wd.exercise || ex.exercise, wd.reps, wd.sets)
         splits.forEach(s => { if (groups[s.group] !== undefined) groups[s.group] += s.vol })
-        // If no splits resolved, fall back to row-level group
         if (splits.length === 0 && ex.svGroup && groups[ex.svGroup] !== undefined) groups[ex.svGroup] += vol
+        // Determine if this is a pull (exclude from ARI + peak)
+        const isPull = ex.svGroup === 'G3' || (wd.exercise && svDetectGroup(wd.exercise) === 'G3')
+        if (!isPull) {
+          ariReps += vol
+          ariWeighted += wd.pct * vol
+          // Peak: only competition lifts (SN, CL, Jerk) — not squats either
+          const isCompLift = ex.svGroup === 'G1' || ex.svGroup === 'G2' || ex.svGroup === 'G5'
+          if (isCompLift && wd.pct > peakPct) { peakPct = wd.pct; peakEx = wd.exercise || ex.exercise }
+        }
         const pctInt = Math.round(wd.pct * 100)
-        if (pctInt >= 90) zones['90+'] += vol
-        else if (pctInt >= 80) zones['80-89'] += vol
-        else if (pctInt >= 70) zones['70-79'] += vol
-        else zones['55-69'] += vol
+        if (!isPull) {
+          if (pctInt >= 90) zones['90+'] += vol
+          else if (pctInt >= 80) zones['80-89'] += vol
+          else if (pctInt >= 70) zones['70-79'] += vol
+          else zones['55-69'] += vol
+        }
       })
     })
-    return { totalReps, avgInt: totalReps > 0 ? (weightedPct / totalReps) * 100 : 0, peakPct: Math.round(peakPct * 100), peakEx, groups, zones }
+    return { totalReps, avgInt: ariReps > 0 ? (ariWeighted / ariReps) * 100 : 0, peakPct: Math.round(peakPct * 100), peakEx, groups, zones }
   })
 
   // Block totals
