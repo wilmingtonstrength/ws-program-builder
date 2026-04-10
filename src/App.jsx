@@ -353,12 +353,14 @@ const SV_WAVE_MULT = { HIGH: 1.2, MEDIUM: 1.0, MOD_LOW: 0.8, TEST: 0.5 }
 const SV_WAVE_INT = { HIGH: 0.02, MEDIUM: 0.04, MOD_LOW: 0.0, TEST: -0.03 }
 
 // Intensity ranges by block — raised to target 73-77% ARI
+// Intensity ranges per Medvedev: triples 65-80%, doubles 75-85%, singles 80-95%
+// Wider ranges so HIGH weeks can push into 80%+ and 90%+ zones
 const SV_PCT = {
-  comp:  { 1: [0.72,0.80], 2: [0.78,0.87], 3: [0.82,0.92] },
-  pull:  { 1: [0.88,1.00], 2: [0.95,1.08], 3: [1.00,1.15] },
-  squat: { 1: [0.70,0.78], 2: [0.76,0.84], 3: [0.80,0.88] },
-  jerk:  { 1: [0.70,0.79], 2: [0.78,0.87], 3: [0.83,0.92] },
-  press: { 1: [0.68,0.76], 2: [0.75,0.83], 3: [0.79,0.87] },
+  comp:  { 1: [0.65,0.82], 2: [0.75,0.88], 3: [0.80,0.95] },
+  pull:  { 1: [0.80,1.00], 2: [0.90,1.10], 3: [0.95,1.15] },
+  squat: { 1: [0.65,0.80], 2: [0.72,0.85], 3: [0.78,0.90] },
+  jerk:  { 1: [0.65,0.82], 2: [0.75,0.88], 3: [0.80,0.95] },
+  press: { 1: [0.60,0.78], 2: [0.70,0.85], 3: [0.75,0.88] },
 }
 
 const SV_BASE_REPS = {
@@ -2498,9 +2500,10 @@ function SovietAnalytics({ bD, days }) {
   }
 
   // Compute per-week analytics
-  // Note: ARI and peak exclude pulls (G3) — pulls are % of competition lift, not true intensity
+  // ARI includes ALL exercises (pulls, squats, comp lifts) per Medvedev/Takano methodology
+  // Peak intensity only shows competition lifts (not pulls — a pull at 98% is routine, not peak effort)
   const weekStats = [1,2,3,4].map(wk => {
-    let totalReps = 0, ariReps = 0, ariWeighted = 0, peakPct = 0, peakEx = ''
+    let totalReps = 0, ariWeighted = 0, peakPct = 0, peakEx = ''
     const groups = { G1: 0, G2: 0, G3: 0, G4: 0, G5: 0 }
     const zones = { '55-69': 0, '70-79': 0, '80-89': 0, '90+': 0 }
     days.forEach(dk => {
@@ -2514,29 +2517,23 @@ function SovietAnalytics({ bD, days }) {
         else { rc = parseInt(repsStr) || 0 }
         const vol = wd.sets * rc
         totalReps += vol
+        ariWeighted += wd.pct * vol
         // Split complex volume across groups
         const splits = splitComplexVol(wd.exercise || ex.exercise, wd.reps, wd.sets)
         splits.forEach(s => { if (groups[s.group] !== undefined) groups[s.group] += s.vol })
         if (splits.length === 0 && ex.svGroup && groups[ex.svGroup] !== undefined) groups[ex.svGroup] += vol
-        // Determine if this is a pull (exclude from ARI + peak)
-        const isPull = ex.svGroup === 'G3' || (wd.exercise && svDetectGroup(wd.exercise) === 'G3')
-        if (!isPull) {
-          ariReps += vol
-          ariWeighted += wd.pct * vol
-          // Peak: only competition lifts (SN, CL, Jerk) — not squats either
-          const isCompLift = ex.svGroup === 'G1' || ex.svGroup === 'G2' || ex.svGroup === 'G5'
-          if (isCompLift && wd.pct > peakPct) { peakPct = wd.pct; peakEx = wd.exercise || ex.exercise }
-        }
+        // Peak: competition lifts only (G1 Snatch, G2 Clean, G5 Jerk/OH) — NOT pulls or squats
+        const isCompLift = ex.svGroup === 'G1' || ex.svGroup === 'G2' || ex.svGroup === 'G5'
+        if (isCompLift && wd.pct > peakPct) { peakPct = wd.pct; peakEx = wd.exercise || ex.exercise }
+        // Intensity zones include everything (per Takano)
         const pctInt = Math.round(wd.pct * 100)
-        if (!isPull) {
-          if (pctInt >= 90) zones['90+'] += vol
-          else if (pctInt >= 80) zones['80-89'] += vol
-          else if (pctInt >= 70) zones['70-79'] += vol
-          else zones['55-69'] += vol
-        }
+        if (pctInt >= 90) zones['90+'] += vol
+        else if (pctInt >= 80) zones['80-89'] += vol
+        else if (pctInt >= 70) zones['70-79'] += vol
+        else zones['55-69'] += vol
       })
     })
-    return { totalReps, avgInt: ariReps > 0 ? (ariWeighted / ariReps) * 100 : 0, peakPct: Math.round(peakPct * 100), peakEx, groups, zones }
+    return { totalReps, avgInt: totalReps > 0 ? (ariWeighted / totalReps) * 100 : 0, peakPct: Math.round(peakPct * 100), peakEx, groups, zones }
   })
 
   // Block totals
