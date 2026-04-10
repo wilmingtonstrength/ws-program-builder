@@ -326,11 +326,11 @@ const SV_WAVE_INT = { HIGH: 0.0, MEDIUM: 0.02, MOD_LOW: -0.02, TEST: -0.05 }
 
 // Intensity ranges by block (base pct for calculating per-week values)
 const SV_PCT = {
-  comp:  { 1: [0.65,0.72], 2: [0.73,0.82], 3: [0.78,0.88] },
-  pull:  { 1: [0.80,0.92], 2: [0.88,1.02], 3: [0.93,1.08] },
-  squat: { 1: [0.62,0.70], 2: [0.70,0.78], 3: [0.75,0.83] },
-  jerk:  { 1: [0.63,0.72], 2: [0.73,0.82], 3: [0.78,0.88] },
-  press: { 1: [0.60,0.68], 2: [0.68,0.78], 3: [0.73,0.82] },
+  comp:  { 1: [0.68,0.76], 2: [0.76,0.85], 3: [0.80,0.90] },
+  pull:  { 1: [0.82,0.95], 2: [0.90,1.05], 3: [0.95,1.10] },
+  squat: { 1: [0.65,0.73], 2: [0.72,0.80], 3: [0.77,0.85] },
+  jerk:  { 1: [0.66,0.75], 2: [0.75,0.84], 3: [0.80,0.90] },
+  press: { 1: [0.63,0.72], 2: [0.72,0.80], 3: [0.76,0.84] },
 }
 
 // Base reps (before wave adjustment) by group and block
@@ -424,14 +424,19 @@ const SOVIET_4DAY = {
     gen(b, w, rng) {
       const exs = [WU_A]
       // G1: ONE snatch movement (single OR complex, not both)
+      let a1Name = ''
       if (rng() > 0.4) {
         const cx = pick(SV_SN_CX, rng)
+        a1Name = cx.name
         exs.push(svExComplex('A1', cx, 'comp', b, w, rng))
       } else {
-        exs.push(svEx('A1', pick(SV_SN, rng), 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
+        const sn = pick(SV_SN, rng)
+        a1Name = sn
+        exs.push(svEx('A1', sn, 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
       }
-      // G3: Snatch Pull (or tech pull+lift)
-      if (rng() > 0.5) {
+      // G3: Snatch Pull (avoid duplicating A1 — if A1 was a pull+snatch complex, use straight pull)
+      const a1HasPull = a1Name.toLowerCase().includes('pull')
+      if (!a1HasPull && rng() > 0.5) {
         const tp = pick(SV_TECH_PULL_SN, rng)
         exs.push(svExComplex('B1', tp, 'pull', b, w, rng))
       } else {
@@ -510,13 +515,19 @@ const SOVIET_3DAY = {
     gen(b, w, rng) {
       const exs = [WU_A]
       // G1: Snatch (single or complex, not both)
+      let a1Name = ''
       if (rng() > 0.4) {
-        exs.push(svExComplex('A1', pick(SV_SN_CX, rng), 'comp', b, w, rng))
+        const cx = pick(SV_SN_CX, rng)
+        a1Name = cx.name
+        exs.push(svExComplex('A1', cx, 'comp', b, w, rng))
       } else {
-        exs.push(svEx('A1', pick(SV_SN, rng), 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
+        const sn = pick(SV_SN, rng)
+        a1Name = sn
+        exs.push(svEx('A1', sn, 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
       }
-      // G3: Snatch Pull (or tech pull+snatch)
-      if (rng() > 0.5) {
+      // G3: Snatch Pull (avoid duplicating A1)
+      const a1HasPull = a1Name.toLowerCase().includes('pull')
+      if (!a1HasPull && rng() > 0.5) {
         exs.push(svExComplex('B1', pick(SV_TECH_PULL_SN, rng), 'pull', b, w, rng))
       } else {
         exs.push(svEx('B1', pick(SV_SN_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
