@@ -61,12 +61,14 @@ const LIBRARY = {
     'Power Position Power Snatch','Low Hang Power Snatch','Tall Snatch','3-Position Snatch',
     'PP Snatch + Hang Snatch','PP Snatch + OHS','Hang Snatch + OHS',
     'Tall Snatch + OHS','PP Snatch + Hang Snatch + OHS',
+    'Power Snatch','Muscle Snatch','Snatch from Blocks','Pausing Power Snatch',
   ],
   'Clean': [
     'Hang Clean','Power Position Clean','Low Hang Clean','No Foot Clean',
     'No Foot No Hook Clean','Pause at Knee Clean','Hang Power Clean',
     'Power Position Power Clean','Low Hang Power Clean','Tall Clean','3-Position Clean',
     'PP Clean + Hang Clean','PAK Clean Pull + Clean Pull',
+    'Muscle Clean','Clean from Blocks',
   ],
   'Jerk': [
     'Push Jerk','Power Jerk','Split Jerk',
@@ -86,12 +88,14 @@ const LIBRARY = {
     'Front Squat','Back Squat','Goblet Squat','OHS',
     'Front Squat HE','Back Squat HE','Goblet Squat HE',
     'Double KB Front Squat','Zercher Squat',
+    'Pause Back Squat','Pause Front Squat',
   ],
   'Pulls / Hinge': [
     'Deadlift','Sumo Deadlift','Trap Bar Deadlift','KB Deadlift','RDL','DB RDL',
     'Clean Pull','Pause at Knee Clean Pull','3-Position Clean Pull',
     'Hang Clean High Pull','PAK Clean Pull','PAK Clean Pull + Clean Pull',
     'Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull','Hang Snatch High Pull',
+    'Snatch DL','Clean DL',
   ],
   'Horizontal Row': [
     'KOB Row','SA KOB Row','Chainsaw Row','Bent-Over Row',
@@ -110,6 +114,7 @@ const LIBRARY = {
     'Sled Push','Sled Push/Pull','DBL KB Front Rack Walking Lunge',
   ],
   'Posterior Chain': [
+    'Good Morning',
     'SA/SL RDL','Split Stance RDL','KB Swing','Back Extension',
     '45-Deg Back Extension','SL 45-Deg Back Extension',
     'Glute Ham Raise','Nordic Hamstring Curl','Nordic Hip Hinge','Razor Curl',
@@ -196,7 +201,395 @@ const EXERCISE_PR_KEYS = {
   'Hang Snatch High Pull':'snatch',
   // Pull-up
   'Chin Up':'chin_up','Pull Up':'chin_up',
+  // Medvedev additions
+  'Power Snatch':'snatch','Muscle Snatch':'snatch','Snatch from Blocks':'snatch','Pausing Power Snatch':'snatch',
+  'Muscle Clean':'clean','Clean from Blocks':'clean',
+  'Snatch DL':'snatch','Clean DL':'clean',
+  'Pause Back Squat':'back_squat','Pause Front Squat':'front_squat',
 }
+
+// ========== SOVIET / MEDVEDEV AUTO-GENERATOR ==========
+
+function sovietRand(seed) {
+  let s = seed | 0
+  return () => { s = (s * 1664525 + 1013904223) & 0x7fffffff; return s / 0x7fffffff }
+}
+function pick(arr, rng) { return arr[Math.floor(rng() * arr.length)] }
+function randInt(lo, hi, rng) { return lo + Math.floor(rng() * (hi - lo + 1)) }
+function randFloat(lo, hi, rng) { return lo + rng() * (hi - lo) }
+function shuffle(arr, rng) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
+
+const SOVIET_SNATCH_SINGLES = ['Hang Snatch','Power Snatch','Hang Power Snatch','Low Hang Snatch','Pausing Power Snatch','Power Position Snatch','Snatch from Blocks','Muscle Snatch']
+const SOVIET_SNATCH_COMPLEXES = [
+  { name: 'PP Snatch + Hang Snatch', reps: '2+1', totalReps: 3, prKey: 'snatch' },
+  { name: 'Hang Snatch + OHS', reps: '2+1', totalReps: 3, prKey: ['snatch','front_squat'] },
+  { name: 'PP Snatch + OHS', reps: '2+1', totalReps: 3, prKey: ['snatch','front_squat'] },
+  { name: 'PP Snatch + Hang Snatch + OHS', reps: '1+1+1', totalReps: 3, prKey: ['snatch','front_squat'] },
+]
+const SOVIET_SNATCH_POWER = ['Power Snatch','Hang Power Snatch','Power Position Power Snatch','Pausing Power Snatch']
+
+const SOVIET_CLEAN_SINGLES = ['Hang Clean','Power Clean','Hang Power Clean','Low Hang Clean','Muscle Clean','Clean from Blocks','Power Position Clean']
+const SOVIET_CLEAN_COMPLEXES = [
+  { name: 'PP Clean + Hang Clean', reps: '2+1', totalReps: 3, prKey: 'clean' },
+  { name: 'Hang Clean + Front Squat', reps: '2+1', totalReps: 3, prKey: ['clean','front_squat'] },
+  { name: 'Clean + Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+  { name: 'Hang Clean + Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+  { name: 'Hang Clean + Push Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+  { name: 'Hang Clean + Push Press', reps: '1+3', totalReps: 4, prKey: 'push_press' },
+]
+const SOVIET_CLEAN_POWER_COMPLEXES = [
+  { name: 'Power Clean + Push Press', reps: '1+3', totalReps: 4, prKey: 'push_press' },
+  { name: 'Hang Power Clean + Push Press', reps: '1+3', totalReps: 4, prKey: 'push_press' },
+]
+const SOVIET_CJ_COMPLEXES = [
+  { name: 'Clean + Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+  { name: 'Hang Clean + Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+  { name: 'PP Clean + Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+  { name: 'Hang Clean + Push Jerk', reps: '1+1', totalReps: 2, prKey: 'jerk' },
+]
+
+const SOVIET_SNATCH_PULLS = ['Snatch Pull','Pause at Knee Snatch Pull','3-Position Snatch Pull','Snatch DL']
+const SOVIET_CLEAN_PULLS = ['Clean Pull','Pause at Knee Clean Pull','3-Position Clean Pull','PAK Clean Pull','Clean DL']
+const SOVIET_BACK_SQUATS = ['Back Squat','Pause Back Squat']
+const SOVIET_FRONT_SQUATS = ['Front Squat','Pause Front Squat']
+const SOVIET_JERK_SINGLES = ['Split Jerk','Power Jerk','Push Jerk','Behind-the-Neck Push Jerk']
+const SOVIET_JERK_COMPLEXES = [
+  { name: 'Push Press + Push Jerk', reps: '2+1', totalReps: 3, prKey: 'jerk' },
+  { name: 'Push Press + Split Jerk', reps: '2+1', totalReps: 3, prKey: 'jerk' },
+  { name: 'PP Clean + Push Press', reps: '1+3', totalReps: 4, prKey: 'push_press' },
+]
+const SOVIET_PRESS_SINGLES = ['Push Press','Behind-the-Neck Press']
+const SOVIET_OPTIONAL_ACC = [
+  { name: 'Chin Up', sets: 3, reps: '8' },
+  { name: 'Nordic Hip Hinge', sets: 3, reps: '8' },
+  { name: 'Bent-Over Row', sets: 3, reps: '8' },
+  { name: 'Chest Supported Row', sets: 3, reps: '10' },
+  { name: 'SA KOB Row', sets: 3, reps: '8ea' },
+]
+
+const SOVIET_VOLUME_BUDGET = {
+  '3day': { 1: [700,800], 2: [650,750], 3: [600,700] },
+  '4day': { 1: [900,1050], 2: [850,950], 3: [750,850] },
+}
+const SOVIET_WAVE_TIERS = { HIGH: [0.30,0.38], MEDIUM: [0.25,0.31], MOD_LOW: [0.18,0.26], TEST: [0.12,0.18] }
+const SOVIET_GROUP_DIST = { G1: [0.17,0.23], G2: [0.17,0.23], G3: [0.20,0.27], G4: [0.22,0.30], G5: [0.10,0.18] }
+
+// Intensity ranges: [lo, hi] for pct array based on block
+const SOVIET_COMP_PCT = { 1: [0.65,0.75], 2: [0.75,0.85], 3: [0.80,0.90] }
+const SOVIET_PULL_PCT = { 1: [0.80,0.95], 2: [0.90,1.05], 3: [0.95,1.10] }
+const SOVIET_SQ_PCT = { 1: [0.60,0.70], 2: [0.70,0.80], 3: [0.75,0.85] }
+const SOVIET_JERK_PCT = { 1: [0.65,0.75], 2: [0.75,0.85], 3: [0.80,0.90] }
+const SOVIET_PRESS_PCT = { 1: [0.60,0.70], 2: [0.70,0.80], 3: [0.75,0.85] }
+
+// Reps by block for each group
+const SOVIET_REPS = {
+  comp: { 1: [2,3], 2: [1,2], 3: [1,2] },
+  pull: { 1: [3,5], 2: [2,4], 3: [2,3] },
+  squat: { 1: [5,8], 2: [3,5], 3: [3,5] },
+  jerk: { 1: [2,3], 2: [1,2], 3: [1,2] },
+  press: { 1: [5,8], 2: [3,5], 3: [3,5] },
+}
+// Sets by group
+const SOVIET_SETS = {
+  comp: { 1: [4,5], 2: [4,5], 3: [4,5] },
+  pull: { 1: [3,4], 2: [3,4], 3: [3,4] },
+  squat: { 1: [3,4], 2: [4,5], 3: [4,5] },
+  jerk: { 1: [4,5], 2: [4,5], 3: [4,5] },
+  press: { 1: [3,4], 2: [3,4], 3: [3,4] },
+}
+
+function sovietMakePct(range, block, rng) {
+  const [lo, hi] = range
+  const w1 = lo
+  const w2lo = lo + (hi - lo) * 0.1
+  const w2hi = hi
+  return [Math.round(w1 * 100) / 100, Math.round(w2lo * 100) / 100, Math.round(w2hi * 100) / 100]
+}
+
+function sovietAssignSingle(name, group, block, rng) {
+  const pctRanges = { comp: SOVIET_COMP_PCT, pull: SOVIET_PULL_PCT, squat: SOVIET_SQ_PCT, jerk: SOVIET_JERK_PCT, press: SOVIET_PRESS_PCT }
+  const reps = randInt(SOVIET_REPS[group][block][0], SOVIET_REPS[group][block][1], rng)
+  const sets = randInt(SOVIET_SETS[group][block][0], SOVIET_SETS[group][block][1], rng)
+  const pct = sovietMakePct(pctRanges[group][block], block, rng)
+  const prKey = EXERCISE_PR_KEYS[name] || null
+  return mkEx('A1', name, sets, String(reps), pct, prKey)
+}
+
+function sovietAssignComplex(cx, group, block, rng) {
+  const pctRanges = { comp: SOVIET_COMP_PCT, pull: SOVIET_PULL_PCT, squat: SOVIET_SQ_PCT, jerk: SOVIET_JERK_PCT, press: SOVIET_PRESS_PCT }
+  // Complexes use slightly lower percentages
+  const range = pctRanges[group][block]
+  const adjRange = [range[0] - 0.05, range[1] - 0.05]
+  const sets = randInt(SOVIET_SETS[group][block][0], SOVIET_SETS[group][block][1], rng)
+  const pct = sovietMakePct(adjRange, block, rng)
+  return mkEx('A1', cx.name, sets, cx.reps, pct, cx.prKey)
+}
+
+const SOVIET_SESSIONS_4DAY = {
+  dayA: {
+    header: 'A Day \u2014 Snatch + Squat',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_A)
+      // G1: Snatch variation
+      const sn = pick(SOVIET_SNATCH_SINGLES, rng)
+      exs.push({ ...sovietAssignSingle(sn, 'comp', block, rng), series: 'A1' })
+      // G1: Snatch complex
+      const cx = pick(SOVIET_SNATCH_COMPLEXES, rng)
+      exs.push({ ...sovietAssignComplex(cx, 'comp', block, rng), series: 'B1' })
+      // G4: Back Squat
+      const bsq = pick(SOVIET_BACK_SQUATS, rng)
+      exs.push({ ...sovietAssignSingle(bsq, 'squat', block, rng), series: 'C1', prKey: 'back_squat' })
+      // ACC: Good Morning
+      exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
+      return exs
+    }
+  },
+  dayB: {
+    header: 'B Day \u2014 Clean + Pulls',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_B_pp)
+      // G2: Clean variation
+      const cl = pick(SOVIET_CLEAN_SINGLES, rng)
+      exs.push({ ...sovietAssignSingle(cl, 'comp', block, rng), series: 'A1' })
+      // G2: Clean complex
+      const cx = pick(SOVIET_CLEAN_COMPLEXES, rng)
+      exs.push({ ...sovietAssignComplex(cx, 'comp', block, rng), series: 'B1' })
+      // G3: Clean Pull
+      const cp = pick(SOVIET_CLEAN_PULLS, rng)
+      exs.push({ ...sovietAssignSingle(cp, 'pull', block, rng), series: 'C1' })
+      // G3: Snatch Pull
+      const sp = pick(SOVIET_SNATCH_PULLS, rng)
+      exs.push({ ...sovietAssignSingle(sp, 'pull', block, rng), series: 'D1' })
+      // ACC: Back Extension
+      exs.push(mkEx('E1', 'Back Extension', 3, '10-15', null, null))
+      return exs
+    }
+  },
+  dayC: {
+    header: 'C Day \u2014 Jerk/OH + Front Squat',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_B_pp)
+      // G5: Push Press or Jerk complex
+      if (rng() > 0.5) {
+        exs.push({ ...sovietAssignSingle('Push Press', 'press', block, rng), series: 'A1', prKey: 'push_press' })
+      } else {
+        const cx = pick(SOVIET_JERK_COMPLEXES, rng)
+        exs.push({ ...sovietAssignComplex(cx, 'jerk', block, rng), series: 'A1' })
+      }
+      // G5: Jerk from rack
+      const jk = pick(SOVIET_JERK_SINGLES, rng)
+      exs.push({ ...sovietAssignSingle(jk, 'jerk', block, rng), series: 'B1' })
+      // G4: Front Squat
+      const fsq = pick(SOVIET_FRONT_SQUATS, rng)
+      exs.push({ ...sovietAssignSingle(fsq, 'squat', block, rng), series: 'C1', prKey: 'front_squat' })
+      // ACC: Good Morning
+      exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
+      return exs
+    }
+  },
+  dayD: {
+    header: 'D Day \u2014 Mixed Power + Pulls',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_A)
+      // G1: Power Snatch variant
+      const ps = pick(SOVIET_SNATCH_POWER, rng)
+      exs.push({ ...sovietAssignSingle(ps, 'comp', block, rng), series: 'A1' })
+      // G2: Power Clean complex
+      const cx = pick(SOVIET_CLEAN_POWER_COMPLEXES, rng)
+      exs.push({ ...sovietAssignComplex(cx, 'comp', block, rng), series: 'B1' })
+      // G3: Pull variation
+      const pull = pick([...SOVIET_CLEAN_PULLS, ...SOVIET_SNATCH_PULLS], rng)
+      exs.push({ ...sovietAssignSingle(pull, 'pull', block, rng), series: 'C1' })
+      // ACC: Optional accessory
+      const acc = pick(SOVIET_OPTIONAL_ACC, rng)
+      exs.push(mkEx('D1', acc.name, acc.sets, acc.reps, null, null))
+      return exs
+    }
+  },
+}
+
+const SOVIET_SESSIONS_3DAY = {
+  dayA: {
+    header: 'A Day \u2014 Snatch + Back Squat',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_A)
+      // G1: Snatch variation
+      const sn = pick(SOVIET_SNATCH_SINGLES, rng)
+      exs.push({ ...sovietAssignSingle(sn, 'comp', block, rng), series: 'A1' })
+      // G1: Snatch complex
+      const cx = pick(SOVIET_SNATCH_COMPLEXES, rng)
+      exs.push({ ...sovietAssignComplex(cx, 'comp', block, rng), series: 'B1' })
+      // G3: Snatch Pull
+      const sp = pick(SOVIET_SNATCH_PULLS, rng)
+      exs.push({ ...sovietAssignSingle(sp, 'pull', block, rng), series: 'C1' })
+      // G4: Back Squat
+      const bsq = pick(SOVIET_BACK_SQUATS, rng)
+      exs.push({ ...sovietAssignSingle(bsq, 'squat', block, rng), series: 'D1', prKey: 'back_squat' })
+      // ACC: Good Morning
+      exs.push(mkEx('E1', 'Good Morning', 3, '8', null, null))
+      return exs
+    }
+  },
+  dayB: {
+    header: 'B Day \u2014 Clean + Jerk + Front Squat',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_B_pp)
+      // G2: Clean variation
+      const cl = pick(SOVIET_CLEAN_SINGLES, rng)
+      exs.push({ ...sovietAssignSingle(cl, 'comp', block, rng), series: 'A1' })
+      // G2+G5: C&J complex
+      const cx = pick(SOVIET_CJ_COMPLEXES, rng)
+      exs.push({ ...sovietAssignComplex(cx, 'comp', block, rng), series: 'B1' })
+      // G3: Clean Pull
+      const cp = pick(SOVIET_CLEAN_PULLS, rng)
+      exs.push({ ...sovietAssignSingle(cp, 'pull', block, rng), series: 'C1' })
+      // G4: Front Squat
+      const fsq = pick(SOVIET_FRONT_SQUATS, rng)
+      exs.push({ ...sovietAssignSingle(fsq, 'squat', block, rng), series: 'D1', prKey: 'front_squat' })
+      // ACC: Back Extension
+      exs.push(mkEx('E1', 'Back Extension', 3, '10-15', null, null))
+      return exs
+    }
+  },
+  dayC: {
+    header: 'C Day \u2014 Strength + Overhead',
+    generate(block, rng) {
+      const exs = []
+      exs.push(WU_B_pp)
+      // G5: Push Press
+      const pp = pick(SOVIET_PRESS_SINGLES, rng)
+      const ppPrKey = pp === 'Push Press' ? 'push_press' : 'press'
+      exs.push({ ...sovietAssignSingle(pp, 'press', block, rng), series: 'A1', prKey: ppPrKey })
+      // G1: Light technique snatch
+      const lt = pick(['Tall Snatch','Muscle Snatch','Hang Power Snatch'], rng)
+      exs.push(mkEx('B1', lt, 3, '3', [0.50, 0.50, 0.60], 'snatch', 'light'))
+      // G3: RDL or Good Morning
+      const hinge = pick(['RDL','Good Morning'], rng)
+      if (hinge === 'RDL') {
+        exs.push(mkEx('C1', 'RDL', 3, '8', null, null))
+      } else {
+        exs.push(mkEx('C1', 'Good Morning', 3, '8', null, null))
+      }
+      // G4: Back Squat
+      const bsq = pick(SOVIET_BACK_SQUATS, rng)
+      exs.push({ ...sovietAssignSingle(bsq, 'squat', block, rng), series: 'D1', prKey: 'back_squat' })
+      // ACC: Optional accessory
+      const acc = pick(SOVIET_OPTIONAL_ACC, rng)
+      exs.push(mkEx('E1', acc.name, acc.sets, acc.reps, null, null))
+      return exs
+    }
+  },
+}
+
+function sovietComputeARI(days, blockData) {
+  let weightedSum = 0, totalReps = 0
+  days.forEach(dk => {
+    const exs = blockData[dk]?.exercises || []
+    exs.forEach(ex => {
+      if (!ex.pct || ex.series === 'WU') return
+      const avgPct = (ex.pct[0] + ex.pct[1] + ex.pct[2]) / 3
+      const repsStr = String(ex.reps)
+      let repCount = 0
+      if (repsStr.includes('+')) { repCount = repsStr.split('+').reduce((s, v) => s + (parseInt(v) || 0), 0) }
+      else if (repsStr.includes('-')) { const parts = repsStr.split('-').map(Number); repCount = Math.round((parts[0] + parts[1]) / 2) }
+      else { repCount = parseInt(repsStr) || 0 }
+      const sets = parseInt(ex.sets) || 0
+      const vol = sets * repCount
+      weightedSum += avgPct * vol
+      totalReps += vol
+    })
+  })
+  return totalReps > 0 ? (weightedSum / totalReps) * 100 : 0
+}
+
+function sovietComputeVolume(days, blockData) {
+  let total = 0
+  days.forEach(dk => {
+    const exs = blockData[dk]?.exercises || []
+    exs.forEach(ex => {
+      if (ex.series === 'WU' || !ex.pct) return
+      const repsStr = String(ex.reps)
+      let repCount = 0
+      if (repsStr.includes('+')) { repCount = repsStr.split('+').reduce((s, v) => s + (parseInt(v) || 0), 0) }
+      else if (repsStr.includes('-')) { const parts = repsStr.split('-').map(Number); repCount = Math.round((parts[0] + parts[1]) / 2) }
+      else { repCount = parseInt(repsStr) || 0 }
+      total += (parseInt(ex.sets) || 0) * repCount
+    })
+  })
+  return total
+}
+
+function generateWeeklyWave(rng) {
+  const pool = shuffle(['HIGH', 'MEDIUM', 'MOD_LOW'], rng)
+  // Ensure no two adjacent HIGH
+  if (pool[0] === 'HIGH' && pool[1] === 'HIGH') { [pool[1], pool[2]] = [pool[2], pool[1]] }
+  if (pool[1] === 'HIGH' && pool[2] === 'HIGH') { [pool[0], pool[1]] = [pool[1], pool[0]] }
+  return [...pool, 'TEST']
+}
+
+function generateSovietTemplate(mode, blockNum, seed) {
+  const rng = sovietRand(seed || (Date.now() ^ (Math.random() * 0x7fffffff)))
+  const sessions = mode === '4day' ? SOVIET_SESSIONS_4DAY : SOVIET_SESSIONS_3DAY
+  const days = mode === '4day' ? ['dayA','dayB','dayC','dayD'] : ['dayA','dayB','dayC']
+
+  // Generate exercises for each day
+  const blockData = {}
+  const testNotes = { 1: 'Wk 4: Test power variants, pulls/squats 50%', 2: 'Wk 4: Test full lifts moderate, pulls/squats 50%', 3: 'Wk 4: Test full lifts max (SN, C&J, BS, FS)' }
+
+  days.forEach(dk => {
+    const session = sessions[dk]
+    const exercises = session.generate(blockNum, rng)
+    blockData[dk] = { header: session.header, exercises }
+  })
+
+  // Compute metrics
+  const weeklyWave = generateWeeklyWave(rng)
+  const budgetRange = SOVIET_VOLUME_BUDGET[mode][blockNum]
+  const monthTarget = randInt(budgetRange[0], budgetRange[1], rng)
+  const weeklyVol = sovietComputeVolume(days, blockData)
+  const ari = sovietComputeARI(days, blockData)
+
+  // ARI adjustment: if out of 71-79 range, nudge percentages
+  if (ari < 71 || ari > 79) {
+    const adj = ari < 71 ? 0.03 : -0.03
+    days.forEach(dk => {
+      (blockData[dk].exercises || []).forEach(ex => {
+        if (ex.pct && ex.series !== 'WU') {
+          ex.pct = [
+            Math.round((ex.pct[0] + adj) * 100) / 100,
+            Math.round((ex.pct[1] + adj) * 100) / 100,
+            Math.round((ex.pct[2] + adj) * 100) / 100,
+          ]
+        }
+      })
+    })
+  }
+
+  const finalAri = sovietComputeARI(days, blockData)
+
+  const pctLabels = { 1: '65\u201375%', 2: '75\u201385%', 3: '80\u201390%' }
+  blockData.pctLabel = pctLabels[blockNum] || ''
+  blockData.w1note = blockNum === 1 ? '65% only' : blockNum === 2 ? '75% only' : '80% only'
+  blockData._meta = {
+    weeklyWave,
+    monthVolume: monthTarget,
+    weeklyVolume: weeklyVol,
+    estimatedMonthly: weeklyVol * 4,
+    ari: finalAri,
+    testNote: testNotes[blockNum],
+    seed: seed || 0,
+  }
+
+  return blockData
+}
+
+// ========== END SOVIET GENERATOR ==========
 
 const DEFAULT_CELL_NOTES = {
   'beginner-3-dayA-1-2':'2RM','beginner-3-dayA-1-3':'MAX',
@@ -1089,6 +1482,14 @@ const TEMPLATES = {
       ]}}
     }
   },
+  soviet_3day: {
+    label: 'Soviet 3-Day (Auto)', days: ['dayA','dayB','dayC'], generative: true,
+    blocks: { 1: null, 2: null, 3: null }
+  },
+  soviet_4day: {
+    label: 'Soviet 4-Day (Auto)', days: ['dayA','dayB','dayC','dayD'], generative: true,
+    blocks: { 1: null, 2: null, 3: null }
+  },
 }
 
 
@@ -1215,6 +1616,7 @@ export default function App() {
     return copy
   })
   const [customTemplates, setCustomTemplates] = useState({})
+  const [sovietBlocks, setSovietBlocks] = useState({})
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
@@ -1338,7 +1740,21 @@ export default function App() {
 
   const allTemplates = { ...TEMPLATES, ...customTemplates }
   const tD = allTemplates[tier] || TEMPLATES.beginner
-  const bD = tD.blocks[block] || tD.blocks[1]
+  const isSoviet = tD.generative === true
+  const sovietKey = `${tier}-${block}`
+
+  // Auto-generate Soviet template on first access
+  useEffect(() => {
+    if (isSoviet && !sovietBlocks[sovietKey]) {
+      const mode = tier === 'soviet_4day' ? '4day' : '3day'
+      const gen = generateSovietTemplate(mode, block)
+      setSovietBlocks(prev => ({ ...prev, [sovietKey]: gen }))
+    }
+  }, [isSoviet, sovietKey, tier, block])
+
+  const bD = isSoviet
+    ? (sovietBlocks[sovietKey] || generateSovietTemplate(tier === 'soviet_4day' ? '4day' : '3day', block))
+    : (tD.blocks[block] || tD.blocks[1])
   const isOly = !['gpp_2day','gpp_3day','upper_lower'].includes(tier)
   const ath = athletes.find(a => a.id === athleteId)
   const filteredAth = athletes.filter(a => (a.first_name + ' ' + a.last_name).toLowerCase().includes(search.toLowerCase()))
@@ -1480,6 +1896,46 @@ export default function App() {
               )}
             </div>
             {saving && <div style={{ fontSize: 10, color: '#aaa', alignSelf: 'center' }}>Saving...</div>}
+            {isSoviet && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => {
+                  const mode = tier === 'soviet_4day' ? '4day' : '3day'
+                  const gen = generateSovietTemplate(mode, block)
+                  setSovietBlocks(prev => ({ ...prev, [sovietKey]: gen }))
+                  // Clear stale edits for this soviet block
+                  setEdits(prev => {
+                    const next = { ...prev }
+                    Object.keys(next).forEach(k => { if (k.startsWith(`${tier}-${block}-`)) delete next[k] })
+                    return next
+                  })
+                }} style={{ padding: '6px 14px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Re-roll
+                </button>
+                <button onClick={async () => {
+                  const id = `soviet_saved_${tier}_b${block}_${Date.now()}`
+                  const obj = { label: `${tD.label} B${block} (saved)`, days: [...tD.days], blocks: {} }
+                  // Save all generated blocks, or generate missing ones
+                  ;[1,2,3].forEach(b => {
+                    const key = `${tier}-${b}`
+                    const bd = sovietBlocks[key] || generateSovietTemplate(tier === 'soviet_4day' ? '4day' : '3day', b)
+                    const copy = { ...bd }; delete copy._meta
+                    obj.blocks[b] = copy
+                  })
+                  setSaving(true)
+                  await sb.from('custom_templates').upsert({ id, template_json: JSON.stringify(obj), updated_at: new Date().toISOString() }, { onConflict: 'id' })
+                  setSaving(false)
+                  setCustomTemplates(prev => ({ ...prev, [id]: obj }))
+                  setTier(id); setTab('builder')
+                }} style={{ padding: '6px 14px', background: '#fff', border: '1.5px solid #111', color: '#111', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Save Program
+                </button>
+                {bD._meta && (
+                  <span style={{ fontSize: 9, color: '#666' }}>
+                    ARI: {bD._meta.ari.toFixed(1)}% | Vol/wk: ~{bD._meta.weeklyVolume} | Wave: {bD._meta.weeklyWave.join(', ')}
+                  </span>
+                )}
+              </div>
+            )}
             <button onClick={() => window.print()} style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>Print / PDF</button>
           </div>
 
@@ -1966,6 +2422,7 @@ function SheetHeader({ tD, block, bD, ath, isOly, compact }) {
         <div style={{ fontSize: compact ? 14 : 18, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>{tD.label} — Block {block}</div>
         <div style={{ fontSize: 13, color: ath ? '#111' : '#aaa', marginTop: 2, fontWeight: 600 }}>{ath ? ath.first_name + ' ' + ath.last_name : 'Select an athlete above'}</div>
         {isOly && bD.pctLabel && <div style={{ fontSize: 9, color: '#777', marginTop: 2, letterSpacing: 1 }}>Range: {bD.pctLabel}{bD.w1note ? ' | Wk 1: ' + bD.w1note : ''}</div>}
+        {bD._meta && <div style={{ fontSize: 8, color: '#999', marginTop: 1, letterSpacing: 0.5 }}>Wave: {bD._meta.weeklyWave.join(' \u2192 ')} | {bD._meta.testNote}</div>}
       </div>
       <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
         <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
