@@ -429,18 +429,25 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
 
     const name = typeof chosen === 'string' ? chosen : chosen.name
     const reps = (typeof chosen === 'object' && chosen.reps) ? chosen.reps : baseReps
-    // Test week: halve reps for squats/pulls
+
+    // Percentage: scale through range, higher weeks push toward top
+    const tierScale = { HIGH: 0.7 + rng() * 0.3, MEDIUM: 0.4 + rng() * 0.35, MOD_LOW: 0.15 + rng() * 0.3, TEST: 0.8 + rng() * 0.2 }
+    const pct = Math.round(Math.min(
+      pctLo + (pctHi - pctLo) * tierScale[tier] + blockShift,
+      1.15
+    ) * 100) / 100
+
+    // Adjust reps based on intensity and week type
     let wkReps = reps
     if (tier === 'TEST' && (groupType === 'squat' || groupType === 'pull')) {
       const nr = parseInt(reps) || 3
       wkReps = String(Math.max(1, Math.round(nr * 0.5)))
     }
-
-    // Percentage: scale within range + wave offset + block shift
-    const pct = Math.round(Math.min(
-      pctLo + (pctHi - pctLo) * (wk <= 1 ? 0.3 : wk <= 3 ? 0.5 + rng() * 0.3 : 0.85) + intOff + blockShift,
-      1.15
-    ) * 100) / 100
+    // Heavy intensity (85%+): drop to singles/doubles for comp lifts
+    if (pct >= 0.85 && (groupType === 'comp' || groupType === 'jerk') && !reps.includes('+')) {
+      const nr = parseInt(reps) || 3
+      wkReps = String(Math.min(nr, 2))
+    }
 
     const prKey = typeof chosen === 'object' && chosen.prKey ? chosen.prKey : (EXERCISE_PR_KEYS[name] || opts.prKey || null)
     wd[wk] = { exercise: name, sets, reps: wkReps, pct, prKey }
@@ -2486,7 +2493,9 @@ function SovietAnalytics({ bD, days }) {
         totalReps += vol
         weightedPct += wd.pct * vol
         if (wd.pct > peakPct) { peakPct = wd.pct; peakEx = ex.exercise }
-        if (ex.svGroup && groups[ex.svGroup] !== undefined) groups[ex.svGroup] += vol
+        // Detect group from per-week exercise name so pull+lift combos count correctly
+        const wkGroup = wd.exercise ? svDetectGroup(wd.exercise) : ex.svGroup
+        if (wkGroup && groups[wkGroup] !== undefined) groups[wkGroup] += vol
         const pctInt = Math.round(wd.pct * 100)
         if (pctInt >= 90) zones['90+'] += vol
         else if (pctInt >= 80) zones['80-89'] += vol
@@ -2878,7 +2887,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
           )}
           <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 14, flexShrink: 0 }}>
-            {ex.pct && !isWU && !ex.weekData && (
+            {((ex.pct && !isWU) || ex.weekData) && (
               <button onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
                 style={{ padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
                 KG
