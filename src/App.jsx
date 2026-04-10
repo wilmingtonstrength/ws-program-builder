@@ -218,57 +218,89 @@ function pick(arr, rng) { return arr[Math.floor(rng() * arr.length)] }
 function randInt(lo, hi, rng) { return lo + Math.floor(rng() * (hi - lo + 1)) }
 function shuffle(arr, rng) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] } return a }
 
-// --- Exercise Pools ---
-// Snatch variations (single exercises, no doubling up with complexes)
-const SV_SN = ['Hang Snatch','Power Snatch','Hang Power Snatch','Low Hang Snatch','Pausing Power Snatch','Snatch from Blocks']
-// Snatch complexes (includes pull+lift combos)
+function extractModifier(name) {
+  const n = name.toLowerCase()
+  if (n.includes('low hang')) return 'low_hang'
+  if (n.includes('power position')) return 'pp'
+  if (n.startsWith('hang') || n.includes(' hang ')) return 'hang'
+  if (n.includes('power') && !n.includes('push')) return 'power'
+  if (n.includes('block')) return 'blocks'
+  if (n.includes('pause') || n.includes('pak')) return 'pause'
+  if (n.includes('no foot')) return 'no_foot'
+  if (n.includes('no hook')) return 'no_hook'
+  if (n.includes('no contact')) return 'no_contact'
+  if (n.includes('deficit')) return 'deficit'
+  if (n.includes('muscle')) return 'muscle'
+  if (n.includes('balance')) return 'balance'
+  return null
+}
+
+function abbreviate(name) {
+  return name.replace('Power Position', 'PP').replace('Power', 'Pwr').replace('Hang', 'Hng')
+    .replace('Snatch', 'Sn').replace('Clean', 'Cl').replace('Behind-the-Neck', 'BTN')
+    .replace('Push Press', 'PP').replace('Push Jerk', 'PJ').replace('Split Jerk', 'SJ')
+    .replace('Power Jerk', 'PwJ').replace('Front Squat', 'FS').replace('Back Squat', 'BS')
+    .replace('Pause at Knee', 'PAK').replace('Pause', 'Pau').replace('No Foot', 'NF')
+    .replace('No Hook', 'NH').replace('No Contact', 'NC').replace('from Blocks', 'Blk')
+    .replace('Deficit', 'Def').replace('Overhead Squat', 'OHS').replace('Good Morning', 'GM')
+    .replace('Back Extension', 'BE').replace(' + ', '+')
+}
+
+// --- Exercise Pools (expanded with modifiers) ---
+const SV_SN = ['Hang Snatch','Power Snatch','Hang Power Snatch','Low Hang Snatch','Pausing Power Snatch','Snatch from Blocks','No Foot Snatch','No Hook Snatch','Pause Snatch','Snatch Balance']
+const SV_SN_TEST = 'Power Snatch'
+// Snatch complexes
 const SV_SN_CX = [
   { name: 'Snatch Pull + Hang Snatch', reps: '1+1', prKey: 'snatch' },
   { name: 'PP Snatch + Hang Snatch', reps: '2+1', prKey: 'snatch' },
   { name: 'Hang Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] },
-  { name: 'PP Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] },
-  { name: 'PP Snatch + Hang Snatch + OHS', reps: '1+1+1', prKey: ['snatch','front_squat'] },
+  { name: 'Hang Power Snatch + Hang Snatch', reps: '2+2', prKey: 'snatch' },
+  { name: 'Power Snatch + OHS', reps: '2+3', prKey: ['snatch','front_squat'] },
   { name: 'Snatch Pull + Power Snatch', reps: '1+1', prKey: 'snatch' },
+  { name: 'Snatch Balance + OHS', reps: '3+3', prKey: ['snatch','front_squat'] },
+  { name: 'PP Snatch + Hang Snatch + OHS', reps: '1+1+1', prKey: ['snatch','front_squat'] },
 ]
 const SV_SN_PWR = ['Power Snatch','Hang Power Snatch','Power Position Power Snatch','Pausing Power Snatch']
 
 // Clean variations
-const SV_CL = ['Hang Clean','Power Clean','Hang Power Clean','Low Hang Clean','Clean from Blocks','Power Position Clean']
-// Clean + Jerk + FS complexes (richer pool with FS folded in)
-// FS complexes duplicated for higher weighting — they should appear ~50% of the time
+const SV_CL = ['Hang Clean','Power Clean','Hang Power Clean','Low Hang Clean','Clean from Blocks','Power Position Clean','No Foot Clean','Pause Clean']
+const SV_CL_TEST = 'Power Clean'
+// Clean + Jerk + FS complexes (FS-heavy weighting)
 const SV_CJ_CX = [
   { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
   { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
   { name: 'Hang Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
-  { name: 'Hang Clean + Front Squat', reps: '2+1', prKey: ['clean','front_squat'] },
+  { name: 'Clean + Front Squat', reps: '1+3', prKey: ['clean','front_squat'] },
   { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' },
   { name: 'Hang Clean + Jerk', reps: '1+1', prKey: 'jerk' },
-  { name: 'Clean Pull + Hang Clean', reps: '1+1', prKey: 'clean' },
-  { name: 'Clean Pull + Clean', reps: '1+1', prKey: 'clean' },
+  { name: 'Power Clean + Jerk', reps: '2+3', prKey: 'jerk' },
+  { name: 'Hang Clean + Front Squat', reps: '2+1', prKey: ['clean','front_squat'] },
 ]
+const SV_CJ_TEST = { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' }
 // Power clean complexes
-const SV_CL_PWR_CX = [
+const SV_CL_PWR = [
   { name: 'Power Clean + Push Press', reps: '1+3', prKey: 'push_press' },
   { name: 'Hang Power Clean + Push Press', reps: '1+3', prKey: 'push_press' },
   { name: 'Power Clean + Front Squat', reps: '1+2', prKey: ['clean','front_squat'] },
 ]
 
-// Jerk / OH complexes (richer: PP+PJ+SJ, etc.)
+// Jerk / OH complexes (PP+PJ+SJ style, FS+Jerk)
 const SV_JERK_CX = [
   { name: 'Push Press + Power Jerk + Split Jerk', reps: '1+1+1', prKey: 'jerk' },
   { name: 'Push Press + Push Jerk + Split Jerk', reps: '1+1+1', prKey: 'jerk' },
   { name: 'Push Press + Push Jerk', reps: '2+1', prKey: 'jerk' },
-  { name: 'Push Press + Split Jerk', reps: '2+1', prKey: 'jerk' },
+  { name: 'Push Press + Split Jerk', reps: '2+2', prKey: 'jerk' },
   { name: 'Front Squat + Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
   { name: 'Front Squat + Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
   { name: 'Front Squat + Push Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
+  { name: 'Jerk + Front Squat', reps: '3+1', prKey: ['front_squat','jerk'] },
 ]
-const SV_JERK_SINGLE = ['Split Jerk','Power Jerk','Push Jerk','Behind-the-Neck Push Jerk']
-const SV_PRESS = ['Push Press','Behind-the-Neck Press']
+const SV_JERK_TEST = { name: 'Split Jerk', reps: '2', prKey: 'jerk' }
+const SV_PRESS = ['Push Press','Behind-the-Neck Press','Snatch Grip Push Press']
 
 // Pulls
-const SV_SN_PULL = ['Snatch Pull','Pause at Knee Snatch Pull','Snatch DL']
-const SV_CL_PULL = ['Clean Pull','Pause at Knee Clean Pull','PAK Clean Pull','Clean DL']
+const SV_SN_PULL = ['Snatch Pull','Pause at Knee Snatch Pull','Snatch DL','Deficit Snatch Pull']
+const SV_CL_PULL = ['Clean Pull','Pause at Knee Clean Pull','PAK Clean Pull','Clean DL','Deficit Clean Pull']
 // Technical pull+lift combos
 const SV_TECH_PULL_SN = [
   { name: 'Snatch Pull + Hang Snatch', reps: '1+1', prKey: 'snatch' },
@@ -284,26 +316,17 @@ const SV_TECH_PULL_CL = [
 const SV_BSQ = ['Back Squat','Pause Back Squat']
 const SV_FSQ = ['Front Squat','Pause Front Squat']
 
-// Accessories
-const SV_CORE_ACC = [
-  { name: 'Plank', sets: 3, reps: '30sec' },
-  { name: 'Hollow Hold', sets: 3, reps: '30sec' },
-  { name: 'Dead Bug', sets: 3, reps: '8ea' },
-  { name: 'Paloff Press', sets: 3, reps: '10ea' },
-  { name: 'Side Plank', sets: 3, reps: '30sec' },
-  { name: 'Hollow Rocks', sets: 3, reps: '10' },
-]
-const SV_OPT_ACC = [
-  { name: 'Chin Up', sets: 3, reps: '8' },
-  { name: 'Nordic Hip Hinge', sets: 3, reps: '8' },
+// Core + Accessories
+const SV_CORE = [
+  { name: 'Plank', s: 3, r: '30sec' },{ name: 'Hollow Hold', s: 3, r: '30sec' },
+  { name: 'Dead Bug', s: 3, r: '8ea' },{ name: 'Paloff Press', s: 3, r: '10ea' },
+  { name: 'Side Plank', s: 3, r: '30sec' },{ name: 'Hollow Rocks', s: 3, r: '10' },
 ]
 
-// Add new complexes to EXERCISE_PR_KEYS so percentages work
-const SOVIET_EXTRA_PR_KEYS = {
-  'Snatch Pull + Hang Snatch': 'snatch',
-  'Snatch Pull + Power Snatch': 'snatch',
-  'Clean Pull + Hang Clean': 'clean',
-  'Clean Pull + Clean': 'clean',
+// Add new exercises to PR key map
+Object.assign(EXERCISE_PR_KEYS, {
+  'Snatch Pull + Hang Snatch': 'snatch', 'Snatch Pull + Power Snatch': 'snatch',
+  'Clean Pull + Hang Clean': 'clean', 'Clean Pull + Clean': 'clean',
   'Clean Pull + Hang Clean + Jerk': 'jerk',
   'Clean + Front Squat + Jerk': ['clean','front_squat'],
   'Hang Clean + Front Squat + Jerk': ['clean','front_squat'],
@@ -312,45 +335,44 @@ const SOVIET_EXTRA_PR_KEYS = {
   'Push Press + Push Jerk + Split Jerk': 'jerk',
   'Front Squat + Jerk': ['front_squat','jerk'],
   'Front Squat + Push Jerk': ['front_squat','jerk'],
-}
-Object.assign(EXERCISE_PR_KEYS, SOVIET_EXTRA_PR_KEYS)
+  'Jerk + Front Squat': ['front_squat','jerk'],
+  'Power Clean + Jerk': 'jerk',
+  'Hang Power Snatch + Hang Snatch': 'snatch',
+  'Power Snatch + OHS': ['snatch','front_squat'],
+  'Snatch Balance + OHS': ['snatch','front_squat'],
+  'No Foot Snatch': 'snatch', 'No Hook Snatch': 'snatch',
+  'Snatch Balance': 'snatch', 'Pause Snatch': 'snatch',
+  'No Foot Clean': 'clean', 'Pause Clean': 'clean',
+  'Deficit Snatch Pull': 'snatch', 'Deficit Clean Pull': 'clean',
+  'Snatch Grip Push Press': 'snatch',
+  'Clean + Front Squat': ['clean','front_squat'],
+})
 
 // --- Wave / Volume Constants ---
-const SV_WAVE = { HIGH: [0.30,0.38], MEDIUM: [0.25,0.31], MOD_LOW: [0.18,0.26], TEST: [0.12,0.18] }
-
-// Per-week volume multipliers relative to "base" sets
-// HIGH week = more sets, TEST week = drastically fewer
 const SV_WAVE_MULT = { HIGH: 1.2, MEDIUM: 1.0, MOD_LOW: 0.8, TEST: 0.5 }
-// Per-week intensity offsets (added to base pct)
-const SV_WAVE_INT = { HIGH: 0.0, MEDIUM: 0.02, MOD_LOW: -0.02, TEST: -0.05 }
+const SV_WAVE_INT = { HIGH: 0.02, MEDIUM: 0.04, MOD_LOW: 0.0, TEST: -0.03 }
 
-// Intensity ranges by block (base pct for calculating per-week values)
+// Intensity ranges by block — raised to target 73-77% ARI
 const SV_PCT = {
-  comp:  { 1: [0.68,0.76], 2: [0.76,0.85], 3: [0.80,0.90] },
-  pull:  { 1: [0.82,0.95], 2: [0.90,1.05], 3: [0.95,1.10] },
-  squat: { 1: [0.65,0.73], 2: [0.72,0.80], 3: [0.77,0.85] },
-  jerk:  { 1: [0.66,0.75], 2: [0.75,0.84], 3: [0.80,0.90] },
-  press: { 1: [0.63,0.72], 2: [0.72,0.80], 3: [0.76,0.84] },
+  comp:  { 1: [0.72,0.80], 2: [0.78,0.87], 3: [0.82,0.92] },
+  pull:  { 1: [0.88,1.00], 2: [0.95,1.08], 3: [1.00,1.15] },
+  squat: { 1: [0.70,0.78], 2: [0.76,0.84], 3: [0.80,0.88] },
+  jerk:  { 1: [0.70,0.79], 2: [0.78,0.87], 3: [0.83,0.92] },
+  press: { 1: [0.68,0.76], 2: [0.75,0.83], 3: [0.79,0.87] },
 }
 
-// Base reps (before wave adjustment) by group and block
 const SV_BASE_REPS = {
-  comp:  { 1: 3, 2: 2, 3: 2 },
-  pull:  { 1: 4, 2: 3, 3: 3 },
-  squat: { 1: 5, 2: 4, 3: 3 },
-  jerk:  { 1: 3, 2: 2, 3: 2 },
+  comp: { 1: 3, 2: 2, 3: 2 }, pull: { 1: 4, 2: 3, 3: 3 },
+  squat: { 1: 5, 2: 4, 3: 3 }, jerk: { 1: 3, 2: 2, 3: 2 },
   press: { 1: 5, 2: 4, 3: 3 },
 }
-// Base sets (before wave adjustment)
 const SV_BASE_SETS = {
-  comp:  { 1: 4, 2: 5, 3: 5 },
-  pull:  { 1: 3, 2: 4, 3: 4 },
-  squat: { 1: 4, 2: 4, 3: 5 },
-  jerk:  { 1: 4, 2: 5, 3: 5 },
+  comp: { 1: 4, 2: 5, 3: 5 }, pull: { 1: 3, 2: 4, 3: 4 },
+  squat: { 1: 4, 2: 4, 3: 5 }, jerk: { 1: 4, 2: 5, 3: 5 },
   press: { 1: 3, 2: 4, 3: 4 },
 }
 
-// --- Core Generator Functions ---
+// --- Core Generator ---
 
 function generateWeeklyWave(rng) {
   const pool = shuffle(['HIGH', 'MEDIUM', 'MOD_LOW'], rng)
@@ -359,39 +381,13 @@ function generateWeeklyWave(rng) {
   return [...pool, 'TEST']
 }
 
-// Build per-week data for an exercise: { 1: {sets,reps,pct}, 2: ..., 3: ..., 4: ... }
-function sovietWeekData(group, block, reps, wave, rng) {
-  const baseSets = SV_BASE_SETS[group][block]
-  const [pctLo, pctHi] = SV_PCT[group][block]
-  const baseReps = reps // use the reps string as-is (may include "+")
-
-  const wd = {}
-  wave.forEach((tier, i) => {
-    const wk = i + 1
-    const mult = SV_WAVE_MULT[tier]
-    const intOff = SV_WAVE_INT[tier]
-    const sets = Math.max(2, Math.round(baseSets * mult))
-    // For TEST week: cut reps for squats/pulls, keep comp lifts for testing
-    let wkReps = baseReps
-    if (tier === 'TEST' && (group === 'squat' || group === 'pull')) {
-      // Halve volume: fewer reps
-      const numR = parseInt(baseReps) || 3
-      wkReps = String(Math.max(1, Math.round(numR * 0.5)))
-    }
-    // Percentage: scale within range, offset by wave
-    const pct = Math.round(Math.min(pctLo + (pctHi - pctLo) * (wk <= 1 ? 0.2 : wk <= 3 ? 0.5 + rng() * 0.3 : 0.8) + intOff, 1.15) * 100) / 100
-    wd[wk] = { sets, reps: wkReps, pct }
-  })
-  return wd
-}
-
-// Soviet exercise group detection for analytics
+// Exercise group detection for analytics
 function svDetectGroup(name) {
-  const n = name.toLowerCase()
-  if (n.includes('snatch') && (n.includes('pull') || n.includes('dl'))) return 'G3'
-  if (n.includes('clean') && (n.includes('pull') || n.includes('dl'))) return 'G3'
+  const n = (name || '').toLowerCase()
+  if (n.includes('snatch') && (n.includes('pull') || n.includes('dl') || n.includes('deadlift'))) return 'G3'
+  if (n.includes('clean') && (n.includes('pull') || n.includes('dl') || n.includes('deadlift'))) return 'G3'
   if (n.includes('rdl') || n.includes('good morning') || n.includes('back extension')) return 'G3'
-  if (n.includes('snatch')) return 'G1'
+  if (n.includes('snatch') || n.includes('ohs') || n.includes('overhead squat')) return 'G1'
   if (n.includes('clean') && (n.includes('jerk') || n.includes('front squat'))) return 'G2'
   if (n.includes('clean')) return 'G2'
   if (n.includes('jerk') || n.includes('push press') || n.includes('press')) return 'G5'
@@ -399,110 +395,130 @@ function svDetectGroup(name) {
   return null
 }
 
-// Create a Soviet exercise with weekData attached
-function svEx(series, name, group, block, reps, prKey, wave, rng, note) {
-  const wd = sovietWeekData(group, block, reps, wave, rng)
-  const ex = mkEx(series, name, wd[1].sets, wd[1].reps, [wd[1].pct, wd[2].pct, wd[3].pct], prKey || EXERCISE_PR_KEYS[name] || null, note || '')
-  ex.weekData = wd
-  ex.svGroup = svDetectGroup(name)
-  return ex
-}
+// Rotating exercise selection — picks different exercise each week
+function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
+  const baseSets = SV_BASE_SETS[groupType][block]
+  const [pctLo, pctHi] = SV_PCT[groupType][block]
+  const baseReps = opts.reps || String(SV_BASE_REPS[groupType][block])
+  const blockShift = block === 1 ? 0 : block === 2 ? 0.02 : 0.04
 
-function svExComplex(series, cx, group, block, wave, rng) {
-  const wd = sovietWeekData(group, block, cx.reps, wave, rng)
-  ;[1,2,3,4].forEach(w => { wd[w].pct = Math.round((wd[w].pct - 0.04) * 100) / 100 })
-  const ex = mkEx(series, cx.name, wd[1].sets, cx.reps, [wd[1].pct, wd[2].pct, wd[3].pct], cx.prKey || EXERCISE_PR_KEYS[cx.name] || null)
+  const wd = {}
+  let prevName = null, prevMod = null
+
+  wave.forEach((tier, i) => {
+    const wk = i + 1
+    const mult = SV_WAVE_MULT[tier]
+    const intOff = SV_WAVE_INT[tier]
+    const sets = Math.max(2, Math.round(baseSets * mult))
+
+    // Pick exercise — test week uses simplest variant
+    let chosen
+    if (tier === 'TEST' && opts.testVariant) {
+      chosen = typeof opts.testVariant === 'string' ? opts.testVariant : opts.testVariant
+    } else {
+      // Filter: no same exercise or same modifier as previous week
+      const candidates = pool.filter(p => {
+        const nm = typeof p === 'string' ? p : p.name
+        if (nm === prevName) return false
+        const mod = extractModifier(nm)
+        if (mod && mod === prevMod) return false
+        return true
+      })
+      chosen = pick(candidates.length > 0 ? candidates : pool, rng)
+    }
+
+    const name = typeof chosen === 'string' ? chosen : chosen.name
+    const reps = (typeof chosen === 'object' && chosen.reps) ? chosen.reps : baseReps
+    // Test week: halve reps for squats/pulls
+    let wkReps = reps
+    if (tier === 'TEST' && (groupType === 'squat' || groupType === 'pull')) {
+      const nr = parseInt(reps) || 3
+      wkReps = String(Math.max(1, Math.round(nr * 0.5)))
+    }
+
+    // Percentage: scale within range + wave offset + block shift
+    const pct = Math.round(Math.min(
+      pctLo + (pctHi - pctLo) * (wk <= 1 ? 0.3 : wk <= 3 ? 0.5 + rng() * 0.3 : 0.85) + intOff + blockShift,
+      1.15
+    ) * 100) / 100
+
+    const prKey = typeof chosen === 'object' && chosen.prKey ? chosen.prKey : (EXERCISE_PR_KEYS[name] || opts.prKey || null)
+    wd[wk] = { exercise: name, sets, reps: wkReps, pct, prKey }
+
+    prevName = name
+    prevMod = extractModifier(name)
+  })
+
+  // Group label for the exercise column
+  const label = opts.label || groupType
+  const mainPrKey = opts.prKey || wd[1].prKey || null
+  const ex = mkEx(series, label, wd[1].sets, wd[1].reps, [wd[1].pct, wd[2].pct, wd[3].pct], mainPrKey)
   ex.weekData = wd
-  ex.svGroup = svDetectGroup(cx.name)
+  ex.svGroup = opts.svGroup || svDetectGroup(wd[1].exercise)
   return ex
 }
 
 // --- Session Templates (4-Day) ---
 const SOVIET_4DAY = {
   dayA: {
-    header: 'A Day \u2014 Snatch + Squat',
+    header: 'A Day \u2014 Snatch Focus',
     gen(b, w, rng) {
-      const exs = [WU_A]
-      // G1: ONE snatch movement (single OR complex, not both)
-      let a1Name = ''
-      if (rng() > 0.4) {
-        const cx = pick(SV_SN_CX, rng)
-        a1Name = cx.name
-        exs.push(svExComplex('A1', cx, 'comp', b, w, rng))
-      } else {
-        const sn = pick(SV_SN, rng)
-        a1Name = sn
-        exs.push(svEx('A1', sn, 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
-      }
-      // G3: Snatch Pull (avoid duplicating A1 — if A1 was a pull+snatch complex, use straight pull)
-      const a1HasPull = a1Name.toLowerCase().includes('pull')
-      if (!a1HasPull && rng() > 0.5) {
-        const tp = pick(SV_TECH_PULL_SN, rng)
-        exs.push(svExComplex('B1', tp, 'pull', b, w, rng))
-      } else {
-        exs.push(svEx('B1', pick(SV_SN_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      }
+      const exs = []
+      // G1: Snatch Variation (rotating weekly)
+      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
+      // G1: Snatch Complex (rotating weekly)
+      exs.push(svExRotating('B1', SV_SN_CX, 'comp', b, w, rng, { label: 'Snatch Complex', prKey: 'snatch', svGroup: 'G1', testVariant: { name: 'Power Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] } }))
       // G4: Back Squat
-      exs.push(svEx('C1', pick(SV_BSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'back_squat', w, rng))
-      // ACC
+      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
+      // ACC: Good Morning
       exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
       return exs
     }
   },
   dayB: {
-    header: 'B Day \u2014 Clean + Pulls',
+    header: 'B Day \u2014 Clean + Jerk',
     gen(b, w, rng) {
-      const exs = [WU_B_pp]
-      // G2: Clean complex (C+FS+Jerk, C+J, pull+clean, etc.)
-      const cx = pick(SV_CJ_CX, rng)
-      exs.push(svExComplex('A1', cx, 'comp', b, w, rng))
-      // G3: Clean Pull (or tech pull+lift)
-      if (rng() > 0.5) {
-        const tp = pick(SV_TECH_PULL_CL, rng)
-        exs.push(svExComplex('B1', tp, 'pull', b, w, rng))
-      } else {
-        exs.push(svEx('B1', pick(SV_CL_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      }
-      // G3: Snatch Pull
-      exs.push(svEx('C1', pick(SV_SN_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      // ACC: Back Extension (only on pull day)
+      const exs = []
+      // G2: Clean Variation (rotating)
+      exs.push(svExRotating('A1', SV_CL, 'comp', b, w, rng, { label: 'Clean Variation', prKey: 'clean', svGroup: 'G2', testVariant: SV_CL_TEST }))
+      // G2+G5: C&J Complex (rotating, FS folded in)
+      exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
+      // G4: Front Squat
+      exs.push(svExRotating('C1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
+      // ACC: Back Extension
       exs.push(mkEx('D1', 'Back Extension', 3, '10-15', null, null))
       return exs
     }
   },
   dayC: {
-    header: 'C Day \u2014 Jerk/OH + Front Squat',
+    header: 'C Day \u2014 Jerk/OH + Squat',
     gen(b, w, rng) {
-      const exs = [WU_B_pp]
-      // G5: Jerk complex (PP+PJ+SJ, FS+Jerk, etc.)
-      const cx = pick(SV_JERK_CX, rng)
-      exs.push(svExComplex('A1', cx, 'jerk', b, w, rng))
-      // G5: Jerk single from rack
-      exs.push(svEx('B1', pick(SV_JERK_SINGLE, rng), 'jerk', b, String(SV_BASE_REPS.jerk[b]), null, w, rng))
-      // G4: Front Squat (standalone, unless already in complex above)
-      const hasFS = cx.name.includes('Front Squat')
-      if (!hasFS) {
-        exs.push(svEx('C1', pick(SV_FSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'front_squat', w, rng))
-      }
-      // ACC: Good Morning (only on squat-heavy days)
-      exs.push(mkEx(hasFS ? 'C1' : 'D1', 'Good Morning', 3, '8', null, null))
+      const exs = []
+      // G5: Jerk Complex (rotating: PP+PJ+SJ, FS+Jerk, etc.)
+      exs.push(svExRotating('A1', SV_JERK_CX, 'jerk', b, w, rng, { label: 'Jerk Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
+      // G5: Press/Push Press (rotating)
+      exs.push(svExRotating('B1', SV_PRESS.map(n => n), 'press', b, w, rng, { label: 'Press Variation', svGroup: 'G5' }))
+      // G4: Back Squat
+      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
+      // ACC: Core
+      const core = pick(SV_CORE, rng)
+      exs.push(mkEx('D1', core.name, core.s, core.r, null, null))
       return exs
     }
   },
   dayD: {
-    header: 'D Day \u2014 Power + Technique',
+    header: 'D Day \u2014 Power + Pulls',
     gen(b, w, rng) {
-      const exs = [WU_A]
-      // G1: Power snatch variant
-      exs.push(svEx('A1', pick(SV_SN_PWR, rng), 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
-      // G2: Power clean complex
-      const cx = pick(SV_CL_PWR_CX, rng)
-      exs.push(svExComplex('B1', cx, 'comp', b, w, rng))
-      // G3: Pull variation
-      exs.push(svEx('C1', pick([...SV_CL_PULL, ...SV_SN_PULL], rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      // ACC: Core exercise (not rows)
-      const acc = pick(SV_CORE_ACC, rng)
-      exs.push(mkEx('D1', acc.name, acc.sets, acc.reps, null, null))
+      const exs = []
+      // G1: Power Snatch (rotating)
+      exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
+      // G2: Power Clean complex (rotating)
+      exs.push(svExRotating('B1', SV_CL_PWR, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
+      // G3: Pull Variation (rotating)
+      exs.push(svExRotating('C1', [...SV_SN_PULL, ...SV_CL_PULL], 'pull', b, w, rng, { label: 'Pull Variation', svGroup: 'G3' }))
+      // ACC: Core
+      const core = pick(SV_CORE, rng)
+      exs.push(mkEx('D1', core.name, core.s, core.r, null, null))
       return exs
     }
   },
@@ -511,73 +527,47 @@ const SOVIET_4DAY = {
 // --- Session Templates (3-Day) ---
 const SOVIET_3DAY = {
   dayA: {
-    header: 'A Day \u2014 Snatch + Back Squat',
+    header: 'A Day \u2014 Snatch + Squat',
     gen(b, w, rng) {
-      const exs = [WU_A]
-      // G1: Snatch (single or complex, not both)
-      let a1Name = ''
-      if (rng() > 0.4) {
-        const cx = pick(SV_SN_CX, rng)
-        a1Name = cx.name
-        exs.push(svExComplex('A1', cx, 'comp', b, w, rng))
-      } else {
-        const sn = pick(SV_SN, rng)
-        a1Name = sn
-        exs.push(svEx('A1', sn, 'comp', b, String(SV_BASE_REPS.comp[b]), null, w, rng))
-      }
-      // G3: Snatch Pull (avoid duplicating A1)
-      const a1HasPull = a1Name.toLowerCase().includes('pull')
-      if (!a1HasPull && rng() > 0.5) {
-        exs.push(svExComplex('B1', pick(SV_TECH_PULL_SN, rng), 'pull', b, w, rng))
-      } else {
-        exs.push(svEx('B1', pick(SV_SN_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      }
+      const exs = []
+      // G1: Snatch Variation
+      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
+      // G3: Snatch Pull
+      exs.push(svExRotating('B1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
       // G4: Back Squat
-      exs.push(svEx('C1', pick(SV_BSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'back_squat', w, rng))
+      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
       // ACC
       exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
       return exs
     }
   },
   dayB: {
-    header: 'B Day \u2014 Clean + Jerk + Front Squat',
+    header: 'B Day \u2014 Clean + Jerk + FS',
     gen(b, w, rng) {
-      const exs = [WU_B_pp]
-      // G2+G5: C&J complex with FS folded in when possible
-      const cx = pick(SV_CJ_CX, rng)
-      exs.push(svExComplex('A1', cx, 'comp', b, w, rng))
-      // G3: Clean Pull (or tech pull+clean)
-      if (rng() > 0.5) {
-        exs.push(svExComplex('B1', pick(SV_TECH_PULL_CL, rng), 'pull', b, w, rng))
-      } else {
-        exs.push(svEx('B1', pick(SV_CL_PULL, rng), 'pull', b, String(SV_BASE_REPS.pull[b]), null, w, rng))
-      }
-      // G4: Front Squat (unless already in complex)
-      const hasFS = cx.name.includes('Front Squat')
-      if (!hasFS) {
-        exs.push(svEx('C1', pick(SV_FSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'front_squat', w, rng))
-      }
-      // ACC
-      exs.push(mkEx(hasFS ? 'C1' : 'D1', 'Back Extension', 3, '10-15', null, null))
+      const exs = []
+      // G2: Clean Variation
+      exs.push(svExRotating('A1', SV_CL, 'comp', b, w, rng, { label: 'Clean Variation', prKey: 'clean', svGroup: 'G2', testVariant: SV_CL_TEST }))
+      // G2+G5: C&J Complex
+      exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
+      // G3: Clean Pull
+      exs.push(svExRotating('C1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
+      // G4: Front Squat
+      exs.push(svExRotating('D1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
       return exs
     }
   },
   dayC: {
     header: 'C Day \u2014 Overhead + Strength',
     gen(b, w, rng) {
-      const exs = [WU_B_pp]
-      // G5: Jerk complex (PP+PJ+SJ, FS+Jerk, etc.)
-      const cx = pick(SV_JERK_CX, rng)
-      exs.push(svExComplex('A1', cx, 'jerk', b, w, rng))
-      // G5: Press
-      const pp = pick(SV_PRESS, rng)
-      const ppPrKey = pp === 'Push Press' ? 'push_press' : 'press'
-      exs.push(svEx('B1', pp, 'press', b, String(SV_BASE_REPS.press[b]), ppPrKey, w, rng))
+      const exs = []
+      // G5: Jerk Complex
+      exs.push(svExRotating('A1', SV_JERK_CX, 'jerk', b, w, rng, { label: 'Jerk Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
+      // G5: Push Press
+      exs.push(svExRotating('B1', SV_PRESS.map(n => n), 'press', b, w, rng, { label: 'Press Variation', svGroup: 'G5' }))
+      // G3: Pull Variation
+      exs.push(svExRotating('C1', [...SV_SN_PULL, ...SV_CL_PULL], 'pull', b, w, rng, { label: 'Pull Variation', svGroup: 'G3' }))
       // G4: Back Squat
-      exs.push(svEx('C1', pick(SV_BSQ, rng), 'squat', b, String(SV_BASE_REPS.squat[b]), 'back_squat', w, rng))
-      // ACC: Core exercise
-      const acc = pick(SV_CORE_ACC, rng)
-      exs.push(mkEx('D1', acc.name, acc.sets, acc.reps, null, null))
+      exs.push(svExRotating('D1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
       return exs
     }
   },
@@ -590,52 +580,46 @@ function generateSovietTemplate(mode, blockNum, seed) {
   const wave = generateWeeklyWave(rng)
 
   const blockData = {}
-  const testNotes = { 1: 'Wk 4: Test power variants, pulls/squats 50%', 2: 'Wk 4: Test full lifts moderate, pulls/squats 50%', 3: 'Wk 4: Test full lifts max (SN, C&J, BS, FS)' }
+  const testNotes = { 1: 'Wk 4: Test power variants, pulls/squats 50%', 2: 'Wk 4: Test full lifts moderate', 3: 'Wk 4: Max test (SN, C&J, BS, FS)' }
 
   days.forEach(dk => {
     const session = sessions[dk]
-    const exercises = session.gen(blockNum, wave, rng)
-    blockData[dk] = { header: session.header, exercises }
+    blockData[dk] = { header: session.header, exercises: session.gen(blockNum, wave, rng) }
   })
 
-  // Compute ARI across week 2 (representative mid-block week)
+  // Compute ARI (week 2 as representative)
   let ws = 0, tr = 0
   days.forEach(dk => {
     (blockData[dk].exercises || []).forEach(ex => {
       if (!ex.weekData || ex.series === 'WU') return
-      const w2 = ex.weekData[2]
+      const w2 = ex.weekData[2]; if (!w2) return
       const repsStr = String(w2.reps)
-      let rc = 0
-      if (repsStr.includes('+')) { rc = repsStr.split('+').reduce((s,v) => s + (parseInt(v)||0), 0) }
-      else { rc = parseInt(repsStr) || 0 }
+      let rc = repsStr.includes('+') ? repsStr.split('+').reduce((s,v) => s + (parseInt(v)||0), 0) : (parseInt(repsStr) || 0)
       const vol = w2.sets * rc
       ws += w2.pct * vol; tr += vol
     })
   })
   const ari = tr > 0 ? (ws / tr) * 100 : 0
 
-  // Compute total weekly volume per week
+  // Per-week volumes
   const weekVols = [0,0,0,0]
   days.forEach(dk => {
     (blockData[dk].exercises || []).forEach(ex => {
       if (!ex.weekData || ex.series === 'WU') return
       ;[1,2,3,4].forEach(w => {
-        const wd = ex.weekData[w]
+        const wd = ex.weekData[w]; if (!wd) return
         const repsStr = String(wd.reps)
-        let rc = 0
-        if (repsStr.includes('+')) { rc = repsStr.split('+').reduce((s,v) => s + (parseInt(v)||0), 0) }
-        else { rc = parseInt(repsStr) || 0 }
+        let rc = repsStr.includes('+') ? repsStr.split('+').reduce((s,v) => s + (parseInt(v)||0), 0) : (parseInt(repsStr) || 0)
         weekVols[w-1] += wd.sets * rc
       })
     })
   })
 
-  const pctLabels = { 1: '65\u201375%', 2: '75\u201385%', 3: '80\u201390%' }
+  const pctLabels = { 1: '72\u201380%', 2: '78\u201387%', 3: '82\u201392%' }
   blockData.pctLabel = pctLabels[blockNum] || ''
-  blockData.w1note = blockNum === 1 ? '65% only' : blockNum === 2 ? '75% only' : '80% only'
+  blockData.w1note = blockNum === 1 ? 'Accumulation' : blockNum === 2 ? 'Intensification' : 'Realization'
   blockData._meta = {
-    weeklyWave: wave,
-    weekVols,
+    weeklyWave: wave, weekVols,
     monthVolume: weekVols.reduce((a,b) => a+b, 0),
     ari: Math.round(ari * 10) / 10,
     testNote: testNotes[blockNum],
@@ -645,6 +629,7 @@ function generateSovietTemplate(mode, blockNum, seed) {
 }
 
 // ========== END SOVIET GENERATOR ==========
+
 
 const DEFAULT_CELL_NOTES = {
   'beginner-3-dayA-1-2':'2RM','beginner-3-dayA-1-3':'MAX',
@@ -2479,6 +2464,8 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
 function SovietAnalytics({ bD, days }) {
   if (!bD || !bD._meta) return null
   const SV_GROUP_NAMES = { G1: 'Snatch', G2: 'Clean', G3: 'Pulls', G4: 'Squats', G5: 'Overhead' }
+  const SV_GROUP_TARGETS = { G1: [17,23], G2: [17,23], G3: [20,27], G4: [20,27], G5: [10,18] }
+  const distColor = (pct, g) => { const [lo,hi] = SV_GROUP_TARGETS[g]; if (pct >= lo && pct <= hi) return '#2a8a2a'; const off = pct < lo ? lo - pct : pct - hi; return off <= 5 ? '#c80' : '#c44' }
   const SV_GROUP_COLORS = { G1: '#c44', G2: '#2277bb', G3: '#666', G4: '#2a8a2a', G5: '#b08020' }
 
   // Compute per-week analytics
@@ -2563,7 +2550,7 @@ function SovietAnalytics({ bD, days }) {
           <div key={g} style={{ marginBottom: 3 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
               <span style={{ color: SV_GROUP_COLORS[g], fontWeight: 700 }}>{name}</span>
-              <span style={{ fontWeight: 600 }}>{ws.groups[g]} <span style={{ color: '#999' }}>({ws.totalReps > 0 ? Math.round(ws.groups[g] / ws.totalReps * 100) : 0}%)</span></span>
+              <span style={{ fontWeight: 600 }}>{ws.groups[g]} <span style={{ color: distColor(ws.totalReps > 0 ? Math.round(ws.groups[g] / ws.totalReps * 100) : 0, g), fontWeight: 700 }}>({ws.totalReps > 0 ? Math.round(ws.groups[g] / ws.totalReps * 100) : 0}%)</span></span>
             </div>
             {bar(ws.groups[g], maxGroupReps, SV_GROUP_COLORS[g])}
           </div>
@@ -2606,7 +2593,7 @@ function SovietAnalytics({ bD, days }) {
           <div key={g} style={{ marginBottom: 3 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9 }}>
               <span style={{ color: SV_GROUP_COLORS[g], fontWeight: 700 }}>{name}</span>
-              <span style={{ fontWeight: 600 }}>{blockGroups[g]} <span style={{ color: '#999' }}>({blockReps > 0 ? Math.round(blockGroups[g] / blockReps * 100) : 0}%)</span></span>
+              <span style={{ fontWeight: 600 }}>{blockGroups[g]} <span style={{ color: distColor(blockReps > 0 ? Math.round(blockGroups[g] / blockReps * 100) : 0, g), fontWeight: 700 }}>({blockReps > 0 ? Math.round(blockGroups[g] / blockReps * 100) : 0}%)</span></span>
             </div>
             {bar(blockGroups[g], maxBlockGroup, SV_GROUP_COLORS[g])}
           </div>
@@ -2774,21 +2761,24 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   }
 
   const getHint = (wk) => {
-    // Soviet weekData: show per-week sets×reps @ weight range (±4%)
+    // Soviet weekData: show exercise name + sets×reps @ weight range (±4%)
     if (ex.weekData && ex.weekData[wk]) {
       const wd = ex.weekData[wk]
+      const exName = wd.exercise ? abbreviate(wd.exercise) + ' ' : ''
       const label = wd.sets + '\u00d7' + wd.reps
-      if (pr) {
+      // Use per-week prKey if available, else fall back to exercise-level
+      const wkPr = wd.prKey ? getPR(ath?.id, wd.prKey) : pr
+      if (wkPr) {
         const lo = wd.pct - 0.04, hi = wd.pct + 0.04
         if (useKg) {
-          const loKg = rKg(pr * lo), hiKg = rKg(pr * hi)
-          return label + ' @ ' + loKg + '\u2013' + hiKg + ' kg'
+          const loKg = rKg(wkPr * lo), hiKg = rKg(wkPr * hi)
+          return exName + label + ' @ ' + loKg + '\u2013' + hiKg + ' kg'
         }
-        const loLbs = r5(pr * lo), hiLbs = r5(pr * hi)
-        return label + ' @ ' + loLbs + '\u2013' + hiLbs
+        const loLbs = r5(wkPr * lo), hiLbs = r5(wkPr * hi)
+        return exName + label + ' @ ' + loLbs + '\u2013' + hiLbs
       }
       const loPct = Math.round((wd.pct - 0.04) * 100), hiPct = Math.round((wd.pct + 0.04) * 100)
-      return label + ' @ ' + loPct + '\u2013' + hiPct + '%'
+      return exName + label + ' @ ' + loPct + '\u2013' + hiPct + '%'
     }
     if (!ex.pct) return ''
     const ov = ex.pctOverrides?.[wk]
@@ -2879,15 +2869,22 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       </td>
       <td style={{ ...tdBase, borderRight: cellBorder, padding: '4px 6px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-          <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
+          {ex.weekData ? (
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#111' }}>{ex.exercise}</div>
+              <div style={{ fontSize: 8, color: '#888', fontWeight: 600, letterSpacing: 0.5 }}>{ex.svGroup}</div>
+            </div>
+          ) : (
+            <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
+          )}
           <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 14, flexShrink: 0 }}>
-            {ex.pct && !isWU && (
+            {ex.pct && !isWU && !ex.weekData && (
               <button onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
                 style={{ padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
                 KG
               </button>
             )}
-            {!ex.pct && !isWU && (
+            {!ex.pct && !isWU && !ex.weekData && (
               <button onClick={() => showPctSetup ? setShowPctSetup(false) : openPctSetup()} title="Add percentage loading"
                 style={{ padding: '1px 3px', fontSize: 7, fontWeight: 800, border: '1px solid', borderColor: showPctSetup ? '#888' : '#ddd', background: showPctSetup ? '#f0f0f0' : 'transparent', color: showPctSetup ? '#555' : '#ccc', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
                 %
@@ -2917,7 +2914,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
+        {!ex.weekData && <div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
           <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
           <span style={{ fontSize: 11, color: '#555' }}>×</span>
           <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 13, fontWeight: 800 }} />
@@ -2938,7 +2935,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
               />
             </span>
           ))}
-        </div>
+        </div>}
       </td>
       {[1,2,3,4].map(wk => wkCell(wk))}
     </tr>
