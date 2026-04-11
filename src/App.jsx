@@ -579,21 +579,32 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
 // Frequency: SN 3-4x, CL 2x, JK 2x, OH 1x, Pulls 2x, Squats 2-3x
 // Heavy single: 1 set x 1 rep at block-appropriate intensity. Competition lifts only.
 // NOT for pulls (pulls are already heavy). Goes after volume work.
-function svMakeHeavySingle(series, label, prKey, block, wave, rng) {
-  const peakPct = { 1: [0.85,0.88], 2: [0.88,0.92], 3: [0.92,0.95] }
+// Heavy single: competition lift or close variation. 1x1 at 85-95%.
+// Only close-to-competition lifts: Snatch, Hang Snatch, Clean & Jerk, Hang Clean + Jerk
+function svMakeHeavySingle(series, liftType, prKey, block, wave, rng) {
+  const peakPct = { 1: [0.85,0.90], 2: [0.88,0.93], 3: [0.90,0.95] }
   const [lo, hi] = peakPct[block]
+  // Rotate the specific lift per week (all close to competition)
+  const snPool = ['Snatch', 'Hang Snatch', 'Snatch from Low Blocks']
+  const cjPool = ['Clean & Jerk', 'Hang Clean + Jerk', 'Clean + Jerk']
+  const pool = liftType === 'snatch' ? snPool : cjPool
   const wd = {}
+  let prevLift = null
   wave.forEach((tier, i) => {
     const wk = i + 1
     const pct = Math.round((lo + rng() * (hi - lo)) * 100) / 100
-    // Skip on MOD_LOW — only go heavy on HIGH/MEDIUM/TEST weeks
+    // Skip on MOD_LOW — only heavy on HIGH/MEDIUM/TEST weeks
     const doIt = tier !== 'MOD_LOW'
-    wd[wk] = { exercise: doIt ? label : '\u2014 (skip)', sets: doIt ? 1 : 0, reps: doIt ? '1' : '0', pct: doIt ? pct : 0, prKey }
+    // Pick a comp lift variant (rotate, no repeat)
+    const candidates = pool.filter(l => l !== prevLift)
+    const lift = pick(candidates.length > 0 ? candidates : pool, rng)
+    prevLift = lift
+    wd[wk] = { exercise: doIt ? lift : '\u2014 skip', sets: doIt ? 1 : 0, reps: doIt ? '1' : '0', pct: doIt ? pct : 0, prKey }
   })
-  const ex = mkEx(series, 'Work to Heavy Single', 1, '1', [wd[1].pct, wd[2].pct, wd[3].pct], prKey, 'if feeling good')
+  const ex = mkEx(series, 'Heavy Single', 1, '1', [wd[1].pct, wd[2].pct, wd[3].pct], prKey, 'work up')
   ex.weekData = wd
-  ex.svGroup = svDetectGroup(label)
-  ex.svPool = [label]
+  ex.svGroup = liftType === 'snatch' ? 'G1' : 'G2'
+  ex.svPool = pool
   return ex
 }
 
@@ -770,8 +781,10 @@ function generateSovietTemplate(mode, blockNum, seed) {
       days.forEach(dk => {
         (blockData[dk].exercises || []).forEach(ex => {
           if (!ex.weekData || ex.svGroup !== group) return
+          // Skip heavy singles and accessories from validation adjustment
+          if (ex.exercise === 'Work to Heavy Single') return
           ;[1,2,3,4].forEach(w => {
-            const wd = ex.weekData[w]; if (!wd) return
+            const wd = ex.weekData[w]; if (!wd || wd.sets === 0) return
             wd.sets = Math.max(3, Math.min(6, wd.sets + dir))
           })
         })
