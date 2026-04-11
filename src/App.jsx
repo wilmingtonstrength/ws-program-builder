@@ -2372,7 +2372,7 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
   }
 
   if (editing) return (
-    <div style={{ padding: '2px 4px' }}>
+    <div style={{ padding: '2px 4px', position: 'relative', zIndex: 3 }}>
       <input autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={finish}
         onKeyDown={e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') setEditing(false) }}
         placeholder="5x3"
@@ -2381,7 +2381,7 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
   )
   return (
     <div className="no-print" onClick={startEdit}
-      style={{ padding: '2px 4px', fontSize: 9, fontWeight: 700, cursor: 'pointer', color: isOverridden ? '#0055bb' : '#999' }}
+      style={{ padding: '2px 4px', fontSize: 9, fontWeight: 700, cursor: 'pointer', color: isOverridden ? '#0055bb' : '#999', position: 'relative', zIndex: 3 }}
       title="Click to edit sets\u00d7reps for this week">
       {display}
     </div>
