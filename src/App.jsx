@@ -427,8 +427,8 @@ Object.assign(EXERCISE_PR_KEYS, {
 })
 
 // --- Wave / Volume Constants (calibrated to Torokhtiy 13-week data) ---
-// Wave multipliers: FLAT ±5% variation (was ±20%). Torokhtiy: ~25/28/26/21 within blocks.
-const SV_WAVE_MULT = { HIGH: 1.08, MEDIUM: 1.0, MOD_LOW: 0.92, TEST: 0.70 }
+// Wave: subtle ±8% variation. High/Med/High/Low or Med/High/Med-High/Low patterns.
+const SV_WAVE_MULT = { HIGH: 1.10, MEDIUM: 1.0, MOD_LOW: 0.90, TEST: 0.72 }
 
 // Intensity: SAME base range ALL blocks. ARI stays 72-74% always.
 // What changes block-to-block is only the PEAK (how high the top set goes).
@@ -571,51 +571,68 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
 }
 
 // --- Session Templates (4-Day) ---
-// Max 3 barbell exercises + 2 accessories. Squats 2 days (A, C). Pulls 2 days (B, D).
+// Frequency: SN 3-4x, CL 2x, JK 2x, OH 1x, Pulls 2x, Squats 2-3x
+// Frequency: SN 3-4x, CL 2x, JK 2x, OH 1x, Pulls 2x, Squats 2-3x
+// B Day is lighter (power + OH + pull). Heavy singles happen naturally via intensity.
 const SOVIET_4DAY = {
   dayA: {
-    header: 'A Day \u2014 Snatch + Back Squat',
+    header: 'A Day \u2014 Snatch + Squat',
     gen(b, w, rng) {
       const exs = []
+      // G1: Snatch Variation (main event)
       exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
-      exs.push(svExRotating('B1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
-      // 2 accessories
+      // G3: Snatch Pull
+      exs.push(svExRotating('B1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
+      // G4: Back Squat
+      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
       const accs = svPickAccessories('A', rng)
-      accs.forEach((a, idx) => exs.push(mkEx('C' + (idx+1), a.name, a.s, a.r, null, null)))
+      accs.forEach((a, idx) => exs.push(mkEx('D' + (idx+1), a.name, a.s, a.r, null, null)))
       return exs
     }
   },
   dayB: {
-    header: 'B Day \u2014 Clean & Jerk + Pull',
+    header: 'B Day \u2014 Power + OH + Pull (Light)',
     gen(b, w, rng) {
       const exs = []
-      exs.push(svExRotating('A1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
-      exs.push(svExRotating('B1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
+      // G1: Power Snatch (max 1x/week — only power day)
+      exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
+      // G2: Power Clean (max 1x/week)
+      exs.push(svExRotating('B1', SV_CL_PWR_NO_SQ, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
+      // G5: Overhead Press (1x/week standalone OH in addition to jerks)
+      exs.push(svExRotating('C1', SV_PRESS.map(n => n), 'press', b, w, rng, { label: 'OH Press', svGroup: 'G5' }))
+      // G3: Snatch Pull
+      exs.push(svExRotating('D1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
       const accs = svPickAccessories('B', rng)
-      accs.forEach((a, idx) => exs.push(mkEx('C' + (idx+1), a.name, a.s, a.r, null, null)))
+      accs.forEach((a, idx) => exs.push(mkEx('E' + (idx+1), a.name, a.s, a.r, null, null)))
       return exs
     }
   },
   dayC: {
-    header: 'C Day \u2014 Jerk/OH + Front Squat',
+    header: 'C Day \u2014 Clean & Jerk',
     gen(b, w, rng) {
       const exs = []
-      // Jerk complex OR OH complex (includes Putsov PJ+OHS, Sn Balance+OHS)
-      const jerkPool = [...SV_JERK_CX_NO_SQ, ...SV_OH_CX]
-      exs.push(svExRotating('A1', jerkPool, 'jerk', b, w, rng, { label: 'Jerk/OH Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
-      exs.push(svExRotating('B1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
+      // G1: Snatch (frequency touch)
+      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
+      // G2+G5: C&J Complex (counts toward clean + jerk frequency)
+      exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
+      // G3: Clean Pull
+      exs.push(svExRotating('C1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
       const accs = svPickAccessories('C', rng)
-      accs.forEach((a, idx) => exs.push(mkEx('C' + (idx+1), a.name, a.s, a.r, null, null)))
+      accs.forEach((a, idx) => exs.push(mkEx('D' + (idx+1), a.name, a.s, a.r, null, null)))
       return exs
     }
   },
   dayD: {
-    header: 'D Day \u2014 Power + Snatch Pull',
+    header: 'D Day \u2014 Snatch + Jerk + Squat',
     gen(b, w, rng) {
       const exs = []
-      exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
-      exs.push(svExRotating('B1', SV_CL_PWR_NO_SQ, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
-      exs.push(svExRotating('C1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
+      // G1: Snatch Complex (3rd snatch touch this week)
+      exs.push(svExRotating('A1', SV_SN_CX, 'comp', b, w, rng, { label: 'Snatch Complex', prKey: 'snatch', svGroup: 'G1', testVariant: { name: 'Power Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] } }))
+      // G5: Jerk Complex (2nd jerk touch — MAIN jerk event)
+      const jerkPool = [...SV_JERK_CX_NO_SQ, ...SV_OH_CX]
+      exs.push(svExRotating('B1', jerkPool, 'jerk', b, w, rng, { label: 'Jerk/OH Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
+      // G4: Front Squat
+      exs.push(svExRotating('C1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
       const accs = svPickAccessories('D', rng)
       accs.forEach((a, idx) => exs.push(mkEx('D' + (idx+1), a.name, a.s, a.r, null, null)))
       return exs
