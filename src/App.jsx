@@ -248,12 +248,11 @@ function abbreviate(name) {
 
 // --- Exercise Pools (expanded with position × technique modifiers) ---
 // Snatch: 18 options (Snatch Balance moved to G5 Overhead)
+// FULL snatch variations only — NO power variants. Used by Days A, C, D.
 const SV_SN = [
-  'Hang Snatch','Power Snatch','Hang Power Snatch','Low Hang Snatch','Low Hang Power Snatch',
-  'Snatch from Low Blocks','Snatch from High Blocks','Power Position Snatch',
-  'No Foot Snatch','No Foot Power Snatch','No Hook Snatch','No Hook Power Snatch',
-  'No Contact Snatch','No Contact Power Snatch','Pause at Knee Snatch',
-  'Pause at Catch Snatch','Muscle Snatch','Pausing Power Snatch',
+  'Hang Snatch','Low Hang Snatch','Snatch from Low Blocks','Snatch from High Blocks',
+  'No Foot Snatch','No Hook Snatch','No Contact Snatch',
+  'Pause at Knee Snatch','Pause at Catch Snatch','Muscle Snatch',
 ]
 const SV_SN_TEST_FULL = 'Hang Snatch'  // Full snatch variant for test week (most days)
 const SV_SN_TEST_POWER = 'Power Snatch' // Power variant ONLY for Day B (power day)
@@ -262,22 +261,20 @@ const SV_SN_CX = [
   { name: 'Snatch Pull + Hang Snatch', reps: '1+1', prKey: 'snatch' },
   { name: 'PP Snatch + Hang Snatch', reps: '2+1', prKey: 'snatch' },
   { name: 'Hang Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] },
-  { name: 'Hang Power Snatch + Hang Snatch', reps: '2+2', prKey: 'snatch' },
-  { name: 'Power Snatch + OHS', reps: '2+3', prKey: ['snatch','front_squat'] },
-  { name: 'Snatch Pull + Power Snatch', reps: '1+1', prKey: 'snatch' },
+  { name: 'Snatch Pull + Hang Snatch', reps: '1+2', prKey: 'snatch' },
+  { name: 'Snatch Pull + Low Hang Snatch', reps: '1+1', prKey: 'snatch' },
   { name: 'Snatch Balance + OHS', reps: '3+3', prKey: ['snatch','front_squat'] },
   { name: 'PP Snatch + Hang Snatch + OHS', reps: '1+1+1', prKey: ['snatch','front_squat'] },
 ]
 const SV_SN_PWR = ['Power Snatch','Hang Power Snatch','Power Position Power Snatch','Pausing Power Snatch']
 
-// Clean: 15 options
+// FULL clean variations only — NO power variants. Used by C Day C&J complex.
 const SV_CL = [
-  'Hang Clean','Power Clean','Hang Power Clean','Low Hang Clean','Low Hang Power Clean',
-  'Clean from Low Blocks','Clean from High Blocks','Power Position Clean',
-  'No Foot Clean','No Foot Power Clean','No Hook Clean','No Contact Clean',
+  'Hang Clean','Low Hang Clean','Clean from Low Blocks','Clean from High Blocks',
+  'No Foot Clean','No Hook Clean','No Contact Clean',
   'Pause at Knee Clean','Muscle Clean','Pause Clean',
 ]
-const SV_CL_TEST = 'Power Clean'
+const SV_CL_TEST = 'Hang Clean' // Full clean for test week (power clean only on B Day)
 // Clean + Jerk + FS complexes (FS-heavy weighting)
 // C&J complexes — split into WITH and WITHOUT squat
 const SV_CJ_CX_NO_SQ = [
@@ -459,12 +456,11 @@ const SV_BASE_REPS = {
   jerk:  { 1: [2,4], 2: [1,3], 3: [1,3] },
   press: { 1: [3,6], 2: [3,5], 3: [2,4] },
 }
-// Sets: minimum 4-5 for EVERYTHING. Torokhtiy never does <4 sets.
-// Includes progressive warmup build (50x3, 60x3, 70x2, 80x2, 85x1 = 5 sets)
+// Sets: comp 4-5, pulls 4-5, squats 4-5, jerk 4-5, press 3-4. No exercise at 7-8.
 const SV_BASE_SETS = {
-  comp: { 1: 6, 2: 6, 3: 6 }, pull: { 1: 5, 2: 5, 3: 5 },
+  comp: { 1: 5, 2: 5, 3: 5 }, pull: { 1: 4, 2: 5, 3: 5 },
   squat: { 1: 5, 2: 5, 3: 5 }, jerk: { 1: 5, 2: 5, 3: 5 },
-  press: { 1: 5, 2: 5, 3: 4 },
+  press: { 1: 4, 2: 4, 3: 3 },
 }
 
 // --- Core Generator ---
@@ -510,7 +506,7 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
   wave.forEach((tier, i) => {
     const wk = i + 1
     const mult = SV_WAVE_MULT[tier]
-    const sets = Math.max(5, Math.round(baseSets * mult))
+    const sets = Math.max(3, Math.min(6, Math.round(baseSets * mult)))
 
     // Pick exercise — test week uses simplest variant
     let chosen
@@ -579,21 +575,44 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
 
 // --- Session Templates (4-Day) ---
 // Frequency: SN 3-4x, CL 2x, JK 2x, OH 1x, Pulls 2x, Squats 2-3x
+// Heavy single: 1 set x 1 rep at block-appropriate intensity. Competition lifts only.
+// NOT for pulls (pulls are already heavy). Goes after volume work.
+function svMakeHeavySingle(series, label, prKey, block, wave, rng) {
+  const peakPct = { 1: [0.85,0.88], 2: [0.88,0.92], 3: [0.92,0.95] }
+  const [lo, hi] = peakPct[block]
+  const wd = {}
+  wave.forEach((tier, i) => {
+    const wk = i + 1
+    const pct = Math.round((lo + rng() * (hi - lo)) * 100) / 100
+    // Skip on MOD_LOW — only go heavy on HIGH/MEDIUM/TEST weeks
+    const doIt = tier !== 'MOD_LOW'
+    wd[wk] = { exercise: doIt ? label : '\u2014 (skip)', sets: doIt ? 1 : 0, reps: doIt ? '1' : '0', pct: doIt ? pct : 0, prKey }
+  })
+  const ex = mkEx(series, 'Work to Heavy Single', 1, '1', [wd[1].pct, wd[2].pct, wd[3].pct], prKey, 'if feeling good')
+  ex.weekData = wd
+  ex.svGroup = svDetectGroup(label)
+  ex.svPool = [label]
+  return ex
+}
+
+// --- Session Templates (4-Day) ---
 // Frequency: SN 3-4x, CL 2x, JK 2x, OH 1x, Pulls 2x, Squats 2-3x
-// B Day is lighter (power + OH + pull). Heavy singles happen naturally via intensity.
+// Power variants ONLY on Day B. Heavy singles on Days A and C (comp lift days).
 const SOVIET_4DAY = {
   dayA: {
     header: 'A Day \u2014 Snatch + Squat',
     gen(b, w, rng) {
       const exs = []
-      // G1: Snatch Variation (main event)
+      // G1: Snatch Variation (main volume work)
       exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST_FULL}))
+      // Heavy single: Snatch (after volume, comp lift only)
+      exs.push(svMakeHeavySingle('B1', 'Snatch', 'snatch', b, w, rng))
       // G3: Snatch Pull
-      exs.push(svExRotating('B1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
+      exs.push(svExRotating('C1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
       // G4: Back Squat
-      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
+      exs.push(svExRotating('D1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
       const accs = svPickAccessories('A', rng)
-      accs.forEach((a, idx) => exs.push(mkEx('D' + (idx+1), a.name, a.s, a.r, null, null)))
+      accs.forEach((a, idx) => exs.push(mkEx('E' + (idx+1), a.name, a.s, a.r, null, null)))
       return exs
     }
   },
@@ -622,10 +641,12 @@ const SOVIET_4DAY = {
       exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST_FULL}))
       // G2+G5: C&J Complex (counts toward clean + jerk frequency)
       exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
+      // Heavy single: Clean & Jerk (after volume, comp lift only)
+      exs.push(svMakeHeavySingle('C1', 'Clean & Jerk', 'jerk', b, w, rng))
       // G3: Clean Pull
-      exs.push(svExRotating('C1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
+      exs.push(svExRotating('D1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
       const accs = svPickAccessories('C', rng)
-      accs.forEach((a, idx) => exs.push(mkEx('D' + (idx+1), a.name, a.s, a.r, null, null)))
+      accs.forEach((a, idx) => exs.push(mkEx('E' + (idx+1), a.name, a.s, a.r, null, null)))
       return exs
     }
   },
@@ -749,7 +770,7 @@ function generateSovietTemplate(mode, blockNum, seed) {
           if (!ex.weekData || ex.svGroup !== group) return
           ;[1,2,3,4].forEach(w => {
             const wd = ex.weekData[w]; if (!wd) return
-            wd.sets = Math.max(5, Math.min(8, wd.sets + dir))
+            wd.sets = Math.max(3, Math.min(6, wd.sets + dir))
           })
         })
       })
