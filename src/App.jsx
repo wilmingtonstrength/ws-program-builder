@@ -352,15 +352,24 @@ Object.assign(EXERCISE_PR_KEYS, {
 const SV_WAVE_MULT = { HIGH: 1.2, MEDIUM: 1.0, MOD_LOW: 0.8, TEST: 0.5 }
 const SV_WAVE_INT = { HIGH: 0.02, MEDIUM: 0.04, MOD_LOW: 0.0, TEST: -0.03 }
 
-// Intensity ranges by block — raised to target 73-77% ARI
-// Intensity ranges per Medvedev: triples 65-80%, doubles 75-85%, singles 80-95%
-// Wider ranges so HIGH weeks can push into 80%+ and 90%+ zones
+// Intensity: SAME base range all blocks. What changes is tier distribution.
+// The base range covers where MOST reps should be (60-80%).
+// Heavy/peak sets use the top end; only tier scaling pushes above base.
+// Block progression is handled by tier scaling, NOT by raising the floor.
 const SV_PCT = {
-  comp:  { 1: [0.65,0.82], 2: [0.75,0.88], 3: [0.80,0.95] },
-  pull:  { 1: [0.80,1.00], 2: [0.90,1.10], 3: [0.95,1.15] },
-  squat: { 1: [0.65,0.80], 2: [0.72,0.85], 3: [0.78,0.90] },
-  jerk:  { 1: [0.65,0.82], 2: [0.75,0.88], 3: [0.80,0.95] },
-  press: { 1: [0.60,0.78], 2: [0.70,0.85], 3: [0.75,0.88] },
+  comp:  { 1: [0.60,0.80], 2: [0.62,0.82], 3: [0.65,0.85] },
+  pull:  { 1: [0.75,0.95], 2: [0.78,1.00], 3: [0.80,1.05] },
+  squat: { 1: [0.60,0.78], 2: [0.62,0.80], 3: [0.65,0.82] },
+  jerk:  { 1: [0.60,0.80], 2: [0.62,0.82], 3: [0.65,0.85] },
+  press: { 1: [0.58,0.76], 2: [0.60,0.78], 3: [0.62,0.80] },
+}
+
+// Tier scaling controls WHERE in the range each week lands.
+// Block 1: mostly low-mid range. Block 3: HIGH weeks push to top.
+const SV_TIER_SCALE = {
+  1: { HIGH: [0.45,0.75], MEDIUM: [0.25,0.55], MOD_LOW: [0.10,0.40], TEST: [0.50,0.80] },
+  2: { HIGH: [0.55,0.85], MEDIUM: [0.30,0.60], MOD_LOW: [0.10,0.40], TEST: [0.60,0.85] },
+  3: { HIGH: [0.65,0.95], MEDIUM: [0.35,0.65], MOD_LOW: [0.15,0.45], TEST: [0.70,0.95] },
 }
 
 // Rep ranges [lo, hi] — randomized per week for variety + bar speed emphasis
@@ -405,7 +414,6 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
   const baseSets = SV_BASE_SETS[groupType][block]
   const [pctLo, pctHi] = SV_PCT[groupType][block]
   const repRange = SV_BASE_REPS[groupType][block]
-  const blockShift = block === 1 ? 0 : block === 2 ? 0.02 : 0.04
 
   const wd = {}
   let prevName = null, prevMod = null
@@ -436,12 +444,11 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
     // Randomize reps within range (complexes use their own fixed reps)
     const reps = (typeof chosen === 'object' && chosen.reps) ? chosen.reps : (opts.reps || String(randInt(repRange[0], repRange[1], rng)))
 
-    // Percentage: scale through range, higher weeks push toward top
-    const tierScale = { HIGH: 0.7 + rng() * 0.3, MEDIUM: 0.4 + rng() * 0.35, MOD_LOW: 0.15 + rng() * 0.3, TEST: 0.8 + rng() * 0.2 }
-    let pct = Math.round(Math.min(
-      pctLo + (pctHi - pctLo) * tierScale[tier] + blockShift,
-      1.15
-    ) * 100) / 100
+    // Percentage: tier scale controls where in the range this rep lands
+    // Block 1 MOD_LOW: 10-40% of range → mostly 60-68%. Block 3 HIGH: 65-95% → can hit 80-85%
+    const [scaleLo, scaleHi] = SV_TIER_SCALE[block][tier]
+    const scale = scaleLo + rng() * (scaleHi - scaleLo)
+    let pct = Math.round(Math.min(pctLo + (pctHi - pctLo) * scale, 1.15) * 100) / 100
     // Power variants cap: power snatch/clean ~75-80% of full lift max, so cap at 80%
     const isPower = name.toLowerCase().includes('power') && !name.toLowerCase().includes('push')
     if (isPower && (groupType === 'comp') && pct > 0.80) pct = Math.round((0.75 + rng() * 0.05) * 100) / 100
