@@ -471,6 +471,8 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
   const ex = mkEx(series, label, wd[1].sets, wd[1].reps, [wd[1].pct, wd[2].pct, wd[3].pct], mainPrKey)
   ex.weekData = wd
   ex.svGroup = opts.svGroup || svDetectGroup(wd[1].exercise)
+  // Store pool for exercise override dropdown
+  ex.svPool = pool.map(p => typeof p === 'string' ? p : p.name)
   return ex
 }
 
@@ -1725,6 +1727,18 @@ export default function App() {
   })
   const [customTemplates, setCustomTemplates] = useState({})
   const [sovietBlocks, setSovietBlocks] = useState({})
+  const setSovietExercise = (dk, exIdx, wk, newExName) => {
+    setSovietBlocks(prev => {
+      const key = `${tier}-${block}`
+      const bd = prev[key]; if (!bd) return prev
+      const newBd = { ...bd, [dk]: { ...bd[dk], exercises: bd[dk].exercises.map((ex, i) => {
+        if (i !== exIdx || !ex.weekData || !ex.weekData[wk]) return ex
+        const newEx = { ...ex, weekData: { ...ex.weekData, [wk]: { ...ex.weekData[wk], exercise: newExName, prKey: EXERCISE_PR_KEYS[newExName] || ex.weekData[wk].prKey } } }
+        return newEx
+      })}}
+      return { ...prev, [key]: newBd }
+    })
+  }
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
@@ -2055,7 +2069,7 @@ export default function App() {
                 {page1Days.map(dk => (
                   <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
                     setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
-                    library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+                    library={library} kgExercises={kgExercises} toggleKg={toggleKg} setSovietExercise={setSovietExercise} />
                 ))}
               </div>
 
@@ -2790,7 +2804,7 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
   return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title={wk > 1 ? 'Click to override % (e.g. 65-75)' : 'Click to override %'}>{displayText()}</div>
 }
 
-function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library, kgExercises, toggleKg }) {
+function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library, kgExercises, toggleKg, setSovietExercise }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>{day.header}</div>
@@ -2808,7 +2822,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
             <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit}
               isLast={i === exs.length-1} isWU={ex.series === 'WU'}
               cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library}
-              useKg={kgExercises.has(ex.exercise)} toggleKg={toggleKg} />
+              useKg={kgExercises.has(ex.exercise)} toggleKg={toggleKg} setSovietExercise={setSovietExercise} />
           ))}
         </tbody>
       </table>
@@ -2816,7 +2830,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
   )
 }
 
-function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library, useKg, toggleKg }) {
+function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library, useKg, toggleKg, setSovietExercise }) {
   const effectivePrKey = EXERCISE_PR_KEYS[ex.exercise] !== undefined ? EXERCISE_PR_KEYS[ex.exercise] : ex.prKey
   const pr = ath && effectivePrKey ? getPR(ath.id, effectivePrKey) : null
   const cellBorder = '1px solid #777'
@@ -2909,13 +2923,21 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
     const hint = getHint(wk)
 
-    // Soviet weekData: pre-fill the hint as the main content (sets×reps @ load)
+    // Soviet weekData: show sets×reps @ load + exercise swap dropdown
     if (ex.weekData) {
+      const wd = ex.weekData[wk]
+      const pool = ex.svPool || []
       return (
         <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
           <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
             placeholder={hint}
             style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
+          {wd && pool.length > 0 && setSovietExercise && (
+            <select className="no-print" value={wd.exercise || ''} onChange={e => setSovietExercise(dk, i, wk, e.target.value)}
+              style={{ position: 'absolute', bottom: 1, left: 2, fontSize: 7, color: '#999', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', outline: 'none', width: 'calc(100% - 4px)', padding: 0 }}>
+              {pool.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          )}
           <div style={{ height: 46 }}></div>
         </td>
       )
@@ -2966,7 +2988,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
           {ex.weekData ? (
             <div style={{ flex: 1, padding: '2px 0' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#333', lineHeight: 1.3 }}>{ex.exercise}</div>
+              <EditField value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} style={{ fontSize: 10, fontWeight: 700, color: '#333', lineHeight: 1.3 }} />
               <div style={{ fontSize: 7, color: '#aaa', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase' }}>{ex.svGroup}</div>
             </div>
           ) : (
