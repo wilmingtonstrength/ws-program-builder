@@ -255,7 +255,8 @@ const SV_SN = [
   'No Contact Snatch','No Contact Power Snatch','Pause at Knee Snatch',
   'Pause at Catch Snatch','Muscle Snatch','Pausing Power Snatch',
 ]
-const SV_SN_TEST = 'Power Snatch'
+const SV_SN_TEST_FULL = 'Hang Snatch'  // Full snatch variant for test week (most days)
+const SV_SN_TEST_POWER = 'Power Snatch' // Power variant ONLY for Day B (power day)
 // Snatch complexes
 const SV_SN_CX = [
   { name: 'Snatch Pull + Hang Snatch', reps: '1+1', prKey: 'snatch' },
@@ -586,7 +587,7 @@ const SOVIET_4DAY = {
     gen(b, w, rng) {
       const exs = []
       // G1: Snatch Variation (main event)
-      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
+      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST_FULL}))
       // G3: Snatch Pull
       exs.push(svExRotating('B1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
       // G4: Back Squat
@@ -618,7 +619,7 @@ const SOVIET_4DAY = {
     gen(b, w, rng) {
       const exs = []
       // G1: Snatch (frequency touch)
-      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
+      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST_FULL}))
       // G2+G5: C&J Complex (counts toward clean + jerk frequency)
       exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
       // G3: Clean Pull
@@ -633,7 +634,7 @@ const SOVIET_4DAY = {
     gen(b, w, rng) {
       const exs = []
       // G1: Snatch Complex (3rd snatch touch this week)
-      exs.push(svExRotating('A1', SV_SN_CX, 'comp', b, w, rng, { label: 'Snatch Complex', prKey: 'snatch', svGroup: 'G1', testVariant: { name: 'Power Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] } }))
+      exs.push(svExRotating('A1', SV_SN_CX, 'comp', b, w, rng, { label: 'Snatch Complex', prKey: 'snatch', svGroup: 'G1', testVariant: { name: 'Hang Snatch + OHS', reps: '2+1', prKey: ['snatch','front_squat'] } }))
       // G5: Jerk Complex (2nd jerk touch — MAIN jerk event)
       const jerkPool = [...SV_JERK_CX_NO_SQ, ...SV_OH_CX]
       exs.push(svExRotating('B1', jerkPool, 'jerk', b, w, rng, { label: 'Jerk/OH Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
@@ -654,7 +655,7 @@ const SOVIET_3DAY = {
     gen(b, w, rng) {
       const exs = []
       // G1: Snatch — main event
-      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
+      exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST_FULL}))
       exs.push(svExRotating('B1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
       const accsA = svPickAccessories('A', rng)
       accsA.forEach((a, idx) => exs.push(mkEx('C' + (idx+1), a.name, a.s, a.r, null, null)))
