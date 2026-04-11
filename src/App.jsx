@@ -380,10 +380,11 @@ const SV_BASE_REPS = {
   jerk:  { 1: [2,4], 2: [1,3], 3: [1,2] },
   press: { 1: [3,6], 2: [3,5], 3: [2,4] },
 }
+// Sets: main lift 5-6, supporting 3-4
 const SV_BASE_SETS = {
-  comp: { 1: 5, 2: 5, 3: 5 }, pull: { 1: 4, 2: 4, 3: 4 },
-  squat: { 1: 3, 2: 4, 3: 4 }, jerk: { 1: 4, 2: 5, 3: 5 },
-  press: { 1: 3, 2: 4, 3: 4 },
+  comp: { 1: 5, 2: 5, 3: 5 }, pull: { 1: 3, 2: 3, 3: 3 },
+  squat: { 1: 4, 2: 4, 3: 3 }, jerk: { 1: 5, 2: 5, 3: 5 },
+  press: { 1: 3, 2: 3, 3: 3 },
 }
 
 // --- Core Generator ---
@@ -484,62 +485,59 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
 }
 
 // --- Session Templates (4-Day) ---
-// 4-Day slot allocation targets: G1~20%, G2~20%, G3~23%, G4~25%, G5~12%
-// G1=2 slots, G2=2+partial, G3=3 slots, G4=2 slots, G5=1+partial
+// Max 3 barbell exercises per day + 1 accessory
+// Squats on 3 days (A BS, C FS, D none). Pulls on 2 days (B, D). No stacking.
 const SOVIET_4DAY = {
   dayA: {
-    header: 'A Day \u2014 Snatch + Pull',
+    header: 'A Day \u2014 Snatch + Back Squat',
     gen(b, w, rng) {
       const exs = []
-      // G1: Snatch Variation
+      // G1: Snatch — main event, 5-6 sets
       exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
-      // G3: Snatch Pull
-      exs.push(svExRotating('B1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
-      // G4: Back Squat
-      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
-      exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
+      // G4: Back Squat — 4-5 sets
+      exs.push(svExRotating('B1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
+      // ACC: Good Morning
+      exs.push(mkEx('C1', 'Good Morning', 3, '8', null, null))
       return exs
     }
   },
   dayB: {
-    header: 'B Day \u2014 Clean + Jerk',
+    header: 'B Day \u2014 Clean & Jerk + Pull',
     gen(b, w, rng) {
       const exs = []
-      // G2: Clean Variation
-      exs.push(svExRotating('A1', SV_CL, 'comp', b, w, rng, { label: 'Clean Variation', prKey: 'clean', svGroup: 'G2', testVariant: SV_CL_TEST }))
-      // G2+G5: C&J Complex (FS folded in)
-      exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
-      // G3: Clean Pull
-      exs.push(svExRotating('C1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
-      exs.push(mkEx('D1', 'Back Extension', 3, '10-15', null, null))
+      // G2+G5: C&J Complex — main event, 5-6 sets (pick ONE: complex OR clean, not both)
+      exs.push(svExRotating('A1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
+      // G3: Clean Pull — 3-4 sets
+      exs.push(svExRotating('B1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
+      // ACC: Back Extension
+      exs.push(mkEx('C1', 'Back Extension', 3, '10-15', null, null))
       return exs
     }
   },
   dayC: {
-    header: 'C Day \u2014 Jerk/OH + Squat',
+    header: 'C Day \u2014 Jerk/OH + Front Squat',
     gen(b, w, rng) {
       const exs = []
-      // G5: Jerk Complex (PP+PJ+SJ, FS+Jerk, etc.)
+      // G5: Jerk Complex — MAIN event, 5-6 sets
       exs.push(svExRotating('A1', SV_JERK_CX, 'jerk', b, w, rng, { label: 'Jerk Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
-      // G4: Front Squat
+      // G4: Front Squat — 3-4 sets
       exs.push(svExRotating('B1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
-      // G3: Snatch Pull (second pull session in the week)
-      exs.push(svExRotating('C1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
-      const core = pick(SV_CORE, rng)
-      exs.push(mkEx('D1', core.name, core.s, core.r, null, null))
+      // ACC: Good Morning
+      exs.push(mkEx('C1', 'Good Morning', 3, '8', null, null))
       return exs
     }
   },
   dayD: {
-    header: 'D Day \u2014 Power + Press',
+    header: 'D Day \u2014 Power + Snatch Pull',
     gen(b, w, rng) {
       const exs = []
-      // G1: Power Snatch
+      // G1: Power Snatch — 4-5 sets
       exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
-      // G2: Power Clean complex
+      // G2: Power Clean — 4-5 sets
       exs.push(svExRotating('B1', SV_CL_PWR, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
-      // G5: Press/Push Press
-      exs.push(svExRotating('C1', SV_PRESS.map(n => n), 'press', b, w, rng, { label: 'Press Variation', svGroup: 'G5' }))
+      // G3: Snatch Pull — 3-4 sets
+      exs.push(svExRotating('C1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
+      // ACC: Core
       const core = pick(SV_CORE, rng)
       exs.push(mkEx('D1', core.name, core.s, core.r, null, null))
       return exs
@@ -548,43 +546,41 @@ const SOVIET_4DAY = {
 }
 
 // --- Session Templates (3-Day) ---
-// 3-Day slot allocation targets: G1~22%, G2~22%, G3~22%, G4~22%, G5~12%
+// Max 3 barbell exercises per day. Squats 2 days, pulls 1 day.
 const SOVIET_3DAY = {
   dayA: {
-    header: 'A Day \u2014 Snatch + Pull',
+    header: 'A Day \u2014 Snatch + Back Squat',
     gen(b, w, rng) {
       const exs = []
-      // G1: Snatch Variation
+      // G1: Snatch — main event
       exs.push(svExRotating('A1', SV_SN, 'comp', b, w, rng, { label: 'Snatch Variation', prKey: 'snatch', svGroup: 'G1', testVariant: SV_SN_TEST }))
-      // G3: Snatch Pull
-      exs.push(svExRotating('B1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
       // G4: Back Squat
-      exs.push(svExRotating('C1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
-      exs.push(mkEx('D1', 'Good Morning', 3, '8', null, null))
+      exs.push(svExRotating('B1', SV_BSQ, 'squat', b, w, rng, { label: 'Back Squat', prKey: 'back_squat', svGroup: 'G4' }))
+      // ACC
+      exs.push(mkEx('C1', 'Good Morning', 3, '8', null, null))
       return exs
     }
   },
   dayB: {
-    header: 'B Day \u2014 Clean + Jerk',
+    header: 'B Day \u2014 Clean & Jerk + Pull',
     gen(b, w, rng) {
       const exs = []
-      // G2: Clean Variation
-      exs.push(svExRotating('A1', SV_CL, 'comp', b, w, rng, { label: 'Clean Variation', prKey: 'clean', svGroup: 'G2', testVariant: SV_CL_TEST }))
-      // G2+G5: C&J Complex (FS folded in)
-      exs.push(svExRotating('B1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
+      // G2+G5: C&J Complex — main event
+      exs.push(svExRotating('A1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
       // G3: Clean Pull
-      exs.push(svExRotating('C1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
-      exs.push(mkEx('D1', 'Back Extension', 3, '10-15', null, null))
+      exs.push(svExRotating('B1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
+      // ACC
+      exs.push(mkEx('C1', 'Back Extension', 3, '10-15', null, null))
       return exs
     }
   },
   dayC: {
-    header: 'C Day \u2014 Power + Squat',
+    header: 'C Day \u2014 Power + Front Squat',
     gen(b, w, rng) {
       const exs = []
       // G1: Power Snatch
       exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
-      // G2: Power Clean complex
+      // G2: Power Clean
       exs.push(svExRotating('B1', SV_CL_PWR, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
       // G4: Front Squat
       exs.push(svExRotating('C1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
@@ -2101,6 +2097,7 @@ export default function App() {
               @page { size: letter portrait; margin: 0.4in }
               body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               .no-print { display: none !important }
+              select { display: none !important }
               #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
               #sheet2 { page-break-before: always; }
             }
