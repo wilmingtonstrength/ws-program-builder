@@ -426,43 +426,44 @@ Object.assign(EXERCISE_PR_KEYS, {
   'Clean + Front Squat': ['clean','front_squat'],
 })
 
-// --- Wave / Volume Constants ---
-const SV_WAVE_MULT = { HIGH: 1.2, MEDIUM: 1.0, MOD_LOW: 0.8, TEST: 0.5 }
-const SV_WAVE_INT = { HIGH: 0.02, MEDIUM: 0.04, MOD_LOW: 0.0, TEST: -0.03 }
+// --- Wave / Volume Constants (calibrated to Torokhtiy 13-week data) ---
+// Wave multipliers: FLAT ±5% variation (was ±20%). Torokhtiy: ~25/28/26/21 within blocks.
+const SV_WAVE_MULT = { HIGH: 1.08, MEDIUM: 1.0, MOD_LOW: 0.92, TEST: 0.70 }
 
-// Intensity: SAME base range all blocks. What changes is tier distribution.
-// The base range covers where MOST reps should be (60-80%).
-// Heavy/peak sets use the top end; only tier scaling pushes above base.
-// Block progression is handled by tier scaling, NOT by raising the floor.
+// Intensity: SAME base range ALL blocks. ARI stays 72-74% always.
+// What changes block-to-block is only the PEAK (how high the top set goes).
+// Block 1 peaks at ~90%. Block 2 peaks at ~95-100%. Block 3 peaks at ~100-105%.
+// But the AVERAGE stays ~73%. Most reps are always at 65-78%.
 const SV_PCT = {
-  comp:  { 1: [0.60,0.80], 2: [0.62,0.82], 3: [0.65,0.85] },
-  pull:  { 1: [0.75,0.95], 2: [0.78,1.00], 3: [0.80,1.05] },
-  squat: { 1: [0.60,0.78], 2: [0.62,0.80], 3: [0.65,0.82] },
-  jerk:  { 1: [0.60,0.80], 2: [0.62,0.82], 3: [0.65,0.85] },
-  press: { 1: [0.58,0.76], 2: [0.60,0.78], 3: [0.62,0.80] },
+  comp:  { 1: [0.60,0.80], 2: [0.60,0.82], 3: [0.60,0.85] },
+  pull:  { 1: [0.75,0.95], 2: [0.75,1.00], 3: [0.75,1.05] },
+  squat: { 1: [0.58,0.78], 2: [0.58,0.80], 3: [0.58,0.82] },
+  jerk:  { 1: [0.60,0.80], 2: [0.60,0.82], 3: [0.60,0.85] },
+  press: { 1: [0.55,0.75], 2: [0.55,0.78], 3: [0.55,0.80] },
 }
 
-// Tier scaling controls WHERE in the range each week lands.
-// Block 1: mostly low-mid range. Block 3: HIGH weeks push to top.
+// Tier scaling: nearly identical across blocks. Only peak ceiling shifts.
+// This keeps ARI flat at ~73% while allowing heavier singles in later blocks.
 const SV_TIER_SCALE = {
-  1: { HIGH: [0.45,0.75], MEDIUM: [0.25,0.55], MOD_LOW: [0.10,0.40], TEST: [0.50,0.80] },
-  2: { HIGH: [0.55,0.85], MEDIUM: [0.30,0.60], MOD_LOW: [0.10,0.40], TEST: [0.60,0.85] },
-  3: { HIGH: [0.65,0.95], MEDIUM: [0.35,0.65], MOD_LOW: [0.15,0.45], TEST: [0.70,0.95] },
+  1: { HIGH: [0.40,0.70], MEDIUM: [0.25,0.55], MOD_LOW: [0.10,0.40], TEST: [0.45,0.70] },
+  2: { HIGH: [0.42,0.75], MEDIUM: [0.25,0.55], MOD_LOW: [0.10,0.40], TEST: [0.50,0.75] },
+  3: { HIGH: [0.45,0.80], MEDIUM: [0.28,0.58], MOD_LOW: [0.12,0.42], TEST: [0.55,0.80] },
 }
 
-// Rep ranges [lo, hi] — randomized per week for variety + bar speed emphasis
+// Rep ranges per set (Torokhtiy style: includes progressive warmup build)
 const SV_BASE_REPS = {
-  comp:  { 1: [2,4], 2: [1,3], 3: [1,2] },
-  pull:  { 1: [3,5], 2: [2,4], 3: [2,3] },
-  squat: { 1: [3,6], 2: [3,5], 3: [2,4] },
-  jerk:  { 1: [2,4], 2: [1,3], 3: [1,2] },
+  comp:  { 1: [2,4], 2: [1,3], 3: [1,3] },
+  pull:  { 1: [3,5], 2: [3,5], 3: [2,4] },
+  squat: { 1: [3,6], 2: [3,5], 3: [2,5] },
+  jerk:  { 1: [2,4], 2: [1,3], 3: [1,3] },
   press: { 1: [3,6], 2: [3,5], 3: [2,4] },
 }
-// Sets: main lift 5-6, supporting 3-4
+// Sets: minimum 4-5 for EVERYTHING. Torokhtiy never does <4 sets.
+// Includes progressive warmup build (50x3, 60x3, 70x2, 80x2, 85x1 = 5 sets)
 const SV_BASE_SETS = {
-  comp: { 1: 5, 2: 5, 3: 5 }, pull: { 1: 3, 2: 3, 3: 3 },
-  squat: { 1: 4, 2: 4, 3: 3 }, jerk: { 1: 5, 2: 5, 3: 5 },
-  press: { 1: 3, 2: 3, 3: 3 },
+  comp: { 1: 6, 2: 6, 3: 6 }, pull: { 1: 5, 2: 5, 3: 5 },
+  squat: { 1: 5, 2: 5, 3: 5 }, jerk: { 1: 5, 2: 5, 3: 5 },
+  press: { 1: 5, 2: 5, 3: 4 },
 }
 
 // --- Core Generator ---
@@ -509,7 +510,7 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
     const wk = i + 1
     const mult = SV_WAVE_MULT[tier]
     const intOff = SV_WAVE_INT[tier]
-    const sets = Math.max(2, Math.round(baseSets * mult))
+    const sets = Math.max(4, Math.round(baseSets * mult))
 
     // Pick exercise — test week uses simplest variant
     let chosen
@@ -725,7 +726,7 @@ function generateSovietTemplate(mode, blockNum, seed) {
           if (!ex.weekData || ex.svGroup !== group) return
           ;[1,2,3,4].forEach(w => {
             const wd = ex.weekData[w]; if (!wd) return
-            wd.sets = Math.max(2, Math.min(6, wd.sets + dir))
+            wd.sets = Math.max(4, Math.min(8, wd.sets + dir))
           })
         })
       })
@@ -760,7 +761,7 @@ function generateSovietTemplate(mode, blockNum, seed) {
     })
   })
 
-  const pctLabels = { 1: '65\u201382%', 2: '75\u201388%', 3: '80\u201395%' }
+  const pctLabels = { 1: '60\u201380%', 2: '60\u201382%', 3: '60\u201385%' }
   blockData.pctLabel = pctLabels[blockNum] || ''
   blockData.w1note = blockNum === 1 ? 'Accumulation' : blockNum === 2 ? 'Intensification' : 'Realization'
   blockData._meta = {
