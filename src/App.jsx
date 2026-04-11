@@ -277,15 +277,16 @@ const SV_CL = [
 const SV_CL_TEST = 'Hang Clean' // Full clean for test week (power clean only on B Day)
 // Clean + Jerk + FS complexes (FS-heavy weighting)
 // C&J complexes — split into WITH and WITHOUT squat
+// NO power clean variants in this pool — full cleans only
 const SV_CJ_CX_NO_SQ = [
   { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' },
   { name: 'Clean + Jerk', reps: '2+1', prKey: 'jerk' },
   { name: 'Hang Clean + Jerk', reps: '1+1', prKey: 'jerk' },
   { name: 'Hang Clean + Jerk', reps: '2+1', prKey: 'jerk' },
   { name: 'Hang Clean + Push Jerk', reps: '1+1', prKey: 'jerk' },
-  { name: 'Power Clean + Jerk', reps: '1+1', prKey: 'jerk' },
   { name: 'Clean Pull + Clean', reps: '1+1', prKey: 'clean' },
   { name: 'Clean Pull + Hang Clean', reps: '1+1', prKey: 'clean' },
+  { name: 'Low Hang Clean + Jerk', reps: '1+1', prKey: 'jerk' },
 ]
 const SV_CJ_CX_WITH_SQ = [
   { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
@@ -333,9 +334,10 @@ const SV_OH_CX = [
 const SV_SN_PULL = ['Snatch Pull','Pause at Knee Snatch Pull','Snatch DL','Deficit Snatch Pull']
 const SV_CL_PULL = ['Clean Pull','Pause at Knee Clean Pull','PAK Clean Pull','Clean DL','Deficit Clean Pull']
 // Technical pull+lift combos
+// NO power variants — full snatch only
 const SV_TECH_PULL_SN = [
   { name: 'Snatch Pull + Hang Snatch', reps: '1+1', prKey: 'snatch' },
-  { name: 'Snatch Pull + Power Snatch', reps: '1+1', prKey: 'snatch' },
+  { name: 'Snatch Pull + Low Hang Snatch', reps: '1+1', prKey: 'snatch' },
 ]
 const SV_TECH_PULL_CL = [
   { name: 'Clean Pull + Hang Clean', reps: '1+1', prKey: 'clean' },
@@ -3025,6 +3027,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   const getSovietHint = (wk) => {
     if (!ex.weekData || !ex.weekData[wk]) return null
     const wd = ex.weekData[wk]
+    if (wd.sets === 0 || wd.reps === '0') return { exName: '\u2014', sxr: 'Skip', pctRange: '', weightRange: '' }
     const exName = wd.exercise || ''
     const sxr = wd.sets + '\u00d7' + wd.reps
     const pctRange = Math.round((wd.pct - 0.04) * 100) + '\u2013' + Math.round((wd.pct + 0.04) * 100) + '%'
