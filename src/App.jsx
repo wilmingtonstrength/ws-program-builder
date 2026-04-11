@@ -266,34 +266,48 @@ const SV_SN_PWR = ['Power Snatch','Hang Power Snatch','Power Position Power Snat
 const SV_CL = ['Hang Clean','Power Clean','Hang Power Clean','Low Hang Clean','Clean from Blocks','Power Position Clean','No Foot Clean','Pause Clean']
 const SV_CL_TEST = 'Power Clean'
 // Clean + Jerk + FS complexes (FS-heavy weighting)
-const SV_CJ_CX = [
-  { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
+// C&J complexes — split into WITH and WITHOUT squat
+const SV_CJ_CX_NO_SQ = [
+  { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' },
+  { name: 'Clean + Jerk', reps: '2+1', prKey: 'jerk' },
+  { name: 'Hang Clean + Jerk', reps: '1+1', prKey: 'jerk' },
+  { name: 'Hang Clean + Jerk', reps: '2+1', prKey: 'jerk' },
+  { name: 'Hang Clean + Push Jerk', reps: '1+1', prKey: 'jerk' },
+  { name: 'Power Clean + Jerk', reps: '1+1', prKey: 'jerk' },
+  { name: 'Clean Pull + Clean', reps: '1+1', prKey: 'clean' },
+  { name: 'Clean Pull + Hang Clean', reps: '1+1', prKey: 'clean' },
+]
+const SV_CJ_CX_WITH_SQ = [
   { name: 'Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
   { name: 'Hang Clean + Front Squat + Jerk', reps: '1+1+1', prKey: ['clean','front_squat'] },
-  { name: 'Clean + Front Squat', reps: '1+3', prKey: ['clean','front_squat'] },
-  { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' },
-  { name: 'Hang Clean + Jerk', reps: '1+1', prKey: 'jerk' },
-  { name: 'Power Clean + Jerk', reps: '2+3', prKey: 'jerk' },
+  { name: 'Clean + Front Squat', reps: '1+2', prKey: ['clean','front_squat'] },
   { name: 'Hang Clean + Front Squat', reps: '2+1', prKey: ['clean','front_squat'] },
 ]
+// Full pool for days without standalone squat
+const SV_CJ_CX = [...SV_CJ_CX_NO_SQ, ...SV_CJ_CX_WITH_SQ]
 const SV_CJ_TEST = { name: 'Clean + Jerk', reps: '1+1', prKey: 'jerk' }
-// Power clean complexes
-const SV_CL_PWR = [
+
+// Power clean complexes — no squat versions available
+const SV_CL_PWR_NO_SQ = [
   { name: 'Power Clean + Push Press', reps: '1+3', prKey: 'push_press' },
   { name: 'Hang Power Clean + Push Press', reps: '1+3', prKey: 'push_press' },
-  { name: 'Power Clean + Front Squat', reps: '1+2', prKey: ['clean','front_squat'] },
+  { name: 'Power Clean + Jerk', reps: '1+1', prKey: 'jerk' },
+  { name: 'Hang Power Clean + Jerk', reps: '1+1', prKey: 'jerk' },
 ]
+const SV_CL_PWR = [...SV_CL_PWR_NO_SQ, { name: 'Power Clean + Front Squat', reps: '1+2', prKey: ['clean','front_squat'] }]
 
-// Jerk / OH complexes (PP+PJ+SJ style, FS+Jerk)
-const SV_JERK_CX = [
+// Jerk complexes — NO SQUAT versions for C Day (which has standalone FS)
+const SV_JERK_CX_NO_SQ = [
   { name: 'Push Press + Power Jerk + Split Jerk', reps: '1+1+1', prKey: 'jerk' },
   { name: 'Push Press + Push Jerk + Split Jerk', reps: '1+1+1', prKey: 'jerk' },
   { name: 'Push Press + Push Jerk', reps: '2+1', prKey: 'jerk' },
   { name: 'Push Press + Split Jerk', reps: '2+2', prKey: 'jerk' },
-  { name: 'Front Squat + Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
+  { name: 'Push Press + Power Jerk', reps: '2+2', prKey: 'jerk' },
+  { name: 'Power Jerk + Split Jerk', reps: '2+1', prKey: 'jerk' },
+]
+const SV_JERK_CX = [...SV_JERK_CX_NO_SQ,
   { name: 'Front Squat + Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
   { name: 'Front Squat + Push Jerk', reps: '1+1', prKey: ['front_squat','jerk'] },
-  { name: 'Jerk + Front Squat', reps: '3+1', prKey: ['front_squat','jerk'] },
 ]
 const SV_JERK_TEST = { name: 'Split Jerk', reps: '2', prKey: 'jerk' }
 const SV_PRESS = ['Push Press','Behind-the-Neck Press','Snatch Grip Push Press']
@@ -336,7 +350,8 @@ Object.assign(EXERCISE_PR_KEYS, {
   'Front Squat + Jerk': ['front_squat','jerk'],
   'Front Squat + Push Jerk': ['front_squat','jerk'],
   'Jerk + Front Squat': ['front_squat','jerk'],
-  'Power Clean + Jerk': 'jerk',
+  'Power Clean + Jerk': 'jerk', 'Hang Power Clean + Jerk': 'jerk',
+  'Power Jerk + Split Jerk': 'jerk', 'Push Press + Power Jerk': 'jerk',
   'Hang Power Snatch + Hang Snatch': 'snatch',
   'Power Snatch + OHS': ['snatch','front_squat'],
   'Snatch Balance + OHS': ['snatch','front_squat'],
@@ -505,9 +520,9 @@ const SOVIET_4DAY = {
     header: 'B Day \u2014 Clean & Jerk + Pull',
     gen(b, w, rng) {
       const exs = []
-      // G2+G5: C&J Complex — main event, 5-6 sets (pick ONE: complex OR clean, not both)
+      // G2+G5: C&J Complex — main event. Full pool (with FS allowed, no standalone squat this day)
       exs.push(svExRotating('A1', SV_CJ_CX, 'comp', b, w, rng, { label: 'C&J Complex', prKey: 'jerk', svGroup: 'G2', testVariant: SV_CJ_TEST }))
-      // G3: Clean Pull — 3-4 sets
+      // G3: Clean Pull — 3 sets
       exs.push(svExRotating('B1', SV_CL_PULL, 'pull', b, w, rng, { label: 'Clean Pull', prKey: 'clean', svGroup: 'G3' }))
       // ACC: Back Extension
       exs.push(mkEx('C1', 'Back Extension', 3, '10-15', null, null))
@@ -518,8 +533,8 @@ const SOVIET_4DAY = {
     header: 'C Day \u2014 Jerk/OH + Front Squat',
     gen(b, w, rng) {
       const exs = []
-      // G5: Jerk Complex — MAIN event, 5-6 sets
-      exs.push(svExRotating('A1', SV_JERK_CX, 'jerk', b, w, rng, { label: 'Jerk Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
+      // G5: Jerk Complex — MAIN event. NO SQUAT complexes (standalone FS is below)
+      exs.push(svExRotating('A1', SV_JERK_CX_NO_SQ, 'jerk', b, w, rng, { label: 'Jerk Complex', prKey: 'jerk', svGroup: 'G5', testVariant: SV_JERK_TEST }))
       // G4: Front Squat — 3-4 sets
       exs.push(svExRotating('B1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
       // ACC: Good Morning
@@ -531,11 +546,11 @@ const SOVIET_4DAY = {
     header: 'D Day \u2014 Power + Snatch Pull',
     gen(b, w, rng) {
       const exs = []
-      // G1: Power Snatch — 4-5 sets
+      // G1: Power Snatch — 5 sets
       exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
-      // G2: Power Clean — 4-5 sets
-      exs.push(svExRotating('B1', SV_CL_PWR, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
-      // G3: Snatch Pull — 3-4 sets
+      // G2: Power Clean — NO SQUAT complexes (no standalone squat, but keep it clean)
+      exs.push(svExRotating('B1', SV_CL_PWR_NO_SQ, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
+      // G3: Snatch Pull — 3 sets
       exs.push(svExRotating('C1', SV_SN_PULL, 'pull', b, w, rng, { label: 'Snatch Pull', prKey: 'snatch', svGroup: 'G3' }))
       // ACC: Core
       const core = pick(SV_CORE, rng)
@@ -580,8 +595,8 @@ const SOVIET_3DAY = {
       const exs = []
       // G1: Power Snatch
       exs.push(svExRotating('A1', SV_SN_PWR, 'comp', b, w, rng, { label: 'Power Snatch', prKey: 'snatch', svGroup: 'G1', testVariant: 'Power Snatch' }))
-      // G2: Power Clean
-      exs.push(svExRotating('B1', SV_CL_PWR, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
+      // G2: Power Clean — NO SQUAT complexes (standalone FS is below)
+      exs.push(svExRotating('B1', SV_CL_PWR_NO_SQ, 'comp', b, w, rng, { label: 'Power Clean', prKey: 'clean', svGroup: 'G2', testVariant: { name: 'Power Clean', reps: '2', prKey: 'clean' } }))
       // G4: Front Squat
       exs.push(svExRotating('C1', SV_FSQ, 'squat', b, w, rng, { label: 'Front Squat', prKey: 'front_squat', svGroup: 'G4' }))
       const core = pick(SV_CORE, rng)
