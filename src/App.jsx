@@ -509,7 +509,6 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
   wave.forEach((tier, i) => {
     const wk = i + 1
     const mult = SV_WAVE_MULT[tier]
-    const intOff = SV_WAVE_INT[tier]
     const sets = Math.max(4, Math.round(baseSets * mult))
 
     // Pick exercise — test week uses simplest variant
