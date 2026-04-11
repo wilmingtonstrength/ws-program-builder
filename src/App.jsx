@@ -600,6 +600,61 @@ function generateSovietTemplate(mode, blockNum, seed) {
     blockData[dk] = { header: session.header, exercises: session.gen(blockNum, wave, rng) }
   })
 
+  // --- Validate & auto-fix group distribution ---
+  const SV_TARGETS = { G1: [17,23], G2: [17,23], G3: [20,27], G4: [20,27], G5: [10,18] }
+  for (let iter = 0; iter < 8; iter++) {
+    // Compute block group volumes
+    const gVol = { G1: 0, G2: 0, G3: 0, G4: 0, G5: 0 }
+    let totalVol = 0
+    days.forEach(dk => {
+      (blockData[dk].exercises || []).forEach(ex => {
+        if (!ex.weekData) return
+        ;[1,2,3,4].forEach(w => {
+          const wd = ex.weekData[w]; if (!wd) return
+          const parts = (wd.exercise || '').split(' + ')
+          const repParts = String(wd.reps).split('+').map(r => parseInt(r) || 0)
+          let exTotal = 0
+          parts.forEach((part, idx) => {
+            const g = svDetectGroup(part.trim())
+            const reps = idx < repParts.length ? repParts[idx] : (repParts[repParts.length - 1] || 0)
+            const vol = wd.sets * reps
+            if (g && gVol[g] !== undefined) gVol[g] += vol
+            exTotal += vol
+          })
+          if (parts.length <= 1 && exTotal === 0) {
+            const g = svDetectGroup(wd.exercise || '')
+            const rc = repParts.reduce((s,v) => s + v, 0)
+            const vol = wd.sets * rc
+            if (g && gVol[g] !== undefined) gVol[g] += vol
+            exTotal = vol
+          }
+          totalVol += exTotal
+        })
+      })
+    })
+    // Check if all groups are in range
+    let allGreen = true
+    const adjustments = []
+    Object.entries(SV_TARGETS).forEach(([g, [lo, hi]]) => {
+      const pct = totalVol > 0 ? Math.round(gVol[g] / totalVol * 100) : 0
+      if (pct < lo) { allGreen = false; adjustments.push({ group: g, dir: 1 }) }  // need more
+      if (pct > hi) { allGreen = false; adjustments.push({ group: g, dir: -1 }) } // need less
+    })
+    if (allGreen) break
+    // Apply adjustments: find exercises in over/under groups and tweak sets ±1
+    adjustments.forEach(({ group, dir }) => {
+      days.forEach(dk => {
+        (blockData[dk].exercises || []).forEach(ex => {
+          if (!ex.weekData || ex.svGroup !== group) return
+          ;[1,2,3,4].forEach(w => {
+            const wd = ex.weekData[w]; if (!wd) return
+            wd.sets = Math.max(2, Math.min(6, wd.sets + dir))
+          })
+        })
+      })
+    })
+  }
+
   // Compute ARI (week 2 as representative)
   let ws = 0, tr = 0
   days.forEach(dk => {
@@ -628,7 +683,7 @@ function generateSovietTemplate(mode, blockNum, seed) {
     })
   })
 
-  const pctLabels = { 1: '72\u201380%', 2: '78\u201387%', 3: '82\u201392%' }
+  const pctLabels = { 1: '65\u201382%', 2: '75\u201388%', 3: '80\u201395%' }
   blockData.pctLabel = pctLabels[blockNum] || ''
   blockData.w1note = blockNum === 1 ? 'Accumulation' : blockNum === 2 ? 'Intensification' : 'Realization'
   blockData._meta = {
