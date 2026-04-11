@@ -2809,7 +2809,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>{day.header}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-        <colgroup><col style={{ width: 26 }} /><col style={{ width: 220 }} /><col /><col /><col /><col /></colgroup>
+        <colgroup><col style={{ width: 26 }} /><col style={{ width: 140 }} /><col /><col /><col /><col /></colgroup>
         <thead>
           <tr>
             {['#','Exercise','Week 1','Week 2','Week 3','Week 4'].map((h,i) => (
@@ -2869,25 +2869,29 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     return r5(lbs) + ' lbs'
   }
 
+  // Soviet: get line 1 (exercise + sets×reps) and line 2 (weight/pct range)
+  const getSovietHint = (wk) => {
+    if (!ex.weekData || !ex.weekData[wk]) return null
+    const wd = ex.weekData[wk]
+    const exName = wd.exercise || ''
+    const sxr = wd.sets + '\u00d7' + wd.reps
+    const pctRange = Math.round((wd.pct - 0.04) * 100) + '\u2013' + Math.round((wd.pct + 0.04) * 100) + '%'
+    const wkPr = wd.prKey ? getPR(ath?.id, wd.prKey) : pr
+    let weightRange = ''
+    if (wkPr) {
+      const lo = wd.pct - 0.04, hi = wd.pct + 0.04
+      if (useKg) { weightRange = rKg(wkPr * lo) + '\u2013' + rKg(wkPr * hi) + ' kg' }
+      else { weightRange = r5(wkPr * lo) + '\u2013' + r5(wkPr * hi) + ' lbs' }
+    }
+    return { exName, sxr, pctRange, weightRange }
+  }
+
   const getHint = (wk) => {
-    // Soviet weekData: show exercise name + sets×reps @ weight range (±4%)
+    // Soviet weekData: compact fallback for non-rendered contexts
     if (ex.weekData && ex.weekData[wk]) {
-      const wd = ex.weekData[wk]
-      const exName = wd.exercise ? abbreviate(wd.exercise) + ' ' : ''
-      const label = wd.sets + '\u00d7' + wd.reps
-      // Use per-week prKey if available, else fall back to exercise-level
-      const wkPr = wd.prKey ? getPR(ath?.id, wd.prKey) : pr
-      if (wkPr) {
-        const lo = wd.pct - 0.04, hi = wd.pct + 0.04
-        if (useKg) {
-          const loKg = rKg(wkPr * lo), hiKg = rKg(wkPr * hi)
-          return exName + label + ' @ ' + loKg + '\u2013' + hiKg + ' kg'
-        }
-        const loLbs = r5(wkPr * lo), hiLbs = r5(wkPr * hi)
-        return exName + label + ' @ ' + loLbs + '\u2013' + hiLbs
-      }
-      const loPct = Math.round((wd.pct - 0.04) * 100), hiPct = Math.round((wd.pct + 0.04) * 100)
-      return exName + label + ' @ ' + loPct + '\u2013' + hiPct + '%'
+      const h = getSovietHint(wk)
+      if (!h) return ''
+      return h.exName + ' ' + h.sxr + (h.weightRange ? ' @ ' + h.weightRange : ' @ ' + h.pctRange)
     }
     if (!ex.pct) return ''
     const ov = ex.pctOverrides?.[wk]
@@ -2923,22 +2927,27 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
     const hint = getHint(wk)
 
-    // Soviet weekData: show sets×reps @ load + exercise swap dropdown
+    // Soviet weekData: multi-line display with exercise name, sets×reps, weight, pct
     if (ex.weekData) {
       const wd = ex.weekData[wk]
       const pool = ex.svPool || []
+      const sh = getSovietHint(wk)
       return (
-        <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
-          <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
-            placeholder={hint}
-            style={{ position: 'absolute', top: 2, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
+        <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', padding: '3px 4px', verticalAlign: 'top', fontSize: 9 }}>
+          {sh && (
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 9, color: '#111', lineHeight: 1.3, marginBottom: 1 }}>{sh.exName}</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#111' }}>{sh.sxr}</div>
+              {sh.weightRange && <div style={{ fontSize: 9, color: '#0055bb', fontWeight: 600 }}>{sh.weightRange}</div>}
+              <div style={{ fontSize: 8, color: '#888' }}>{sh.pctRange}</div>
+            </div>
+          )}
           {wd && pool.length > 0 && setSovietExercise && (
             <select className="no-print" value={wd.exercise || ''} onChange={e => setSovietExercise(dk, i, wk, e.target.value)}
-              style={{ position: 'absolute', bottom: 1, left: 2, fontSize: 7, color: '#999', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', outline: 'none', width: 'calc(100% - 4px)', padding: 0 }}>
+              style={{ fontSize: 7, color: '#bbb', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', outline: 'none', width: '100%', padding: 0, marginTop: 1 }}>
               {pool.map(name => <option key={name} value={name}>{name}</option>)}
             </select>
           )}
-          <div style={{ height: 46 }}></div>
         </td>
       )
     }
