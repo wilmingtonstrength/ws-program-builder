@@ -1802,6 +1802,11 @@ export default function App() {
   })
   const [customTemplates, setCustomTemplates] = useState({})
   const [sovietBlocks, setSovietBlocks] = useState({})
+  const [sovietBias, setSovietBias] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ws_sovietBias')) || {} } catch { return {} }
+  })
+  useEffect(() => { localStorage.setItem('ws_sovietBias', JSON.stringify(sovietBias)) }, [sovietBias])
+  const setBias = (key, val) => setSovietBias(prev => ({ ...prev, [key]: val }))
   const setSovietExercise = (dk, exIdx, wk, newExName) => {
     setSovietBlocks(prev => {
       const key = `${tier}-${block}`
@@ -2136,6 +2141,27 @@ export default function App() {
             <button onClick={() => window.print()} style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>Print / PDF</button>
           </div>
 
+          {isSoviet && (
+            <div className="no-print" style={{ background: '#fafafa', borderBottom: '1px solid #ddd', padding: '6px 16px', display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 9, alignItems: 'center' }}>
+              {[
+                ['squat', 'Squat Bias', [['bs','More Back Squat'],['bal','Balanced'],['fs','More Front Squat']]],
+                ['pull', 'Pull Bias', [['sn','More Snatch Pulls'],['bal','Balanced'],['cl','More Clean Pulls']]],
+                ['oh', 'OH Emphasis', [['jerk','More Jerk'],['bal','Balanced'],['press','More Press']]],
+                ['complexity', 'Complexity', [['simple','Simple'],['std','Standard'],['complex','Complex']]],
+              ].map(([key, label, opts]) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}:</span>
+                  {opts.map(([val, txt]) => (
+                    <button key={val} onClick={() => setBias(key, val)}
+                      style={{ padding: '2px 8px', border: '1px solid #ccc', background: (sovietBias[key] || 'bal') === val ? '#111' : '#fff', color: (sovietBias[key] || 'bal') === val ? '#fff' : '#666', fontSize: 8, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>
+                      {txt}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px' }}>
             <div style={{ flex: '0 1 auto' }}>
               <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
@@ -2165,13 +2191,18 @@ export default function App() {
 
           <style>{`
             * { box-sizing: border-box; }
+            .print-only { display: none; }
             @media print {
-              @page { size: letter portrait; margin: 0.4in }
+              @page { size: letter portrait; margin: 0.3in }
               body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               .no-print { display: none !important }
+              .print-only { display: block !important }
               select { display: none !important }
-              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 8px 12px !important; box-shadow: none !important; }
+              input { border: none !important; padding: 0 !important; }
+              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; }
               #sheet2 { page-break-before: always; }
+              td { padding: 2px 3px !important; }
+              table { font-size: 8px !important; }
             }
           `}</style>
         </div>
@@ -3012,7 +3043,11 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
         <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', padding: '3px 4px', verticalAlign: 'top', fontSize: 9 }}>
           {sh && (
             <div>
-              <div style={{ fontWeight: 700, fontSize: 9, color: '#111', lineHeight: 1.3, marginBottom: 1 }}>{sh.exName}</div>
+              <input className="no-print" value={wd?.exercise || sh.exName} onChange={e => setSovietExercise && setSovietExercise(dk, i, wk, e.target.value)}
+                style={{ fontWeight: 700, fontSize: 9, color: '#111', lineHeight: 1.3, marginBottom: 1, border: 'none', borderBottom: '1px dashed transparent', background: 'transparent', fontFamily: 'inherit', outline: 'none', width: '100%', padding: 0 }}
+                onFocus={e => { e.target.style.borderBottomColor = '#0055bb' }}
+                onBlur={e => { e.target.style.borderBottomColor = 'transparent' }} />
+              <div className="print-only" style={{ fontWeight: 700, fontSize: 9, color: '#111', lineHeight: 1.3, marginBottom: 1, display: 'none' }}>{sh.exName}</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: '#111' }}>{sh.sxr}</div>
               {sh.weightRange && <div style={{ fontSize: 9, color: '#0055bb', fontWeight: 600 }}>{sh.weightRange}</div>}
               <div style={{ fontSize: 8, color: '#888' }}>{sh.pctRange}</div>
