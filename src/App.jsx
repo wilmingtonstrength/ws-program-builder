@@ -236,15 +236,32 @@ function detectGroup(name) {
 
 // Split complex reps across groups: "Snatch Pull + Hang Snatch" "1+1" → G3 + G1
 function splitComplexVol(exName, repsStr, sets) {
-  const parts = (exName || '').split(' + ')
-  const repParts = String(repsStr).split('+').map(r => parseInt(r) || 0)
+  // Split exercise name on "+" with flexible whitespace (handles "A + B", "A+B", "A +B")
+  const parts = (exName || '').split(/\s*\+\s*/).filter(Boolean)
+  const repsRaw = String(repsStr)
+  const repParts = repsRaw.split('+').map(r => parseInt(r.trim()) || 0)
+  const hasComplexReps = repsRaw.includes('+')
   const result = []
-  parts.forEach((part, idx) => {
-    const g = detectGroup(part.trim())
-    const reps = idx < repParts.length ? repParts[idx] : (repParts[repParts.length - 1] || 0)
-    if (g) result.push({ group: g, vol: sets * reps })
-  })
-  // If only 1 part (not a complex), return all vol to that group
+  if (parts.length > 1) {
+    // Complex exercise: split each movement into its group
+    parts.forEach((part, idx) => {
+      const g = detectGroup(part.trim())
+      if (!g) return
+      let reps
+      if (hasComplexReps && idx < repParts.length) {
+        // Reps string has "+": match positionally
+        reps = repParts[idx]
+      } else if (hasComplexReps) {
+        // More movements than rep parts: use last rep value
+        reps = repParts[repParts.length - 1] || 0
+      } else {
+        // No "+" in reps (e.g., "3"): every movement gets the full rep count
+        reps = repParts[0] || 0
+      }
+      result.push({ group: g, vol: sets * reps })
+    })
+  }
+  // Single exercise or no parts matched: treat entire name as one group
   if (result.length === 0) {
     const g = detectGroup(exName)
     const totalReps = repParts.reduce((s, v) => s + v, 0)
@@ -1574,7 +1591,7 @@ export default function App() {
               )}
             </div>
 
-            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} />}
+            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} edits={edits} block={block} tier={tier} setEdit={setEdit} bD={bD} />}
           </div>
 
           <style>{`
@@ -2038,7 +2055,10 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   )
 }
 
-function OlyAnalytics({ days, getExs, ath, getPR }) {
+function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, bD }) {
+  // edits prop forces re-render when any edit changes (percentage, sets, reps)
+  void edits
+
   const GROUP_NAMES = { G1: 'Snatch', G2: 'Clean', G3: 'Pulls', G4: 'Squats', G5: 'Overhead' }
   const GROUP_COLORS = { G1: '#c44', G2: '#2277bb', G3: '#666', G4: '#2a8a2a', G5: '#b08020' }
 
@@ -2069,6 +2089,102 @@ function OlyAnalytics({ days, getExs, ath, getPR }) {
     if (wk === 2 || wk === 3) return ((ex.pct[1] + ex.pct[2]) / 2) * 100
     // Week 4: use week 1 percentage (test/deload week)
     return ex.pct[0] * 100
+  }
+
+  // --- REROLL: Generate volume wave across 4 weeks ---
+  const ZONE_TARGETS = {
+    1: { '55-69': [25,30], '70-79': [45,50], '80-89': [20,25], '90+': [3,5] },
+    2: { '55-69': [15,20], '70-79': [40,45], '80-89': [30,35], '90+': [5,8] },
+    3: { '55-69': [10,15], '70-79': [30,35], '80-89': [35,40], '90+': [10,15] },
+  }
+
+  const doReroll = () => {
+    if (!bD || !setEdit) return
+    days.forEach(dk => {
+      const exs = bD[dk]?.exercises || []
+      exs.forEach((ex, i) => {
+        if (ex.series === 'WU' || !ex.pct) return
+        const cat = detectPctCategory(ex.exercise) || detectGroup(ex.exercise)
+        // Determine set/rep ranges based on exercise category
+        let setRange, repRange
+        if (cat === 'OLY' || cat === 'G1' || cat === 'G2') { setRange = [3,6]; repRange = [1,5] }
+        else if (cat === 'PULL' || cat === 'G3') { setRange = [3,5]; repRange = [2,5] }
+        else if (cat === 'STR' || cat === 'G4') { setRange = [3,6]; repRange = [2,6] }
+        else if (cat === 'PWR' || cat === 'G5') { setRange = [3,5]; repRange = [2,5] }
+        else { setRange = [3,5]; repRange = [2,6] }
+
+        const baseSets = parseInt(ex.sets) || 4
+        const baseReps = String(ex.reps)
+        const isComplex = baseReps.includes('+')
+        const baseRepCount = isComplex
+          ? baseReps.split('+').reduce((s,v) => s + (parseInt(v)||0), 0)
+          : (parseInt(baseReps) || 3)
+        const pctLo = ex.pct[1] || ex.pct[0]  // range low
+        const pctHi = ex.pct[2] || ex.pct[1] || ex.pct[0]  // range high
+        const pctW1 = ex.pct[0]
+
+        // Generate 4-week wave: HIGH → MEDIUM → MOD_LOW → TEST
+        const waveMultSets = [1.15, 1.0, 0.9, 0.65]
+        const waveMultReps = [1.1, 1.0, 0.75, 0.4]
+        // Intensity rises as volume drops
+        const wavePctScale = [0.15, 0.4, 0.7, 0.95]
+
+        ;[1,2,3,4].forEach(wk => {
+          const mi = wk - 1
+          let wkSets = Math.round(baseSets * waveMultSets[mi])
+          wkSets = Math.max(setRange[0], Math.min(setRange[1], wkSets))
+
+          let wkReps
+          if (isComplex) {
+            // For complexes, scale each part's reps
+            const parts = baseReps.split('+').map(r => parseInt(r) || 1)
+            const scaledParts = parts.map(r => Math.max(1, Math.round(r * waveMultReps[mi])))
+            wkReps = scaledParts.join('+')
+          } else {
+            let r = Math.round(baseRepCount * waveMultReps[mi])
+            r = Math.max(repRange[0], Math.min(repRange[1], r))
+            // Week 4 (test): allow singles
+            if (wk === 4) r = Math.max(1, Math.min(2, r))
+            // Bread and butter: prefer 2s and 3s, limit singles to wk4 only
+            if (wk !== 4 && r <= 1) r = 2
+            wkReps = String(r)
+          }
+
+          // Percentage: scale within the assigned range
+          const scale = wavePctScale[mi]
+          // Block shifts the base: later blocks push everything up
+          const blockShift = (block - 1) * 0.03
+          let wkPct = pctLo + (pctHi - pctLo) * scale + blockShift
+          wkPct = Math.max(pctW1, Math.min(pctHi + 0.05, wkPct))
+          wkPct = Math.round(wkPct * 100) / 100
+
+          setEdit(dk, i, 'sets_w' + wk, String(wkSets))
+          setEdit(dk, i, 'reps_w' + wk, wkReps)
+          // Set per-week percentage override
+          if (wk <= 3) {
+            setEdit(dk, i, 'pct_w' + wk, String(wkPct))
+            if (wk > 1) setEdit(dk, i, 'pct_w' + wk + '_hi', String(wkPct))
+          }
+        })
+      })
+    })
+  }
+
+  const clearReroll = () => {
+    if (!bD || !setEdit) return
+    days.forEach(dk => {
+      const exs = bD[dk]?.exercises || []
+      exs.forEach((ex, i) => {
+        ;[1,2,3,4].forEach(wk => {
+          setEdit(dk, i, 'sets_w' + wk, '')
+          setEdit(dk, i, 'reps_w' + wk, '')
+          if (wk <= 3) {
+            setEdit(dk, i, 'pct_w' + wk, '')
+            if (wk > 1) setEdit(dk, i, 'pct_w' + wk + '_hi', '')
+          }
+        })
+      })
+    })
   }
 
   // Compute per-week analytics
@@ -2157,6 +2273,13 @@ function OlyAnalytics({ days, getExs, ath, getPR }) {
   return (
     <div className="no-print" style={{ width: 280, flexShrink: 0, background: '#fff', border: '1px solid #ddd', padding: '12px 14px', fontSize: 10, fontFamily: 'Arial, sans-serif', alignSelf: 'flex-start', position: 'sticky', top: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', borderBottom: '2px solid #111', paddingBottom: 4, marginBottom: 10 }}>Block Analytics</div>
+
+      {setEdit && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+          <button onClick={doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reroll</button>
+          <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
+        </div>
+      )}
 
       <div style={s.section}>
         <div style={s.label}>ARI (Avg Relative Intensity)</div>
