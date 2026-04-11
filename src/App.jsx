@@ -509,7 +509,7 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
   wave.forEach((tier, i) => {
     const wk = i + 1
     const mult = SV_WAVE_MULT[tier]
-    const sets = Math.max(4, Math.round(baseSets * mult))
+    const sets = Math.max(5, Math.round(baseSets * mult))
 
     // Pick exercise — test week uses simplest variant
     let chosen
@@ -546,10 +546,16 @@ function svExRotating(series, pool, groupType, block, wave, rng, opts = {}) {
       const nr = parseInt(reps) || 3
       wkReps = String(Math.max(1, Math.round(nr * 0.5)))
     }
-    // Heavy intensity (85%+): drop to singles/doubles for comp lifts
-    if (pct >= 0.85 && (groupType === 'comp' || groupType === 'jerk') && !reps.includes('+')) {
+    // Heavy intensity (85%+): drop to singles/doubles for full comp lifts (not power variants)
+    const isPower = name.toLowerCase().includes('power') && !name.toLowerCase().includes('push')
+    if (pct >= 0.85 && (groupType === 'comp' || groupType === 'jerk') && !reps.includes('+') && !isPower) {
       const nr = parseInt(reps) || 3
       wkReps = String(Math.min(nr, 2))
+    }
+    // Power variants: minimum 2 reps per set always
+    if (isPower && !reps.includes('+')) {
+      const nr = parseInt(wkReps) || 2
+      wkReps = String(Math.max(nr, 2))
     }
 
     const prKey = typeof chosen === 'object' && chosen.prKey ? chosen.prKey : (EXERCISE_PR_KEYS[name] || opts.prKey || null)
@@ -742,7 +748,7 @@ function generateSovietTemplate(mode, blockNum, seed) {
           if (!ex.weekData || ex.svGroup !== group) return
           ;[1,2,3,4].forEach(w => {
             const wd = ex.weekData[w]; if (!wd) return
-            wd.sets = Math.max(4, Math.min(8, wd.sets + dir))
+            wd.sets = Math.max(5, Math.min(8, wd.sets + dir))
           })
         })
       })
