@@ -47,7 +47,7 @@ function detectPctCategory(name) {
   if (n.includes('snatch') || n.includes('clean') || n.includes('jerk')) return 'OLY'
   if (['front squat','front squat he','push press','ohs','sa kb push press','double kb push press'].includes(n)) return 'OLY'
   if (n.includes('tall clean') || n.includes('pp clean')) return 'OLY'
-  if (['back squat','back squat he','deadlift','sumo deadlift','trap bar deadlift','bench press','press','behind-the-neck press','db bench press'].includes(n)) return 'STR'
+  if (['back squat','back squat he','deadlift','sumo deadlift','trap bar deadlift','bench press','press','behind-the-neck press','db bench press','strict press'].includes(n)) return 'STR'
   return null
 }
 
@@ -62,13 +62,14 @@ const LIBRARY = {
     'PP Snatch + Hang Snatch','PP Snatch + OHS','Hang Snatch + OHS',
     'Tall Snatch + OHS','PP Snatch + Hang Snatch + OHS',
     'Power Snatch','Muscle Snatch','Snatch from Blocks','Pausing Power Snatch',
+    'Block Snatch','Snatch High Pull','Power Snatch from Hang','Power Snatch from Blocks',
   ],
   'Clean': [
     'Hang Clean','Power Position Clean','Low Hang Clean','No Foot Clean',
     'No Foot No Hook Clean','Pause at Knee Clean','Hang Power Clean',
     'Power Position Power Clean','Low Hang Power Clean','Tall Clean','3-Position Clean',
     'PP Clean + Hang Clean','PAK Clean Pull + Clean Pull',
-    'Muscle Clean','Clean from Blocks',
+    'Muscle Clean','Clean from Blocks','Power Clean from Hang',
   ],
   'Jerk': [
     'Push Jerk','Power Jerk','Split Jerk',
@@ -76,6 +77,7 @@ const LIBRARY = {
     'Pause Jerk','Tall Jerk',
     'Clean + Jerk','Hang Clean + Jerk','PP Clean + Jerk',
     'Hang Clean + Push Jerk','Low Hang Clean + Pause Jerk',
+    'Jerk from Rack','Front Squat + Jerk',
   ],
   'Overhead': [
     'Press','Push Press','Behind-the-Neck Press',
@@ -83,6 +85,7 @@ const LIBRARY = {
     'PP Clean + Press','PP Clean + Push Press','Hang Clean + Push Press',
     'Power Clean + Push Press','Hang Power Clean + Push Press','Low Hang Power Clean + Push Press',
     'PP Clean + Push Press + Front Squat','Tall Clean + Push Press','Tall Clean + Press',
+    'Strict Press','DB Shoulder Press','Power Clean from Hang + Push Press',
   ],
   'Squat': [
     'Front Squat','Back Squat','Goblet Squat','OHS',
@@ -206,6 +209,12 @@ const EXERCISE_PR_KEYS = {
   'Muscle Clean':'clean','Clean from Blocks':'clean',
   'Snatch DL':'snatch','Clean DL':'clean',
   'Pause Back Squat':'back_squat','Pause Front Squat':'front_squat',
+  // 4-Day Undulating additions
+  'Block Snatch':'snatch','Snatch High Pull':'snatch',
+  'Power Snatch from Hang':'snatch','Power Snatch from Blocks':'snatch',
+  'Power Clean from Hang + Push Press':['clean','push_press'],
+  'Jerk from Rack':'jerk','Front Squat + Jerk':['front_squat','jerk'],
+  'Strict Press':'press','DB Shoulder Press':'press',
 }
 
 
@@ -298,6 +307,25 @@ const DEFAULT_CELL_NOTES = {
   'oly_adv-3-dayB-1-2':'2RM',
   'oly_adv-3-dayB-2-2':'2RM','oly_adv-3-dayB-2-3':'MAX',
   'oly_adv-3-dayB-3-3':'MAX',
+  // 4-Day Oly Undulating — Track A heavy singles in Week 2
+  // Block 1: BS(dayA-3), PP(dayB-2), SnPull(dayB-3), FS(dayC-3), ClPull(dayD-3)
+  'oly_4day_undulating-1-dayA-3-2':'HS','oly_4day_undulating-1-dayB-2-2':'HS',
+  'oly_4day_undulating-1-dayB-3-2':'HS','oly_4day_undulating-1-dayC-3-2':'HS',
+  'oly_4day_undulating-1-dayD-3-2':'HS',
+  // Block 1: Track B heavy singles in Week 4 — Sn on dayA, C&J on dayD
+  'oly_4day_undulating-1-dayA-1-4':'MAX','oly_4day_undulating-1-dayD-2-4':'MAX',
+  // Block 2: Track A heavy singles in Week 2
+  'oly_4day_undulating-2-dayA-3-2':'HS','oly_4day_undulating-2-dayB-2-2':'HS',
+  'oly_4day_undulating-2-dayB-3-2':'HS','oly_4day_undulating-2-dayC-3-2':'HS',
+  'oly_4day_undulating-2-dayD-3-2':'HS',
+  // Block 2: Track B heavy singles in Week 4 — Sn on dayD, C&J on dayA
+  'oly_4day_undulating-2-dayD-1-4':'MAX','oly_4day_undulating-2-dayA-2-4':'MAX',
+  // Block 3: Track A heavy singles in Week 2
+  'oly_4day_undulating-3-dayA-3-2':'HS','oly_4day_undulating-3-dayB-2-2':'HS',
+  'oly_4day_undulating-3-dayB-3-2':'HS','oly_4day_undulating-3-dayC-3-2':'HS',
+  'oly_4day_undulating-3-dayD-3-2':'HS',
+  // Block 3: Track B heavy singles in Week 4 — Sn on dayA, C&J on dayD
+  'oly_4day_undulating-3-dayA-1-4':'MAX','oly_4day_undulating-3-dayD-2-4':'MAX',
 }
 
 const TEMPLATES = {
@@ -1160,6 +1188,106 @@ const TEMPLATES = {
         mkEx('D1','PAK Clean Pull + Clean Pull',3,'2',PULL_B3,'clean'),
         mkEx('E1','Razor Curl',3,'8'),
       ]}}
+    }
+  },
+  oly_4day_undulating: {
+    label: '4-Day Olympic Lifting (Undulating)', days: ['dayA','dayB','dayC','dayD'], blocks: {
+      1: {
+        pctLabel:'65-75%', w1note:'65% only',
+        dayA: { header: 'Day 1 — Mon', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch',4,'2',OLY_B1,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+2',OLY_B1,['clean','jerk']),
+          mkEx('C1','Back Squat',4,'5',STR_B1,'back_squat'),
+          mkEx('D1','DB Bench Press',3,'10'),
+        ]},
+        dayB: { header: 'Day 2 — Tue', exercises: [
+          WU_B_pp,
+          mkEx('A1','Power Snatch',4,'2',PWR_B1,'snatch'),
+          mkEx('B1','Power Clean + Push Press',4,'1+5',OLY_B1,['clean','push_press']),
+          mkEx('C1','Snatch Pull',4,'3',PULL_B1,'snatch'),
+          mkEx('D1','Hanging Knee Raises',3,'12'),
+          mkEx('D2','Good Morning',3,'10'),
+        ]},
+        dayC: { header: 'Day 3 — Thu', exercises: [
+          WU_A,
+          mkEx('A1','No Foot Snatch',4,'2',OLY_B1,'snatch'),
+          mkEx('B1','Jerk from Rack',4,'2',OLY_B1,'jerk'),
+          mkEx('C1','Front Squat',4,'5',FS_B1,'front_squat'),
+          mkEx('D1','RFE Split Squat',3,'8ea'),
+        ]},
+        dayD: { header: 'Day 4 — Fri', exercises: [
+          WU_A,
+          mkEx('A1','Hang Snatch + OHS',4,'2+1',OLY_B1,['snatch','front_squat']),
+          mkEx('B1','Hang Clean + Jerk',4,'2+2',OLY_B1,['clean','jerk']),
+          mkEx('C1','Clean Pull',4,'3',PULL_B1,'clean'),
+          mkEx('D1','Chin Up',3,'8'),
+        ]}
+      },
+      2: {
+        pctLabel:'75-85%', w1note:'75% only',
+        dayA: { header: 'Day 1 — Mon', exercises: [
+          WU_A,
+          mkEx('A1','PP Snatch + Hang Snatch',4,'1+2',OLY_B2,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+1',OLY_B2,['clean','jerk']),
+          mkEx('C1','Back Squat',4,'3',STR_B2,'back_squat'),
+          mkEx('D1','Strict Press',3,'8',STR_B2,'press'),
+        ]},
+        dayB: { header: 'Day 2 — Tue', exercises: [
+          WU_B_pp,
+          mkEx('A1','Power Snatch from Hang',4,'2',PWR_B2,'snatch'),
+          mkEx('B1','Power Clean from Hang + Push Press',4,'1+3',OLY_B2,['clean','push_press']),
+          mkEx('C1','Snatch High Pull',4,'2',PULL_B2,'snatch'),
+          mkEx('D1','Toes to Bar',3,'10'),
+          mkEx('D2','RDL',3,'8'),
+        ]},
+        dayC: { header: 'Day 3 — Thu', exercises: [
+          WU_A,
+          mkEx('A1','Pause at Knee Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Front Squat + Jerk',4,'1+2',OLY_B2,['front_squat','jerk']),
+          mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
+          mkEx('D1','Ipsilateral Split Squat',3,'6ea'),
+        ]},
+        dayD: { header: 'Day 4 — Fri', exercises: [
+          WU_A,
+          mkEx('A1','Block Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Hang Clean + Push Jerk',4,'1+2',OLY_B2,['clean','jerk']),
+          mkEx('C1','PAK Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('D1','Chest Supported Row',3,'10'),
+        ]}
+      },
+      3: {
+        pctLabel:'75-90%', w1note:'75% only',
+        dayA: { header: 'Day 1 — Mon', exercises: [
+          WU_A,
+          mkEx('A1','Low Hang Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'1+1',CJ_HEAVY_B3,['clean','jerk']),
+          mkEx('C1','Back Squat',4,'3',STR_B3,'back_squat'),
+          mkEx('D1','DB Shoulder Press',3,'8'),
+        ]},
+        dayB: { header: 'Day 2 — Tue', exercises: [
+          WU_B_pp,
+          mkEx('A1','Power Snatch from Blocks',4,'2',PWR_B3,'snatch'),
+          mkEx('B1','Hang Power Clean + Push Press',4,'1+3',OLY_B3,['clean','push_press']),
+          mkEx('C1','Pause at Knee Snatch Pull',4,'2',PULL_B3,'snatch'),
+          mkEx('D1','Dragon Flag',3,'8'),
+          mkEx('D2','Glute Ham Raise',3,'8'),
+        ]},
+        dayC: { header: 'Day 3 — Thu', exercises: [
+          WU_A,
+          mkEx('A1','No Foot No Hook Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Behind-the-Neck Push Jerk',4,'2',OLY_B3,'jerk'),
+          mkEx('C1','Front Squat',4,'3',FS_B3,'front_squat'),
+          mkEx('D1','Contralateral Split Squat',3,'5ea'),
+        ]},
+        dayD: { header: 'Day 4 — Fri', exercises: [
+          WU_A,
+          mkEx('A1','Snatch from Blocks',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','PP Clean + Jerk',4,'1+1',CJ_HEAVY_B3,['clean','jerk']),
+          mkEx('C1','PAK Clean Pull + Clean Pull',4,'1+1',PULL_B3,'clean'),
+          mkEx('D1','Bent-Over Row',3,'8'),
+        ]}
+      }
     }
   },
 }
