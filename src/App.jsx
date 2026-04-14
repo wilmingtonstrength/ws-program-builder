@@ -2219,6 +2219,213 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
     return ex.pct[0] * 100
   }
 
+  // --- UNDULATING 4-DAY: Custom generator ---
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
+  const ri = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo
+
+  const doUndulatingReroll = () => {
+    if (!bD || !setEdit) return
+
+    // Track B: randomly place heavy snatch single on dayA or dayD, C&J on the other
+    const heavySnDay = pick(['dayA','dayD'])
+    const heavyCJDay = heavySnDay === 'dayA' ? 'dayD' : 'dayA'
+
+    days.forEach(dk => {
+      const exs = bD[dk]?.exercises || []
+      exs.forEach((ex, i) => {
+        if (ex.series === 'WU' || !ex.pct) return
+        const n = ex.exercise.toLowerCase()
+        const cat = detectPctCategory(ex.exercise)
+        const pctW1 = ex.pct[0]
+        const pctLo = ex.pct[1] || pctW1
+        const pctHi = ex.pct[2] || pctLo
+
+        // ---- Determine exercise identity ----
+        const isSnatch = cat === 'OLY' && n.includes('snatch') && !n.includes('pull') && !n.includes('high pull')
+        const isTechSnatch = isSnatch && dk === 'dayC'
+        const isPowerSnatch = cat === 'PWR' && n.includes('snatch')
+        const isSnatchVar = isSnatch && dk === 'dayD'
+        const isCJ = (n.includes('clean') && n.includes('jerk')) || (n.includes('jerk') && !n.includes('snatch'))
+        const isVolumeCJ = isCJ && dk === 'dayA'
+        const isHeavyCJ = isCJ && dk === 'dayD'
+        const isPushPressComplex = n.includes('push press') && dk === 'dayB'
+        const isBackSquat = n.includes('back squat')
+        const isFrontSquat = n === 'front squat' || n === 'front squat he'
+        const isSnatchPull = (n.includes('snatch') && (n.includes('pull') || n.includes('high pull') || n.includes(' dl')))
+        const isCleanPull = (n.includes('clean') && (n.includes('pull') || n.includes(' dl'))) && !n.includes('snatch')
+        const isPull = isSnatchPull || isCleanPull
+        const isJerkFromRack = n.includes('jerk') && !n.includes('clean') && dk === 'dayC'
+
+        // Volume multipliers: Wk1 base, Wk2 +12%, Wk3 -12%, Wk4 -35%
+        const volMult = [1.0, 1.12, 0.88, 0.65]
+        // Intensity scale within range: Wk1 low, Wk2 mid, Wk3 low-mid, Wk4 high
+        const intScale = [0.0, 0.5, 0.2, 0.9]
+
+        let weekData = [null, null, null, null] // [{sets,reps,pct}, ...]
+
+        // ======= SNATCH (Day 1 heavy, Day 3 tech, Day 4 variation) =======
+        if (isSnatch && dk === 'dayA') {
+          // Heavy/classic snatch — mostly doubles
+          weekData = [
+            { sets: ri(4,5), reps: '2', pct: pctW1 + 0.02 },
+            { sets: ri(4,5), reps: '2', pct: pctLo + (pctHi - pctLo) * 0.5 },
+            { sets: ri(3,4), reps: '2', pct: pctLo + (pctHi - pctLo) * 0.2 },
+            heavySnDay === 'dayA'
+              ? { sets: ri(2,3), reps: '1', pct: pctHi + 0.08 }
+              : { sets: ri(3,4), reps: '2', pct: pctHi * 0.95 },
+          ]
+        } else if (isTechSnatch) {
+          // Technical snatch — doubles, one triple allowed in block
+          const tripleWeek = pick([0, 2]) // wk1 or wk3
+          weekData = [0,1,2,3].map(wi => {
+            const doTriple = wi === tripleWeek && Math.random() < 0.4
+            return {
+              sets: Math.max(3, Math.min(5, Math.round(4 * volMult[wi]))),
+              reps: doTriple ? '3' : '2',
+              pct: doTriple ? pctW1 - 0.05 : pctW1 + (pctHi - pctW1) * intScale[wi],
+            }
+          })
+          // Wk4 deload
+          weekData[3] = { sets: 3, reps: '2', pct: pctW1 }
+        } else if (isSnatchVar) {
+          // Snatch variation (Day 4)
+          const isComplex = ex.reps.includes('+')
+          weekData = [0,1,2,3].map(wi => ({
+            sets: Math.max(3, Math.min(5, Math.round(4 * volMult[wi]))),
+            reps: isComplex ? ex.reps : '2',
+            pct: pctW1 + (pctHi - pctW1) * intScale[wi],
+          }))
+          if (heavySnDay === 'dayD') {
+            weekData[3] = { sets: ri(2,3), reps: isComplex ? '1+1' : '1', pct: pctHi + 0.08 }
+          } else {
+            weekData[3] = { sets: 3, reps: isComplex ? ex.reps : '2', pct: pctHi * 0.93 }
+          }
+        } else if (isPowerSnatch) {
+          // Power snatch (Day 2 only) — doubles
+          weekData = [0,1,2,3].map(wi => ({
+            sets: Math.max(3, Math.min(5, Math.round(4 * volMult[wi]))),
+            reps: '2',
+            pct: pctW1 + (pctHi - pctW1) * intScale[wi],
+          }))
+          weekData[3] = { sets: 3, reps: '2', pct: pctW1 + 0.02 }
+        }
+
+        // ======= CLEAN & JERK =======
+        else if (isVolumeCJ) {
+          // Volume C&J (Day 1) — mostly doubles, one higher rep touch
+          const highRepWk = pick([0, 1]) // wk1 or wk2
+          weekData = [0,1,2,3].map(wi => {
+            const doHigh = wi === highRepWk
+            return {
+              sets: Math.max(3, Math.min(5, Math.round(4 * volMult[wi]))),
+              reps: doHigh ? pick(['2+3','3+2','2+2+1']) : '2+1',
+              pct: pctW1 + (pctHi - pctW1) * intScale[wi],
+            }
+          })
+          if (heavyCJDay === 'dayA') {
+            weekData[3] = { sets: ri(2,3), reps: '1+1', pct: pctHi + 0.08 }
+          } else {
+            weekData[3] = { sets: 3, reps: '1+1', pct: pctHi * 0.93 }
+          }
+        } else if (isHeavyCJ || (isCJ && dk === 'dayD')) {
+          // Heavy C&J (Day 4)
+          const isComplex = ex.reps.includes('+')
+          weekData = [0,1,2,3].map(wi => ({
+            sets: Math.max(3, Math.min(5, Math.round(4 * volMult[wi]))),
+            reps: isComplex ? '2+1' : '2',
+            pct: pctW1 + (pctHi - pctW1) * intScale[wi],
+          }))
+          if (heavyCJDay === 'dayD') {
+            weekData[3] = { sets: ri(2,3), reps: isComplex ? '1+1' : '1', pct: pctHi + 0.08 }
+          } else {
+            weekData[3] = { sets: 3, reps: isComplex ? '1+1' : '2', pct: pctHi * 0.93 }
+          }
+        } else if (isJerkFromRack || (isCJ && dk === 'dayC')) {
+          // Jerk from rack / FS+Jerk (Day 3)
+          const isComplex = ex.reps.includes('+')
+          weekData = [0,1,2,3].map(wi => ({
+            sets: Math.max(3, Math.min(5, Math.round(4 * volMult[wi]))),
+            reps: isComplex ? ex.reps : '2',
+            pct: pctW1 + (pctHi - pctW1) * intScale[wi],
+          }))
+          weekData[3] = { sets: 3, reps: isComplex ? '1+1' : '2', pct: pctW1 + 0.02 }
+        }
+
+        // ======= PUSH PRESS COMPLEX (Day 2) =======
+        else if (isPushPressComplex) {
+          weekData = [
+            { sets: ri(4,5), reps: ex.reps, pct: pctW1 + 0.02 },
+            { sets: ri(3,4), reps: pick(['1+3','1+4']), pct: pctLo + (pctHi - pctLo) * 0.5 },
+            { sets: ri(3,4), reps: '1+3', pct: pctLo + (pctHi - pctLo) * 0.2 },
+            { sets: 3, reps: '1+2', pct: pctW1 + 0.02 },
+          ]
+          // Track A: heavy push press single in Wk2
+          weekData[1] = { sets: ri(3,4), reps: '1+1', pct: pctHi + 0.05 }
+        }
+
+        // ======= BACK SQUAT (Day 1 only) =======
+        else if (isBackSquat) {
+          weekData = [
+            { sets: ri(4,5), reps: pick(['4','5']), pct: pctW1 + 0.02 },
+            { sets: ri(3,4), reps: '3', pct: pctLo + (pctHi - pctLo) * 0.6 },
+            { sets: ri(3,4), reps: pick(['4','5','6']), pct: pctLo + (pctHi - pctLo) * 0.15 },
+            { sets: ri(3,4), reps: pick(['3','4']), pct: pctLo + (pctHi - pctLo) * 0.3 },
+          ]
+          // Track A: heavy single in Wk2
+          weekData[1] = { sets: ri(2,3), reps: '1', pct: pctHi + 0.08 }
+        }
+
+        // ======= FRONT SQUAT (Day 3 only) =======
+        else if (isFrontSquat) {
+          weekData = [
+            { sets: ri(4,5), reps: pick(['3','4','5']), pct: pctW1 + 0.02 },
+            { sets: ri(3,4), reps: '3', pct: pctLo + (pctHi - pctLo) * 0.55 },
+            { sets: ri(3,4), reps: pick(['3','4']), pct: pctLo + (pctHi - pctLo) * 0.2 },
+            { sets: ri(3,4), reps: pick(['3','4']), pct: pctLo + (pctHi - pctLo) * 0.3 },
+          ]
+          // Track A: heavy single in Wk2
+          weekData[1] = { sets: ri(2,3), reps: '1', pct: pctHi + 0.08 }
+        }
+
+        // ======= PULLS (Snatch pulls Day 2, Clean pulls Day 4) =======
+        else if (isPull) {
+          weekData = [
+            { sets: ri(3,4), reps: '3', pct: pctW1 + 0.02 },
+            { sets: ri(3,4), reps: '2', pct: pctLo + (pctHi - pctLo) * 0.5 },
+            { sets: ri(3,4), reps: '3', pct: pctLo },
+            { sets: 3, reps: pick(['2','3']), pct: pctLo + 0.02 },
+          ]
+          // Track A: heavy single in Wk2
+          weekData[1] = { sets: ri(2,3), reps: '1', pct: pctHi + 0.10 }
+        }
+
+        // ======= DEFAULT: other barbell lifts (strict press etc) =======
+        else if (cat === 'STR' || cat === 'OLY') {
+          weekData = [0,1,2,3].map(wi => ({
+            sets: Math.max(3, Math.min(5, Math.round((parseInt(ex.sets)||4) * volMult[wi]))),
+            reps: ex.reps,
+            pct: pctW1 + (pctHi - pctW1) * intScale[wi],
+          }))
+        }
+
+        // ---- Write the overrides ----
+        if (weekData[0]) {
+          ;[1,2,3,4].forEach(wk => {
+            const wd = weekData[wk - 1]
+            if (!wd) return
+            setEdit(dk, i, 'sets_w' + wk, String(wd.sets))
+            setEdit(dk, i, 'reps_w' + wk, String(wd.reps))
+            if (wk <= 3) {
+              const p = Math.round(wd.pct * 100) / 100
+              setEdit(dk, i, 'pct_w' + wk, String(p))
+              if (wk > 1) setEdit(dk, i, 'pct_w' + wk + '_hi', String(p))
+            }
+          })
+        }
+      })
+    })
+  }
+
   // --- REROLL: Generate volume wave across 4 weeks ---
   const ZONE_TARGETS = {
     1: { '55-69': [25,30], '70-79': [45,50], '80-89': [20,25], '90+': [3,5] },
@@ -2404,7 +2611,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
 
       {setEdit && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-          <button onClick={doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reroll</button>
+          <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>
           <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
         </div>
       )}
