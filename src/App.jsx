@@ -1719,7 +1719,7 @@ export default function App() {
               )}
             </div>
 
-            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} edits={edits} block={block} tier={tier} setEdit={setEdit} bD={bD} />}
+            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} edits={edits} block={block} tier={tier} setEdit={setEdit} bD={bD} setCellNote={setCellNote} />}
           </div>
 
           <style>{`
@@ -2183,7 +2183,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   )
 }
 
-function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, bD }) {
+function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, bD, setCellNote }) {
   // edits prop forces re-render when any edit changes (percentage, sets, reps)
   void edits
 
@@ -2225,6 +2225,53 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
   const ri = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo
   // Write a week entry with percentage RANGE {lo,hi} in decimals
   const wk = (sets, reps, lo, hi) => ({ sets, reps, lo, hi: hi || lo })
+  // Build a heavy single ramp-up: returns { sets, reps (as '+' string), lo, hi, note (pct shorthand) }
+  // Example squat ramp: 3@70, 3@80, 2@85, 1@90, 1@95 → reps='3+3+2+1+1', note='70,80,85,90,95'
+  const buildRamp = (type) => {
+    // type: 'squat' | 'oly' | 'pull'
+    if (type === 'squat') {
+      // Squat/FS/PP heavy single ramp
+      const ramps = [
+        { reps: '3+3+2+1+1', pcts: [70,78,85,90,95] },
+        { reps: '3+2+1+1+1', pcts: [72,80,87,92,97] },
+        { reps: '3+3+2+1+1+1', pcts: [65,72,80,87,93,97] },
+        { reps: '5+3+2+1+1', pcts: [65,75,82,90,95] },
+      ]
+      const r = pick(ramps)
+      return { sets: 1, reps: r.reps, lo: r.pcts[r.pcts.length-1]/100, hi: r.pcts[r.pcts.length-1]/100, note: r.pcts.join(',') + '%' }
+    }
+    if (type === 'oly') {
+      // Snatch or C&J heavy single ramp
+      const ramps = [
+        { reps: '3+2+1+1+1', pcts: [70,78,85,90,95] },
+        { reps: '2+2+1+1+1+1', pcts: [72,78,82,88,92,95] },
+        { reps: '3+2+2+1+1', pcts: [68,75,82,90,95] },
+        { reps: '2+2+1+1+1', pcts: [75,80,87,92,95] },
+      ]
+      const r = pick(ramps)
+      return { sets: 1, reps: r.reps, lo: r.pcts[r.pcts.length-1]/100, hi: r.pcts[r.pcts.length-1]/100, note: r.pcts.join(',') + '%' }
+    }
+    if (type === 'pull') {
+      // Pull heavy single ramp — percentages of comp lift
+      const ramps = [
+        { reps: '3+2+1+1', pcts: [95,105,115,125] },
+        { reps: '3+3+2+1+1', pcts: [90,100,110,120,130] },
+        { reps: '3+2+1+1+1', pcts: [90,100,112,122,130] },
+      ]
+      const r = pick(ramps)
+      return { sets: 1, reps: r.reps, lo: r.pcts[r.pcts.length-1]/100, hi: r.pcts[r.pcts.length-1]/100, note: r.pcts.join(',') + '%' }
+    }
+    if (type === 'pp') {
+      // Push press heavy single ramp
+      const ramps = [
+        { reps: '5+3+2+1+1', pcts: [65,75,82,90,95] },
+        { reps: '3+3+2+1+1', pcts: [70,78,85,90,95] },
+      ]
+      const r = pick(ramps)
+      return { sets: 1, reps: r.reps, lo: r.pcts[r.pcts.length-1]/100, hi: r.pcts[r.pcts.length-1]/100, note: r.pcts.join(',') + '%' }
+    }
+    return { sets: 3, reps: '1', lo: 0.90, hi: 0.95, note: '' }
+  }
 
   const doUndulatingReroll = () => {
     if (!bD || !setEdit) return
@@ -2270,94 +2317,92 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
 
         // ======= SNATCH — Day 1 (heavy/classic) =======
         if (isSnatch && dk === 'dayA') {
-          // Wk1: doubles moderate, Wk2: doubles higher, Wk3: triples lighter (recovery), Wk4: heavy singles or light doubles
           wd[0] = wk(ri(4,5), '2', 0.75, 0.82)
-          wd[1] = wk(ri(4,5), '2', 0.80, 0.85)
+          wd[1] = wk(ri(5,5), '2', 0.80, 0.85)
           wd[2] = wk(ri(3,4), '2', 0.72, 0.78)
-          wd[3] = heavySnDay === 'dayA'
-            ? wk(ri(3,5), '1', 0.85, 0.95)
-            : wk(3, '2', 0.70, 0.75)
+          if (heavySnDay === 'dayA') {
+            const r = buildRamp('oly'); wd[3] = { ...r }
+          } else { wd[3] = wk(3, '2', 0.70, 0.75) }
         }
         // ======= SNATCH — Day 3 (technical) =======
         else if (isTechSnatch) {
-          const tripleWk = pick([0, 2]) // allow ONE triple, wk1 or wk3
+          const tripleWk = pick([0, 2])
           wd[0] = tripleWk === 0 ? wk(ri(3,4), '3', 0.65, 0.72) : wk(ri(4,5), '2', 0.72, 0.78)
-          wd[1] = wk(ri(4,5), '2', 0.78, 0.83)
+          wd[1] = wk(ri(5,5), '2', 0.78, 0.83)
           wd[2] = tripleWk === 2 ? wk(ri(3,4), '3', 0.65, 0.70) : wk(ri(3,4), '2', 0.70, 0.75)
           wd[3] = wk(3, '2', 0.68, 0.73)
         }
         // ======= SNATCH — Day 4 (variation) =======
         else if (isSnatchVar) {
           wd[0] = wk(ri(4,5), isComplex ? '2+1' : '2', 0.72, 0.78)
-          wd[1] = wk(ri(4,5), isComplex ? '2+1' : '2', 0.78, 0.85)
+          wd[1] = wk(ri(5,5), isComplex ? '2+1' : '2', 0.78, 0.85)
           wd[2] = wk(ri(3,4), isComplex ? '2+1' : '2', 0.70, 0.75)
-          wd[3] = heavySnDay === 'dayD'
-            ? wk(ri(3,5), isComplex ? '1+1' : '1', 0.85, 0.95)
-            : wk(3, isComplex ? '2+1' : '2', 0.68, 0.73)
+          if (heavySnDay === 'dayD') {
+            const r = buildRamp('oly'); wd[3] = { ...r }
+          } else { wd[3] = wk(3, isComplex ? '2+1' : '2', 0.68, 0.73) }
         }
         // ======= POWER SNATCH (Day 2 only) =======
         else if (isPowerSnatch) {
           wd[0] = wk(ri(4,5), '2', 0.65, 0.72)
-          wd[1] = wk(ri(4,5), '2', 0.70, 0.75)
-          wd[2] = wk(ri(3,4), '3', 0.60, 0.68)
+          wd[1] = wk(ri(5,5), '3', 0.60, 0.68)
+          wd[2] = wk(ri(3,4), '2', 0.68, 0.73)
           wd[3] = wk(3, '2', 0.62, 0.68)
         }
         // ======= VOLUME C&J (Day 1) =======
         else if (isVolumeCJ) {
           const highRepWk = pick([0, 1])
-          wd[0] = highRepWk === 0 ? wk(ri(3,4), pick(['2+3','3+2']), 0.65, 0.72) : wk(ri(4,5), '2+1', 0.72, 0.78)
-          wd[1] = highRepWk === 1 ? wk(ri(3,4), pick(['2+3','3+2']), 0.68, 0.75) : wk(ri(4,5), '2+1', 0.78, 0.85)
+          wd[0] = highRepWk === 0 ? wk(ri(4,5), pick(['2+3','3+2']), 0.65, 0.72) : wk(ri(4,5), '2+1', 0.72, 0.78)
+          wd[1] = highRepWk === 1 ? wk(ri(4,5), pick(['2+3','3+2']), 0.68, 0.75) : wk(ri(5,5), '2+1', 0.78, 0.85)
           wd[2] = wk(ri(3,4), '2+1', 0.70, 0.75)
-          wd[3] = heavyCJDay === 'dayA'
-            ? wk(ri(3,5), '1+1', 0.85, 0.95)
-            : wk(3, '1+1', 0.68, 0.73)
+          if (heavyCJDay === 'dayA') {
+            const r = buildRamp('oly'); wd[3] = { ...r }
+          } else { wd[3] = wk(3, '1+1', 0.68, 0.73) }
         }
         // ======= HEAVY C&J (Day 4) =======
         else if (isHeavyCJ || (isCJ && dk === 'dayD')) {
           wd[0] = wk(ri(4,5), isComplex ? '2+1' : '2', 0.75, 0.82)
-          wd[1] = wk(ri(4,5), isComplex ? '2+1' : '2', 0.80, 0.85)
+          wd[1] = wk(ri(5,5), isComplex ? '2+1' : '2', 0.80, 0.85)
           wd[2] = wk(ri(3,4), isComplex ? '2+1' : '2', 0.72, 0.78)
-          wd[3] = heavyCJDay === 'dayD'
-            ? wk(ri(3,5), isComplex ? '1+1' : '1', 0.85, 0.95)
-            : wk(3, isComplex ? '1+1' : '2', 0.70, 0.75)
+          if (heavyCJDay === 'dayD') {
+            const r = buildRamp('oly'); wd[3] = { ...r }
+          } else { wd[3] = wk(3, isComplex ? '1+1' : '2', 0.70, 0.75) }
         }
         // ======= JERK FROM RACK / FS+JERK (Day 3) =======
         else if (isJerkFromRack || (isCJ && dk === 'dayC')) {
           wd[0] = wk(ri(4,5), isComplex ? ex.reps : '2', 0.72, 0.78)
-          wd[1] = wk(ri(4,5), isComplex ? ex.reps : '2', 0.78, 0.85)
+          wd[1] = wk(ri(5,5), isComplex ? ex.reps : '2', 0.78, 0.85)
           wd[2] = wk(ri(3,4), isComplex ? ex.reps : '2', 0.70, 0.75)
           wd[3] = wk(3, isComplex ? '1+1' : '2', 0.68, 0.73)
         }
-        // ======= PUSH PRESS COMPLEX (Day 2) =======
+        // ======= PUSH PRESS COMPLEX (Day 2) — Track A HS in Wk2 =======
         else if (isPushPressComplex) {
-          // 5s 65-75%, 3s 75-85%
           wd[0] = wk(ri(4,5), '1+5', 0.65, 0.72)
-          wd[1] = wk(ri(3,4), '1+1', 0.88, 0.95) // Track A heavy single
+          { const r = buildRamp('pp'); wd[1] = { ...r } } // Track A heavy single ramp
           wd[2] = wk(ri(3,4), '1+3', 0.72, 0.78)
           wd[3] = wk(3, '1+3', 0.65, 0.70)
         }
-        // ======= BACK SQUAT (Day 1) — 5s 70-80%, 3s 80-90%, 6s 65-75%, no 8s =======
+        // ======= BACK SQUAT (Day 1) — Track A HS in Wk2 =======
         else if (isBackSquat) {
           const w1rep = pick(['5','5','4'])
           const w3rep = pick(['5','6','4'])
           wd[0] = wk(ri(4,5), w1rep, w1rep >= 5 ? 0.70 : 0.75, w1rep >= 5 ? 0.78 : 0.82)
-          wd[1] = wk(ri(3,4), '1', 0.90, 0.97) // Track A heavy single
+          { const r = buildRamp('squat'); wd[1] = { ...r } } // Track A heavy single ramp
           wd[2] = wk(ri(3,4), w3rep, w3rep >= 5 ? 0.68 : 0.73, w3rep >= 5 ? 0.75 : 0.80)
           wd[3] = wk(ri(3,4), pick(['3','4']), 0.75, 0.82)
         }
-        // ======= FRONT SQUAT (Day 3) — 2-4 reps mostly, occasional 5s, heavy single Wk2 =======
+        // ======= FRONT SQUAT (Day 3) — Track A HS in Wk2 =======
         else if (isFrontSquat) {
           const w1rep = pick(['3','4','5'])
           const w3rep = pick(['3','4'])
           wd[0] = wk(ri(4,5), w1rep, w1rep >= 5 ? 0.65 : 0.75, w1rep >= 5 ? 0.72 : 0.82)
-          wd[1] = wk(ri(3,4), '1', 0.90, 0.97) // Track A heavy single
+          { const r = buildRamp('squat'); wd[1] = { ...r } } // Track A heavy single ramp
           wd[2] = wk(ri(3,4), w3rep, w3rep >= 4 ? 0.72 : 0.78, w3rep >= 4 ? 0.78 : 0.85)
           wd[3] = wk(ri(3,4), pick(['2','3']), 0.78, 0.85)
         }
-        // ======= PULLS — 3s 90-105%, 2s 100-120%, 1s 120%+ =======
+        // ======= PULLS — Track A HS in Wk2 =======
         else if (isPull) {
           wd[0] = wk(ri(3,4), '3', 0.90, 1.00)
-          wd[1] = wk(ri(3,4), '1', 1.20, 1.30) // Track A heavy single
+          { const r = buildRamp('pull'); wd[1] = { ...r } } // Track A heavy single ramp
           wd[2] = wk(ri(3,4), '3', 0.88, 0.98)
           wd[3] = wk(3, '2', 0.95, 1.05)
         }
@@ -2368,7 +2413,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
           wd[2] = wk(ri(3,4), pick(['5','8']), 0.62, 0.70)
           wd[3] = wk(3, pick(['5','6']), 0.65, 0.72)
         }
-        // ======= FALLBACK: any other exercise with pct =======
+        // ======= FALLBACK =======
         else if (cat) {
           wd[0] = wk(ri(3,4), ex.reps, ex.pct[0], ex.pct[1])
           wd[1] = wk(ri(3,5), ex.reps, ex.pct[1], ex.pct[2])
@@ -2383,11 +2428,15 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
             if (!d) return
             setEdit(dk, idx, 'sets_w' + w, String(d.sets))
             setEdit(dk, idx, 'reps_w' + w, String(d.reps))
-            // Write pct range for ALL weeks including wk4
             const lo = Math.round(d.lo * 100) / 100
             const hi = Math.round(d.hi * 100) / 100
             setEdit(dk, idx, 'pct_w' + w, String(lo))
             if (w > 1) setEdit(dk, idx, 'pct_w' + w + '_hi', String(hi))
+            // Write ramp-up note into cell note if present
+            if (d.note && setCellNote) {
+              const noteKey = `${tier}-${block}-${dk}-${idx}-${w}`
+              setCellNote(noteKey, d.note)
+            }
           })
         }
       })
