@@ -1551,20 +1551,16 @@ export default function App() {
     const edit = edits[k] || {}
     const merged = { ...ex, note: ex.note || '', ...edit }
     if (Array.isArray(ex.prKey) && typeof edit.prKey === 'string') merged.prKey = ex.prKey
-    // Parse per-week overrides — wk1 single, wk2/3 can be range {lo,hi}
+    // Parse per-week overrides — all weeks can be range {lo,hi}
     const pctOv = {}
     ;[1,2,3,4].forEach(w => {
       const lo = parseFloat(edit['pct_w' + w])
       if (isNaN(lo)) return
-      if (w > 1) {
-        const hi = parseFloat(edit['pct_w' + w + '_hi'])
-        pctOv[w] = isNaN(hi) ? lo : { lo, hi }
-      } else {
-        pctOv[w] = lo
-      }
+      const hi = parseFloat(edit['pct_w' + w + '_hi'])
+      pctOv[w] = isNaN(hi) ? lo : { lo, hi }
     })
     merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
-    delete merged.pct_w1; delete merged.pct_w2; delete merged.pct_w2_hi; delete merged.pct_w3; delete merged.pct_w3_hi; delete merged.pct_w4; delete merged.pct_w4_hi
+    delete merged.pct_w1; delete merged.pct_w1_hi; delete merged.pct_w2; delete merged.pct_w2_hi; delete merged.pct_w3; delete merged.pct_w3_hi; delete merged.pct_w4; delete merged.pct_w4_hi
     // Parse per-week sets/reps overrides
     const srOv = {}
     ;[1,2,3,4].forEach(w => {
@@ -2780,7 +2776,7 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
     if (isOverridden && overrideVal != null) {
       if (typeof overrideVal === 'object') setVal(overrideVal.lo + '-' + overrideVal.hi)
       else setVal(String(overrideVal))
-    } else if (wk > 1 && rangeLo != null) {
+    } else if (rangeLo != null) {
       setVal(rangeLo === rangeHi ? String(rangeLo) : rangeLo + '-' + rangeHi)
     } else {
       setVal(defaultPct ? String(defaultPct) : '')
@@ -2792,8 +2788,8 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
     setEditing(false)
     const v = val.trim()
     if (v === '' || v === 'x' || v === 'X') { onChange(null); return }
-    // Support "65-75" range input for wk 2-3
-    if (wk > 1 && v.includes('-')) {
+    // Support "65-75" range input for any week
+    if (v.includes('-')) {
       const parts = v.split('-').map(p => parseInt(p.trim()))
       if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[0] > 0 && parts[1] > 0) {
         onChange({ lo: parts[0] / 100, hi: parts[1] / 100 })
@@ -2802,21 +2798,19 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
     }
     const num = parseInt(v)
     if (!isNaN(num) && num > 0 && num <= 150) {
-      if (wk > 1) onChange({ lo: num / 100, hi: num / 100 })
-      else onChange(num)
+      onChange({ lo: num / 100, hi: num / 100 })
     }
   }
 
-  const inputWidth = wk > 1 ? 44 : 32
   if (editing) return (
     <div className="no-print" style={{ position: 'absolute', bottom: 1, right: 2, zIndex: 5, display: 'flex', alignItems: 'baseline' }}>
       <input autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={finish} onKeyDown={e => { if (e.key==='Enter') finish(); if (e.key==='Escape') setEditing(false) }}
-        placeholder={wk > 1 ? '65-75' : (defaultPct || rangeLo || '')}
-        style={{ width: inputWidth, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }} />
+        placeholder={'65-75'}
+        style={{ width: 44, fontSize: 8, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, textAlign: 'right', color: '#0055bb', fontWeight: 700 }} />
       <span style={{ fontSize: 7, color: '#0055bb' }}>%</span>
     </div>
   )
-  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title={wk > 1 ? 'Click to override % (e.g. 65-75)' : 'Click to override %'}>{displayText()}</div>
+  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title={'Click to override % (e.g. 65-75)'}>{displayText()}</div>
 }
 
 function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
@@ -2967,7 +2961,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
     const hint = getHint(wk)
 
-    const hasPct = ex.pct && (wk <= 3 || ex.pctOverrides?.[4] != null)
+    const hasPct = !!ex.pct
     const ov = ex.pctOverrides?.[wk]
     const isOverridden = ov != null
     const overrideVal = ov == null ? null : (typeof ov === 'object' ? { lo: Math.round(ov.lo*100), hi: Math.round(ov.hi*100) } : Math.round(ov*100))
@@ -2994,13 +2988,13 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             wk={wk}
             isOverridden={isOverridden}
             defaultPct={wk === 1 ? Math.round(ex.pct[0]*100) : null}
-            rangeLo={wk > 1 ? Math.round(ex.pct[1]*100) : null}
-            rangeHi={wk > 1 ? Math.round(ex.pct[2]*100) : null}
+            rangeLo={Math.round(ex.pct[1]*100)}
+            rangeHi={Math.round(ex.pct[2]*100)}
             overrideVal={overrideVal}
             onChange={v => {
               if (v === null) {
                 setEdit(dk, i, 'pct_w' + wk, '')
-                if (wk > 1) setEdit(dk, i, 'pct_w' + wk + '_hi', '')
+                setEdit(dk, i, 'pct_w' + wk + '_hi', '')
               } else if (typeof v === 'object') {
                 setEdit(dk, i, 'pct_w' + wk, String(v.lo))
                 setEdit(dk, i, 'pct_w' + wk + '_hi', String(v.hi))
