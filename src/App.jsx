@@ -1290,6 +1290,76 @@ const TEMPLATES = {
       }
     }
   },
+  matts_program: {
+    label: "Matt's Program (3-Day Oly, 4-Week Block)", days: ['dayA','dayB','dayC'], blocks: {
+      1: {
+        pctLabel:'Matt\u2019s Program', w1note:'Click Generate to build 4 weeks',
+        dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
+          WU_A,
+          mkEx('A1','Snatch',4,'2',OLY_B1,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+1',OLY_B1,['clean','jerk']),
+          mkEx('C1','Back Squat',4,'5',STR_B1,'back_squat'),
+        ]},
+        dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
+          WU_B_pp,
+          mkEx('A1','Power Snatch',4,'2',PWR_B1,'snatch'),
+          mkEx('B1','Push Press',4,'3',OLY_B1,'push_press'),
+          mkEx('C1','Snatch Pull',4,'3',PULL_B1,'snatch'),
+          mkEx('D1','Bench Press',3,'8'),
+        ]},
+        dayC: { header: 'Day 3 \u2014 Sat (Heavy)', exercises: [
+          WU_B_pp,
+          mkEx('A1','Clean + Jerk',4,'2',CJ_HEAVY_B1,['clean','jerk']),
+          mkEx('B1','Clean Pull',4,'3',PULL_B1,'clean'),
+          mkEx('C1','Front Squat',4,'3',FS_B1,'front_squat'),
+        ]}
+      },
+      2: {
+        pctLabel:'Matt\u2019s Program', w1note:'Click Generate to build 4 weeks',
+        dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
+          WU_A,
+          mkEx('A1','Snatch',4,'2',OLY_B2,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2+1',OLY_B2,['clean','jerk']),
+          mkEx('C1','Back Squat',4,'3',STR_B2,'back_squat'),
+        ]},
+        dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
+          WU_B_pp,
+          mkEx('A1','Power Snatch',4,'2',PWR_B2,'snatch'),
+          mkEx('B1','Push Press',4,'3',OLY_B2,'push_press'),
+          mkEx('C1','Snatch Pull',4,'2',PULL_B2,'snatch'),
+          mkEx('D1','Incline Bench Press',3,'8'),
+        ]},
+        dayC: { header: 'Day 3 \u2014 Sat (Heavy)', exercises: [
+          WU_B_pp,
+          mkEx('A1','Clean + Jerk',4,'2',CJ_HEAVY_B2,['clean','jerk']),
+          mkEx('B1','Clean Pull',4,'2',PULL_B2,'clean'),
+          mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
+        ]}
+      },
+      3: {
+        pctLabel:'Matt\u2019s Program', w1note:'Click Generate to build 4 weeks',
+        dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
+          WU_A,
+          mkEx('A1','Snatch',4,'2',OLY_B3,'snatch'),
+          mkEx('B1','Clean + Jerk',4,'2',OLY_B3,['clean','jerk']),
+          mkEx('C1','Back Squat',4,'3',STR_B3,'back_squat'),
+        ]},
+        dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
+          WU_B_pp,
+          mkEx('A1','Power Snatch',4,'2',PWR_B3,'snatch'),
+          mkEx('B1','Push Press',4,'2',OLY_B3,'push_press'),
+          mkEx('C1','Snatch Pull',4,'2',PULL_B3,'snatch'),
+          mkEx('D1','DB Bench Press',3,'8'),
+        ]},
+        dayC: { header: 'Day 3 \u2014 Sat (Heavy)', exercises: [
+          WU_B_pp,
+          mkEx('A1','Clean + Jerk',4,'2',CJ_HEAVY_B3,['clean','jerk']),
+          mkEx('B1','Clean Pull',4,'2',PULL_B3,'clean'),
+          mkEx('C1','Front Squat',4,'2',FS_B3,'front_squat'),
+        ]}
+      }
+    }
+  },
 }
 
 
@@ -2439,6 +2509,172 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
     })
   }
 
+  // =====================================================================
+  // MATT'S PROGRAM — 3-Day Olympic, 4-week block with controlled randomness
+  // =====================================================================
+  // Day 1 (Tue, dayA): Classic snatch, C&J (volume-biased), Back Squat
+  // Day 2 (Fri, dayB): Power snatch, Push Press, Snatch Pull, Bench (accessory)
+  // Day 3 (Sat, dayC): Clean+Jerk (heavier), Clean Pull, Front Squat
+  //
+  // Volume wave: Wk1 100%, Wk2 110-115% (HS on supp lifts), Wk3 85-90%,
+  //              Wk4 60-70% (HS on competition lifts).
+  // Intensity zones vary by lift family (see below).
+  // =====================================================================
+  const doMattsProgramReroll = () => {
+    if (!bD || !setEdit) return
+
+    // Week 2 heavy-single placements — supplementary lifts only.
+    // Back squat + front squat + push press + at least one pull. Randomly
+    // include the second pull or not.
+    const wk2IncludeSecondPull = Math.random() < 0.65
+    // Week 4 heavy-single placements — competition lifts only.
+    // Classic snatch and at least one C&J day (pick Sat as default, sometimes Tue too).
+    const wk4IncludeTuesCJ = Math.random() < 0.5
+
+    days.forEach(dk => {
+      const exs = bD[dk]?.exercises || []
+      exs.forEach((ex, idx) => {
+        if (ex.series === 'WU') return
+        const n = ex.exercise.toLowerCase()
+        const cat = detectPctCategory(ex.exercise)
+
+        // ---- Classification ----
+        const isSnatch = cat === 'OLY' && n.includes('snatch') && !n.includes('pull')
+        const isClassicSnatch = isSnatch && dk === 'dayA'
+        const isPowerSnatch = cat === 'PWR' && n.includes('snatch')
+        const isSnatchPull = n.includes('snatch') && n.includes('pull')
+        const isCleanPull = n.includes('clean') && n.includes('pull') && !n.includes('snatch')
+        const isPull = isSnatchPull || isCleanPull
+        const isCJ = (n.includes('clean') && n.includes('jerk')) || (n.includes('jerk') && !n.includes('snatch') && !n.includes('pull'))
+        const isVolumeCJ = isCJ && dk === 'dayA'
+        const isHeavyCJ = isCJ && dk === 'dayC'
+        const isPushPress = n === 'push press' || (n.includes('push press') && !n.includes('clean'))
+        const isStrictPress = n === 'press' || n === 'strict press' || n === 'behind-the-neck press'
+        const isDBPress = n.includes('db') && (n.includes('press') || n.includes('bench'))
+        const isBackSquat = n.includes('back squat')
+        const isFrontSquat = n === 'front squat' || n === 'front squat he'
+        const isHorizontalPress = (n.includes('bench press') || n.includes('incline') || isDBPress) && !n.includes('row')
+
+        let wd = [null, null, null, null]
+
+        // ---- Horizontal press (Friday accessory) — sets x reps only, no %
+        if (isHorizontalPress) {
+          // Strip pct so it renders as sets x reps only
+          wd[0] = { sets: ri(3,4), reps: pick(['5','8','6']), lo: null, hi: null, noPct: true }
+          wd[1] = { sets: ri(3,4), reps: pick(['5','6','8']), lo: null, hi: null, noPct: true }
+          wd[2] = { sets: 3, reps: pick(['5','8','6']), lo: null, hi: null, noPct: true }
+          wd[3] = { sets: 3, reps: pick(['5','6']), lo: null, hi: null, noPct: true }
+        }
+        // ---- Classic snatch (Tue, dayA) — mostly doubles, occasional triples, HS in Wk4
+        else if (isClassicSnatch) {
+          const wk1Rep = pick(['2','2','2','3'])
+          const wk3Rep = pick(['2','3','3'])
+          wd[0] = wk(ri(4,5), wk1Rep, wk1Rep === '3' ? 0.68 : 0.75, wk1Rep === '3' ? 0.73 : 0.82)
+          wd[1] = wk(ri(4,5), '2', 0.78, 0.85)
+          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '3' ? 0.65 : 0.72, wk3Rep === '3' ? 0.72 : 0.78)
+          const r = buildRamp('oly'); wd[3] = { ...r }
+        }
+        // ---- Power snatch (Fri, dayB) — doubles/triples, keep crisp, no HS
+        else if (isPowerSnatch) {
+          wd[0] = wk(ri(4,5), pick(['2','3']), 0.62, 0.72)
+          wd[1] = wk(ri(4,5), pick(['2','2','3']), 0.68, 0.75)
+          wd[2] = wk(ri(3,4), pick(['2','3']), 0.60, 0.68)
+          wd[3] = wk(3, '2', 0.60, 0.68)
+        }
+        // ---- Volume C&J (Tue, dayA) — doubles, occasional complex, HS in Wk4 sometimes
+        else if (isVolumeCJ) {
+          const useComplex = Math.random() < 0.35
+          const complex = pick(['2+3','3+2','3+3','2+1'])
+          wd[0] = useComplex ? wk(ri(3,4), complex, 0.65, 0.72) : wk(ri(4,5), '2+1', 0.70, 0.78)
+          wd[1] = wk(ri(4,5), '2+1', 0.78, 0.85)
+          wd[2] = wk(ri(3,4), '2+1', 0.68, 0.75)
+          if (wk4IncludeTuesCJ) { const r = buildRamp('oly'); wd[3] = { ...r } }
+          else { wd[3] = wk(3, '1+1', 0.68, 0.73) }
+        }
+        // ---- Heavy C&J (Sat, dayC) — mostly doubles, occasional singles heavier, HS in Wk4
+        else if (isHeavyCJ) {
+          const wk1Rep = pick(['2','2','2+1'])
+          wd[0] = wk(ri(4,5), wk1Rep, 0.75, 0.82)
+          wd[1] = wk(ri(4,5), pick(['2','1+1']), 0.80, 0.87)
+          wd[2] = wk(ri(3,4), '2', 0.72, 0.78)
+          const r = buildRamp('oly'); wd[3] = { ...r }
+        }
+        // ---- Push Press (Fri, dayB) — 3-5 reps, HS in Wk2
+        else if (isPushPress || isStrictPress) {
+          const wk1Rep = pick(['3','4','5'])
+          const wk3Rep = pick(['3','5'])
+          wd[0] = wk(ri(3,4), wk1Rep, wk1Rep === '5' ? 0.65 : 0.72, wk1Rep === '5' ? 0.72 : 0.80)
+          { const r = buildRamp('pp'); wd[1] = { ...r } }
+          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '5' ? 0.62 : 0.70, wk3Rep === '5' ? 0.70 : 0.78)
+          wd[3] = wk(3, pick(['3','4']), 0.68, 0.75)
+        }
+        // ---- Back Squat (Tue, dayA) — 3-5 reps, occasional 6s, HS in Wk2
+        else if (isBackSquat) {
+          const wk1Rep = pick(['5','5','4','6'])
+          const wk3Rep = pick(['5','6','4'])
+          wd[0] = wk(ri(4,5), wk1Rep, wk1Rep === '6' ? 0.65 : (wk1Rep === '5' ? 0.70 : 0.75), wk1Rep === '6' ? 0.72 : (wk1Rep === '5' ? 0.78 : 0.82))
+          { const r = buildRamp('squat'); wd[1] = { ...r } }
+          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '6' ? 0.65 : (wk3Rep === '5' ? 0.68 : 0.72), wk3Rep === '6' ? 0.72 : (wk3Rep === '5' ? 0.75 : 0.80))
+          wd[3] = wk(ri(3,4), pick(['3','4']), 0.72, 0.80)
+        }
+        // ---- Front Squat (Sat, dayC) — 2-4 reps, occasional 5s, HS in Wk2
+        else if (isFrontSquat) {
+          const wk1Rep = pick(['3','4','3','5'])
+          const wk3Rep = pick(['2','3','4'])
+          wd[0] = wk(ri(4,5), wk1Rep, wk1Rep === '5' ? 0.65 : 0.72, wk1Rep === '5' ? 0.72 : 0.80)
+          { const r = buildRamp('squat'); wd[1] = { ...r } }
+          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '2' ? 0.78 : 0.72, wk3Rep === '2' ? 0.85 : 0.80)
+          wd[3] = wk(ri(3,4), pick(['2','3']), 0.75, 0.82)
+        }
+        // ---- Pulls (Fri snatch pull, Sat clean pull) — 2-3 reps, HS in Wk2
+        else if (isPull) {
+          const wk1Rep = pick(['3','2','3'])
+          const wk3Rep = pick(['3','2'])
+          wd[0] = wk(ri(3,4), wk1Rep, wk1Rep === '3' ? 0.90 : 0.95, wk1Rep === '3' ? 1.00 : 1.08)
+          // Decide HS — snatch pull always gets HS in Wk2, clean pull only sometimes
+          if (isSnatchPull || wk2IncludeSecondPull) {
+            const r = buildRamp('pull'); wd[1] = { ...r }
+          } else {
+            wd[1] = wk(ri(3,4), '2', 1.00, 1.10)
+          }
+          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '3' ? 0.88 : 0.95, wk3Rep === '3' ? 0.95 : 1.05)
+          wd[3] = wk(3, pick(['2','3']), 0.92, 1.02)
+        }
+        // ---- Fallback for anything else with a pct (keep existing pct wave)
+        else if (cat && ex.pct) {
+          wd[0] = wk(ri(3,4), ex.reps, ex.pct[0], ex.pct[1])
+          wd[1] = wk(ri(3,5), ex.reps, ex.pct[1], ex.pct[2])
+          wd[2] = wk(ri(3,4), ex.reps, ex.pct[0], ex.pct[1])
+          wd[3] = wk(3, ex.reps, ex.pct[0], ex.pct[1])
+        }
+
+        // ---- Write overrides for all 4 weeks ----
+        if (wd[0]) {
+          ;[1,2,3,4].forEach(w => {
+            const d = wd[w - 1]
+            if (!d) return
+            setEdit(dk, idx, 'sets_w' + w, String(d.sets))
+            setEdit(dk, idx, 'reps_w' + w, String(d.reps))
+            if (!d.noPct && d.lo != null) {
+              const lo = Math.round(d.lo * 100) / 100
+              const hi = Math.round((d.hi != null ? d.hi : d.lo) * 100) / 100
+              setEdit(dk, idx, 'pct_w' + w, String(lo))
+              if (w > 1) setEdit(dk, idx, 'pct_w' + w + '_hi', String(hi))
+            } else if (d.noPct) {
+              // Clear any existing pct overrides for accessory lifts
+              setEdit(dk, idx, 'pct_w' + w, '')
+              if (w > 1) setEdit(dk, idx, 'pct_w' + w + '_hi', '')
+            }
+            if (d.note && setCellNote) {
+              const noteKey = `${tier}-${block}-${dk}-${idx}-${w}`
+              setCellNote(noteKey, d.note)
+            }
+          })
+        }
+      })
+    })
+  }
+
   // --- REROLL: Generate volume wave across 4 weeks ---
   const ZONE_TARGETS = {
     1: { '55-69': [25,30], '70-79': [45,50], '80-89': [20,25], '90+': [3,5] },
@@ -2622,7 +2858,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
 
       {setEdit && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-          <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>
+          <button onClick={tier === 'matts_program' ? doMattsProgramReroll : (tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll)} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{(tier === 'oly_4day_undulating' || tier === 'matts_program') ? 'Generate' : 'Reroll'}</button>
           <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
         </div>
       )}
@@ -2810,7 +3046,14 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
       <span style={{ fontSize: 7, color: '#0055bb' }}>%</span>
     </div>
   )
-  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: isOverridden ? '#0055bb' : '#ccc', cursor: 'pointer', fontWeight: isOverridden ? 700 : 400, zIndex: 5 }} title={'Click to override % (e.g. 65-75)'}>{displayText()}</div>
+  // Only render visible text when the coach has overridden the percentage.
+  // The default percentage range stays hidden from the athlete's view but the
+  // cell is still clickable (a tiny invisible hit target) so the coach can add
+  // an override from this cell.
+  if (isOverridden) {
+    return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 7, color: '#0055bb', cursor: 'pointer', fontWeight: 700, zIndex: 5 }} title={'Click to override % (e.g. 65-75)'}>{displayText()}</div>
+  }
+  return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, width: 14, height: 10, cursor: 'pointer', zIndex: 5, opacity: 0 }} title={'Click to override % (e.g. 65-75)'} />
 }
 
 function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
@@ -2926,31 +3169,28 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     return { sets: ov?.sets || ex.sets, reps: ov?.reps || ex.reps, isOverridden: !!(ov?.sets || ov?.reps) }
   }
 
+  // Returns the weight to display for a given week. When no PR is available,
+  // returns '' so the percentage range is NOT shown to the athlete. The
+  // coach can still edit the percentage range via the PctEdit override UI.
   const getHint = (wk) => {
     if (!ex.pct) return ''
+    if (!pr) return ''
     const ov = ex.pctOverrides?.[wk]
     if (ov != null) {
       if (typeof ov === 'object') {
-        if (pr) {
-          if (useKg) { const lo = rKg(pr * ov.lo), hi = rKg(pr * ov.hi); return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg' }
-          const lo = r5(pr * ov.lo), hi = r5(pr * ov.hi); return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
-        }
-        const lo = Math.round(ov.lo*100), hi = Math.round(ov.hi*100); return lo === hi ? lo + '%' : lo + '\u2013' + hi + '%'
+        if (useKg) { const lo = rKg(pr * ov.lo), hi = rKg(pr * ov.hi); return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg' }
+        const lo = r5(pr * ov.lo), hi = r5(pr * ov.hi); return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
       }
-      return pr ? fmt(pr * ov) : Math.round(ov * 100) + '%'
+      return fmt(pr * ov)
     }
-    if (wk === 1) return pr ? fmt(pr * ex.pct[0]) : Math.round(ex.pct[0] * 100) + '%'
+    if (wk === 1) return fmt(pr * ex.pct[0])
     if (wk >= 2 && wk <= 4) {
-      if (pr) {
-        if (useKg) {
-          const lo = rKg(pr * ex.pct[1]), hi = rKg(pr * ex.pct[2])
-          return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg'
-        }
-        const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
-        return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
+      if (useKg) {
+        const lo = rKg(pr * ex.pct[1]), hi = rKg(pr * ex.pct[2])
+        return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg'
       }
-      const lo = Math.round(ex.pct[1]*100), hi = Math.round(ex.pct[2]*100)
-      return lo === hi ? lo + '%' : lo + '\u2013' + hi + '%'
+      const lo = r5(pr * ex.pct[1]), hi = r5(pr * ex.pct[2])
+      return lo === hi ? lo + ' lbs' : lo + '\u2013' + hi
     }
     return ''
   }
@@ -2980,9 +3220,17 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             }
           }}
         />
+        {/* Weight displays as visible text (always shown, even when a note is present) */}
+        {hint && (
+          <div style={{ position: 'absolute', top: 16, left: 3, right: 3, fontSize: 10, color: '#111', fontWeight: 700, fontFamily: 'Arial, sans-serif', textAlign: 'center', pointerEvents: 'none' }}>
+            {hint}
+          </div>
+        )}
+        {/* Coach-editable cell note (shown beneath the weight) */}
         <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
-          placeholder={hint}
-          style={{ position: 'absolute', top: 16, left: 3, fontSize: 8, color: noteVal ? '#111' : '#0055bb', fontWeight: noteVal ? 700 : 600, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)' }} />
+          placeholder={hint ? '' : 'note'}
+          className={noteVal ? '' : 'no-print'}
+          style={{ position: 'absolute', top: 30, left: 3, fontSize: 8, color: '#0055bb', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)', textAlign: 'center' }} />
         {hasPct && (
           <PctEdit
             wk={wk}
