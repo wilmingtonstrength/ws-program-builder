@@ -38,6 +38,16 @@ A web app for strength coaches (primarily Olympic weightlifting) to build traini
 - **Percentage categories** (`detectPctCategory`): STR, OLY, PULL, PWR — drive which % range is used
 - **Exercise library** (`LIBRARY` constant): canonical list of exercises grouped by movement family
 
+## Custom Templates (Create Template tab)
+
+- Users can build their own templates in the Create Template tab; saved to Supabase `custom_templates` (row = `{ id, template_json }`)
+- Days: A-E (1 to 5 days per week)
+- Blocks: 1-3 (user picks how many blocks to author via "Blocks to use" selector)
+- Per-exercise per-week authoring: each exercise row has a `W1-4` toggle. When on, the user can author `{sets, reps, pctLo, pctHi}` per week independently. Stored on the exercise as `ex.perWeek = { 1: {...}, 2: {...}, ... }`
+- % Cat "None (sets x reps)": renders the exercise as sets × reps only, no percentage
+- `ex.perWeek` values are merged into runtime `pctOverrides` / `setsRepsOverrides` in `getExs` — coach runtime edits (`program_edits`) override template perWeek values
+- Delete: each custom template row in the list has a red Delete button (confirms via `window.confirm`)
+
 ## Display Rules (apply to ALL templates)
 
 Per exercise box, per week:

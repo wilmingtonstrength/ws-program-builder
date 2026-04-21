@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const sb = createClient(
@@ -1626,16 +1626,30 @@ export default function App() {
       const hi = parseFloat(edit['pct_w' + w + '_hi'])
       pctOv[w] = isNaN(hi) ? lo : { lo, hi }
     })
-    merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
-    delete merged.pct_w1; delete merged.pct_w1_hi; delete merged.pct_w2; delete merged.pct_w2_hi; delete merged.pct_w3; delete merged.pct_w3_hi; delete merged.pct_w4; delete merged.pct_w4_hi
-    // Parse per-week sets/reps overrides
+    // Parse per-week sets/reps overrides (coach runtime overrides)
     const srOv = {}
     ;[1,2,3,4].forEach(w => {
       const s = edit['sets_w' + w]
       const r = edit['reps_w' + w]
       if (s || r) srOv[w] = { sets: s || null, reps: r || null }
     })
+    // Merge template-authored perWeek as fallback (coach edits win)
+    if (ex.perWeek) {
+      Object.entries(ex.perWeek).forEach(([wk, data]) => {
+        const w = parseInt(wk); if (!w) return
+        if (data.pctLo != null && pctOv[w] == null) {
+          const lo = data.pctLo / 100
+          const hi = data.pctHi != null ? data.pctHi / 100 : lo
+          pctOv[w] = lo === hi ? lo : { lo, hi }
+        }
+        if ((data.sets || data.reps) && !srOv[w]) {
+          srOv[w] = { sets: data.sets || null, reps: data.reps || null }
+        }
+      })
+    }
+    merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
     merged.setsRepsOverrides = Object.keys(srOv).length > 0 ? srOv : null
+    delete merged.pct_w1; delete merged.pct_w1_hi; delete merged.pct_w2; delete merged.pct_w2_hi; delete merged.pct_w3; delete merged.pct_w3_hi; delete merged.pct_w4; delete merged.pct_w4_hi
     delete merged.sets_w1; delete merged.sets_w2; delete merged.sets_w3; delete merged.sets_w4
     delete merged.reps_w1; delete merged.reps_w2; delete merged.reps_w3; delete merged.reps_w4
     // Bug fix: synthesize pct for exercises that don't have it in the template
@@ -1920,7 +1934,8 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   const [templateId, setTemplateId] = useState('')
   const [label, setLabel] = useState('')
   const [days, setDays] = useState(['dayA','dayB'])
-  const [dayHeaders, setDayHeaders] = useState({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' })
+  const [dayHeaders, setDayHeaders] = useState({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day', dayE:'E Day' })
+  const [numBlocks, setNumBlocks] = useState(3)
   const [blocks, setBlocks] = useState(() => {
     const b = {}
     ;[1,2,3].forEach(n => { b[n] = { pctLabel:'', w1note:'', ranges: JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[n])) } })
@@ -1930,19 +1945,21 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   const [msg, setMsg] = useState('')
   const [copyFrom, setCopyFrom] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [perWeekOpen, setPerWeekOpen] = useState({}) // key: `${day}-${idx}` -> bool
 
   const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
-  const DAY_OPTIONS = ['dayA','dayB','dayC','dayD']
-  const DAY_LABELS = { dayA:'A', dayB:'B', dayC:'C', dayD:'D' }
+  const DAY_OPTIONS = ['dayA','dayB','dayC','dayD','dayE']
+  const DAY_LABELS = { dayA:'A', dayB:'B', dayC:'C', dayD:'D', dayE:'E' }
   const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,30)
   const CATS = ['STR','OLY','PULL','PWR']
 
   const resetForm = () => {
     setTemplateId(''); setLabel(''); setDays(['dayA','dayB'])
-    setDayHeaders({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' })
+    setDayHeaders({ dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day', dayE:'E Day' })
+    setNumBlocks(3)
     const b = {}
     ;[1,2,3].forEach(n => { b[n] = { pctLabel:'', w1note:'', ranges: JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[n])) } })
-    setBlocks(b); setEditBlock(1); setCopyFrom(''); setEditingId(null)
+    setBlocks(b); setEditBlock(1); setCopyFrom(''); setEditingId(null); setPerWeekOpen({})
   }
 
   const reverseDetectCat = (pctArr, blockRanges) => {
@@ -1959,8 +1976,11 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     const t = allTemplates[key]; if (!t) return
     setCopyFrom(key); setLabel(t.label + (suffix || ' (copy)')); setTemplateId(slugify(t.label) + (suffix ? '' : '_copy'))
     setDays([...t.days])
-    const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day' }
+    const dh = { dayA:'A Day', dayB:'B Day', dayC:'C Day', dayD:'D Day', dayE:'E Day' }
     const bks = {}
+    // Determine how many blocks the template has
+    const nBlocks = [1,2,3].filter(b => t.blocks[b]).length || 1
+    setNumBlocks(nBlocks)
     ;[1,2,3].forEach(b => {
       const bd = t.blocks[b]
       const ranges = JSON.parse(JSON.stringify(DEFAULT_BLOCK_RANGES[b]))
@@ -1983,12 +2003,12 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
           bks[b][d] = dayData.exercises.map(ex => {
             let pctCat = 'none'
             if (ex.pct) { pctCat = reverseDetectCat(ex.pct, ranges) ? 'auto' : 'custom' }
-            return { series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps, pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null, prKey: ex.prKey, note: ex.note || '' }
+            return { series: ex.series, exercise: ex.exercise, sets: ex.sets, reps: ex.reps, pctCat, customPct: pctCat === 'custom' ? ex.pct.map(p => Math.round(p*100)) : null, prKey: ex.prKey, note: ex.note || '', perWeek: ex.perWeek ? JSON.parse(JSON.stringify(ex.perWeek)) : null }
           })
         })
       }
     })
-    setDayHeaders(dh); setBlocks(bks)
+    setDayHeaders(dh); setBlocks(bks); setPerWeekOpen({})
   }
 
   const editExisting = (key) => { setEditingId(key); loadFromTemplate(key, '') }
@@ -1997,7 +2017,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   const setExs = (d, exs) => setBlocks(prev => ({ ...prev, [editBlock]: { ...prev[editBlock], [d]: exs } }))
   const addEx = (d) => {
     const cur = getExs(d)
-    setExs(d, [...cur, { series: cur.length ? cur[cur.length-1].series : 'A1', exercise: '', sets: '3', reps: '8', pctCat: 'auto', customPct: null, prKey: null, note: '' }])
+    setExs(d, [...cur, { series: cur.length ? cur[cur.length-1].series : 'A1', exercise: '', sets: '3', reps: '8', pctCat: 'auto', customPct: null, prKey: null, note: '', perWeek: null }])
   }
   const updateEx = (d, idx, field, val) => {
     const cur = [...getExs(d)]; cur[idx] = { ...cur[idx], [field]: val }
@@ -2018,7 +2038,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
     setBlocks(prev => {
       const src = prev[fromB] || {}
       const copy = { pctLabel: src.pctLabel||'', w1note: src.w1note||'', ranges: JSON.parse(JSON.stringify(src.ranges || DEFAULT_BLOCK_RANGES[toB])) }
-      days.forEach(d => { if (src[d]) copy[d] = src[d].map(ex => ({...ex, customPct: ex.customPct ? [...ex.customPct] : null})) })
+      days.forEach(d => { if (src[d]) copy[d] = src[d].map(ex => ({...ex, customPct: ex.customPct ? [...ex.customPct] : null, perWeek: ex.perWeek ? JSON.parse(JSON.stringify(ex.perWeek)) : null})) })
       return { ...prev, [toB]: copy }
     })
     flash('Block ' + fromB + ' copied to Block ' + toB)
@@ -2041,12 +2061,32 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   }
   const buildTemplateObj = () => {
     const obj = { label, days: [...days], blocks: {} }
-    ;[1,2,3].forEach(b => {
+    // Only save blocks that are in use (1..numBlocks)
+    const activeBlocks = [1,2,3].filter(b => b <= numBlocks)
+    activeBlocks.forEach(b => {
       const bData = blocks[b] || {}; const bd = {}
       if (bData.pctLabel) bd.pctLabel = bData.pctLabel
       if (bData.w1note) bd.w1note = bData.w1note
       days.forEach(d => {
-        bd[d] = { header: dayHeaders[d] || (d.replace('day','') + ' Day'), exercises: (bData[d] || []).map(ex => mkEx(ex.series, ex.exercise, parseInt(ex.sets)||3, ex.reps, resolvePct(ex,b), ex.prKey, ex.note)) }
+        bd[d] = { header: dayHeaders[d] || (d.replace('day','') + ' Day'), exercises: (bData[d] || []).map(ex => {
+          const base = mkEx(ex.series, ex.exercise, parseInt(ex.sets)||3, ex.reps, resolvePct(ex,b), ex.prKey, ex.note)
+          // Attach perWeek when authored (non-empty object)
+          if (ex.perWeek && Object.keys(ex.perWeek).length > 0) {
+            // Strip empty weeks
+            const pw = {}
+            Object.entries(ex.perWeek).forEach(([wk, data]) => {
+              if (!data) return
+              const clean = {}
+              if (data.sets != null && data.sets !== '') clean.sets = String(data.sets)
+              if (data.reps != null && data.reps !== '') clean.reps = String(data.reps)
+              if (data.pctLo != null && data.pctLo !== '') clean.pctLo = parseInt(data.pctLo) || null
+              if (data.pctHi != null && data.pctHi !== '') clean.pctHi = parseInt(data.pctHi) || null
+              if (Object.keys(clean).length > 0) pw[wk] = clean
+            })
+            if (Object.keys(pw).length > 0) base.perWeek = pw
+          }
+          return base
+        }) }
       })
       obj.blocks[b] = bd
     })
@@ -2097,7 +2137,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                 <span style={{ flex: 1, fontWeight: 600 }}>{customTemplates[k].label}</span>
                 <button onClick={() => editExisting(k)} style={sty.smBtnLight}>Edit</button>
                 <button onClick={() => { setTier(k); setBlock(1); setTab('builder') }} style={sty.smBtnLight}>Use</button>
-                <button onClick={() => deleteTemplate(k)} style={{ ...sty.smBtnLight, color: '#c00', borderColor: '#c00' }}>Delete</button>
+                <button onClick={() => deleteTemplate(k)} title="Delete this template" style={{ background: '#c00', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 0.5, textTransform: 'uppercase' }}>{'\u2715 Delete'}</button>
               </div>
             ))}
           </div>
@@ -2143,15 +2183,22 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
         </div>
       </div>
       <div style={{ ...sty.section, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={sty.lbl}>Block</div>
-        {[1,2,3].map(b => (
-          <button key={b} onClick={() => setEditBlock(b)} style={{ padding: '5px 18px', border: '1px solid #bbb', background: editBlock===b?'#111':'#fff', color: editBlock===b?'#fff':'#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{b}</button>
+        <div style={sty.lbl}>Blocks to use</div>
+        {[1,2,3].map(n => (
+          <button key={'nb'+n} onClick={() => { setNumBlocks(n); if (editBlock > n) setEditBlock(1) }} style={{ padding: '4px 10px', border: '1px solid #bbb', background: numBlocks===n?'#555':'#fff', color: numBlocks===n?'#fff':'#555', fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>{n}</button>
         ))}
         <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>|</span>
-        <select onChange={e => { const v = e.target.value; if (v) { const [f,t] = v.split('>'); copyBlockTo(parseInt(f),parseInt(t)) } e.target.value='' }} style={{ ...sty.input, fontSize: 10 }}>
-          <option value="">Copy block...</option>
-          {[1,2,3].flatMap(f => [1,2,3].filter(t=>t!==f).map(t => <option key={f+''+t} value={f+'>'+t}>Block {f} → Block {t}</option>))}
-        </select>
+        <div style={sty.lbl}>Edit block</div>
+        {[1,2,3].filter(b => b <= numBlocks).map(b => (
+          <button key={b} onClick={() => setEditBlock(b)} style={{ padding: '5px 18px', border: '1px solid #bbb', background: editBlock===b?'#111':'#fff', color: editBlock===b?'#fff':'#555', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>{b}</button>
+        ))}
+        {numBlocks > 1 && <>
+          <span style={{ fontSize: 10, color: '#999', marginLeft: 4 }}>|</span>
+          <select onChange={e => { const v = e.target.value; if (v) { const [f,t] = v.split('>'); copyBlockTo(parseInt(f),parseInt(t)) } e.target.value='' }} style={{ ...sty.input, fontSize: 10 }}>
+            <option value="">Copy block...</option>
+            {[1,2,3].filter(b => b <= numBlocks).flatMap(f => [1,2,3].filter(t => t !== f && t <= numBlocks).map(t => <option key={f+''+t} value={f+'>'+t}>Block {f} → Block {t}</option>))}
+          </select>
+        </>}
         <div style={{ marginLeft: 12, display: 'flex', gap: 8 }}>
           <div><span style={{ fontSize: 8, color: '#888' }}>Label </span><input value={bData.pctLabel||''} onChange={e => setBlocks(prev => ({...prev,[editBlock]:{...(prev[editBlock]||{}),pctLabel:e.target.value}}))} style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65-75%" /></div>
           <div><span style={{ fontSize: 8, color: '#888' }}>Wk1 </span><input value={bData.w1note||''} onChange={e => setBlocks(prev => ({...prev,[editBlock]:{...(prev[editBlock]||{}),w1note:e.target.value}}))} style={{ ...sty.input, width: 80, fontSize: 10 }} placeholder="65% only" /></div>
@@ -2195,13 +2242,27 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                   const detected = detectPctCategory(ex.exercise)
                   const effectiveCat = ex.pctCat === 'auto' ? detected : (CATS.includes(ex.pctCat) ? ex.pctCat : null)
                   const showCustom = ex.pctCat === 'custom'
+                  const pwKey = d + '-' + idx
+                  const pwOpen = !!perWeekOpen[pwKey]
+                  const hasPW = !!(ex.perWeek && Object.keys(ex.perWeek).length > 0)
+                  const updatePW = (wk, field, val) => {
+                    const cur = { ...(ex.perWeek || {}) }
+                    const wkData = { ...(cur[wk] || {}) }
+                    if (val === '' || val == null) delete wkData[field]
+                    else wkData[field] = val
+                    if (Object.keys(wkData).length === 0) delete cur[wk]
+                    else cur[wk] = wkData
+                    updateEx(d, idx, 'perWeek', Object.keys(cur).length > 0 ? cur : null)
+                  }
+                  const clearPW = () => updateEx(d, idx, 'perWeek', null)
                   return (
-                    <tr key={idx}>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 36 }}><input value={ex.series} onChange={e => updateEx(d,idx,'series',e.target.value)} style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} /></td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 180 }}><ExerciseInput value={ex.exercise} onChange={v => updateEx(d,idx,'exercise',v)} library={library} /></td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 40 }}><input value={ex.sets} onChange={e => updateEx(d,idx,'sets',e.target.value)} style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} /></td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 50 }}><input value={ex.reps} onChange={e => updateEx(d,idx,'reps',e.target.value)} style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} /></td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 80 }}>
+                    <Fragment key={idx}>
+                    <tr>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 36 }}><input value={ex.series} onChange={e => updateEx(d,idx,'series',e.target.value)} style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 800, outline: 'none', fontFamily: 'inherit', background: 'transparent' }} /></td>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 180 }}><ExerciseInput value={ex.exercise} onChange={v => updateEx(d,idx,'exercise',v)} library={library} /></td>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 40 }}><input value={ex.sets} onChange={e => updateEx(d,idx,'sets',e.target.value)} style={{ width: 30, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} disabled={pwOpen} /></td>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 50 }}><input value={ex.reps} onChange={e => updateEx(d,idx,'reps',e.target.value)} style={{ width: 44, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 11, fontWeight: 700, outline: 'none', fontFamily: 'inherit', textAlign: 'center', background: 'transparent' }} disabled={pwOpen} /></td>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 80 }}>
                         <select value={ex.pctCat} onChange={e => {
                           const v = e.target.value; const updated = [...getExs(d)]; updated[idx] = { ...updated[idx], pctCat: v }
                           if (v !== 'custom') updated[idx].customPct = null
@@ -2209,12 +2270,12 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                           setExs(d, updated)
                         }} style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 3px', fontFamily: 'inherit', background: '#fff', width: 70, fontWeight: 600, color: effectiveCat ? PCT_CAT_COLORS[effectiveCat] : '#555' }}>
                           <option value="auto">{detected ? 'Auto (' + detected + ')' : 'Auto (—)'}</option>
-                          <option value="none">None</option>
+                          <option value="none">None (sets x reps)</option>
                           {CATS.map(c => <option key={c} value={c}>{c}</option>)}
                           <option value="custom">Custom</option>
                         </select>
                       </td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 110 }}>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 110 }}>
                         {showCustom ? (
                           <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                             {[0,1,2].map(pi => <input key={pi} value={ex.customPct?.[pi]??''} onChange={e => { const v=e.target.value; const cur=ex.customPct||[0,0,0]; const next=[...cur]; next[pi]=v===''?0:parseInt(v)||0; updateEx(d,idx,'customPct',next) }} placeholder={pi===0?'W1':pi===1?'Lo':'Hi'} style={{ width: 28, border: '1px solid #ccc', borderRadius: 2, fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '2px 1px', fontFamily: 'inherit', outline: 'none', color: '#555' }} />)}
@@ -2223,13 +2284,49 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
                           <span style={{ fontSize: 9, color: '#aaa' }}>{(ranges[effectiveCat]||[])[0]}% | {(ranges[effectiveCat]||[])[1]}–{(ranges[effectiveCat]||[])[2]}%</span>
                         ) : <span style={{ fontSize: 9, color: '#ddd' }}>—</span>}
                       </td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 4px', width: 60 }}><input value={ex.note} onChange={e => updateEx(d,idx,'note',e.target.value)} placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} /></td>
-                      <td style={{ borderBottom: '1px solid #ddd', padding: '3px 2px', width: 60, whiteSpace: 'nowrap' }}>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 4px', width: 60 }}><input value={ex.note} onChange={e => updateEx(d,idx,'note',e.target.value)} placeholder="note" style={{ width: 50, border: 'none', borderBottom: '1px dashed #bbb', fontSize: 9, outline: 'none', fontFamily: 'inherit', fontStyle: 'italic', color: '#888', background: 'transparent' }} /></td>
+                      <td style={{ borderBottom: pwOpen ? 'none' : '1px solid #ddd', padding: '3px 2px', width: 90, whiteSpace: 'nowrap', textAlign: 'right' }}>
+                        <button onClick={() => setPerWeekOpen(prev => ({...prev, [pwKey]: !prev[pwKey]}))}
+                          title="Author per-week sets/reps/%"
+                          style={{ border: '1px solid', borderColor: pwOpen || hasPW ? '#0055bb' : '#ccc', background: pwOpen ? '#0055bb' : (hasPW ? '#e8f0ff' : '#fff'), color: pwOpen ? '#fff' : (hasPW ? '#0055bb' : '#888'), fontSize: 8, fontWeight: 700, padding: '2px 5px', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit', marginRight: 2 }}>W1-4</button>
                         <button onClick={() => moveEx(d,idx,-1)} disabled={idx===0} style={{ border:'none',background:'none',cursor:'pointer',fontSize:10,color:idx===0?'#ddd':'#555',padding:'0 2px' }}>&#9650;</button>
                         <button onClick={() => moveEx(d,idx,1)} disabled={idx===exs.length-1} style={{ border:'none',background:'none',cursor:'pointer',fontSize:10,color:idx===exs.length-1?'#ddd':'#555',padding:'0 2px' }}>&#9660;</button>
                         <button onClick={() => removeEx(d,idx)} style={{ border:'none',background:'none',cursor:'pointer',fontSize:13,color:'#c00',fontWeight:700,padding:'0 3px',lineHeight:1 }}>&times;</button>
                       </td>
                     </tr>
+                    {pwOpen && (
+                      <tr>
+                        <td colSpan={8} style={{ borderBottom: '1px solid #ddd', background: '#f4f8ff', padding: '6px 10px' }}>
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: 9, fontWeight: 700, color: '#0055bb', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>Per-week</div>
+                            {[1,2,3,4].map(wk => {
+                              const pw = ex.perWeek?.[wk] || {}
+                              return (
+                                <div key={wk} style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center', border: '1px solid #cfd8e8', background: '#fff', padding: '4px 6px', borderRadius: 3 }}>
+                                  <div style={{ fontSize: 8, fontWeight: 700, color: '#0055bb' }}>Wk {wk}</div>
+                                  <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                    <input value={pw.sets||''} onChange={e => updatePW(wk,'sets',e.target.value)} placeholder="sets" style={{ width: 30, border: '1px solid #ccc', borderRadius: 2, fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px', fontFamily: 'inherit', outline: 'none' }} />
+                                    <span style={{ color: '#888', fontSize: 10 }}>×</span>
+                                    <input value={pw.reps||''} onChange={e => updatePW(wk,'reps',e.target.value)} placeholder="reps" style={{ width: 36, border: '1px solid #ccc', borderRadius: 2, fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px', fontFamily: 'inherit', outline: 'none' }} />
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                    <input value={pw.pctLo||''} onChange={e => updatePW(wk,'pctLo',e.target.value)} placeholder="lo" style={{ width: 26, border: '1px solid #ccc', borderRadius: 2, fontSize: 9, fontWeight: 600, textAlign: 'center', padding: '2px', fontFamily: 'inherit', outline: 'none', color: '#0055bb' }} />
+                                    <span style={{ color: '#888', fontSize: 9 }}>–</span>
+                                    <input value={pw.pctHi||''} onChange={e => updatePW(wk,'pctHi',e.target.value)} placeholder="hi" style={{ width: 26, border: '1px solid #ccc', borderRadius: 2, fontSize: 9, fontWeight: 600, textAlign: 'center', padding: '2px', fontFamily: 'inherit', outline: 'none', color: '#0055bb' }} />
+                                    <span style={{ color: '#888', fontSize: 9 }}>%</span>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                              <button onClick={clearPW} style={{ fontSize: 9, padding: '3px 8px', border: '1px solid #c00', color: '#c00', background: '#fff', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit', fontWeight: 600 }}>Clear per-week</button>
+                              <div style={{ fontSize: 8, color: '#666', fontStyle: 'italic', maxWidth: 160 }}>Leave a field blank to inherit the exercise default. % is optional.</div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   )
                 })}
               </tbody>
