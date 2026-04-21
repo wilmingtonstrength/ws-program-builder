@@ -1297,8 +1297,7 @@ const TEMPLATES = {
         dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
           WU_A,
           mkEx('A1','Snatch',4,'2',OLY_B1,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'2+1',OLY_B1,['clean','jerk']),
-          mkEx('C1','Back Squat',4,'5',STR_B1,'back_squat'),
+          mkEx('B1','Back Squat',4,'5',STR_B1,'back_squat'),
         ]},
         dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
           WU_B_pp,
@@ -1319,8 +1318,7 @@ const TEMPLATES = {
         dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
           WU_A,
           mkEx('A1','Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'2+1',OLY_B2,['clean','jerk']),
-          mkEx('C1','Back Squat',4,'3',STR_B2,'back_squat'),
+          mkEx('B1','Back Squat',4,'3',STR_B2,'back_squat'),
         ]},
         dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
           WU_B_pp,
@@ -1341,8 +1339,7 @@ const TEMPLATES = {
         dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
           WU_A,
           mkEx('A1','Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Clean + Jerk',4,'2',OLY_B3,['clean','jerk']),
-          mkEx('C1','Back Squat',4,'3',STR_B3,'back_squat'),
+          mkEx('B1','Back Squat',4,'3',STR_B3,'back_squat'),
         ]},
         dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
           WU_B_pp,
@@ -2527,9 +2524,6 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
     // Back squat + front squat + push press + at least one pull. Randomly
     // include the second pull or not.
     const wk2IncludeSecondPull = Math.random() < 0.65
-    // Week 4 heavy-single placements — competition lifts only.
-    // Classic snatch and at least one C&J day (pick Sat as default, sometimes Tue too).
-    const wk4IncludeTuesCJ = Math.random() < 0.5
 
     days.forEach(dk => {
       const exs = bD[dk]?.exercises || []
@@ -2546,7 +2540,6 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
         const isCleanPull = n.includes('clean') && n.includes('pull') && !n.includes('snatch')
         const isPull = isSnatchPull || isCleanPull
         const isCJ = (n.includes('clean') && n.includes('jerk')) || (n.includes('jerk') && !n.includes('snatch') && !n.includes('pull'))
-        const isVolumeCJ = isCJ && dk === 'dayA'
         const isHeavyCJ = isCJ && dk === 'dayC'
         const isPushPress = n === 'push press' || (n.includes('push press') && !n.includes('clean'))
         const isStrictPress = n === 'press' || n === 'strict press' || n === 'behind-the-neck press'
@@ -2580,16 +2573,6 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
           wd[1] = wk(ri(4,5), pick(['2','2','3']), 0.68, 0.75)
           wd[2] = wk(ri(3,4), pick(['2','3']), 0.60, 0.68)
           wd[3] = wk(3, '2', 0.60, 0.68)
-        }
-        // ---- Volume C&J (Tue, dayA) — doubles, occasional complex, HS in Wk4 sometimes
-        else if (isVolumeCJ) {
-          const useComplex = Math.random() < 0.35
-          const complex = pick(['2+3','3+2','3+3','2+1'])
-          wd[0] = useComplex ? wk(ri(3,4), complex, 0.65, 0.72) : wk(ri(4,5), '2+1', 0.70, 0.78)
-          wd[1] = wk(ri(4,5), '2+1', 0.78, 0.85)
-          wd[2] = wk(ri(3,4), '2+1', 0.68, 0.75)
-          if (wk4IncludeTuesCJ) { const r = buildRamp('oly'); wd[3] = { ...r } }
-          else { wd[3] = wk(3, '1+1', 0.68, 0.73) }
         }
         // ---- Heavy C&J (Sat, dayC) — mostly doubles, occasional singles heavier, HS in Wk4
         else if (isHeavyCJ) {
@@ -3220,17 +3203,26 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             }
           }}
         />
-        {/* Weight displays as visible text (always shown, even when a note is present) */}
-        {hint && (
-          <div style={{ position: 'absolute', top: 16, left: 3, right: 3, fontSize: 10, color: '#111', fontWeight: 700, fontFamily: 'Arial, sans-serif', textAlign: 'center', pointerEvents: 'none' }}>
-            {hint}
-          </div>
-        )}
-        {/* Coach-editable cell note (shown beneath the weight) */}
-        <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
-          placeholder={hint ? '' : 'note'}
-          className={noteVal ? '' : 'no-print'}
-          style={{ position: 'absolute', top: 30, left: 3, fontSize: 8, color: '#0055bb', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)', textAlign: 'center' }} />
+        {/* Ramp-up note (e.g. "70,78,85,90,95%") sits high so it reads as the headline.
+            Plain coach notes sit beneath the weight. */}
+        {(() => {
+          const isRamp = noteVal && /^\s*(\d+\s*,\s*)+\d+\s*%?\s*$/.test(noteVal)
+          const weightTop = isRamp ? 30 : 16
+          const noteTop = isRamp ? 16 : 30
+          return (
+            <>
+              {hint && (
+                <div style={{ position: 'absolute', top: weightTop, left: 3, right: 3, fontSize: 10, color: '#111', fontWeight: 700, fontFamily: 'Arial, sans-serif', textAlign: 'center', pointerEvents: 'none' }}>
+                  {hint}
+                </div>
+              )}
+              <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
+                placeholder={hint ? '' : 'note'}
+                className={noteVal ? '' : 'no-print'}
+                style={{ position: 'absolute', top: noteTop, left: 3, fontSize: isRamp ? 9 : 8, color: '#0055bb', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)', textAlign: 'center' }} />
+            </>
+          )
+        })()}
         {hasPct && (
           <PctEdit
             wk={wk}
