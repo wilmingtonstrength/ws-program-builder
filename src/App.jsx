@@ -1303,6 +1303,14 @@ const TEMPLATES = {
     //   { sets, reps, pctLo, pctHi, intent, vFloor, altExercise, altPrKey, bench, note }
     const mm = (ex, pw) => { ex.matts = { perWeek: pw }; return ex }
 
+    // Two empty accessory slots (same per block). User fills in exercise name +
+    // sets/reps/% at runtime in the builder. No matts metadata so they use the
+    // standard render path with full editability.
+    const acc = () => [
+      mkEx('ACC1','',3,'10',null,null),
+      mkEx('ACC2','',3,'10',null,null),
+    ]
+
     // Velocity floors
     const BSQ_VF_3 = '\u2265 0.50 m/s'
     const BSQ_VF_2 = '\u2265 0.45 m/s'
@@ -1356,9 +1364,9 @@ const TEMPLATES = {
               3: { intent: 'DESIGN', sets: '5', reps: '3', vFloor: BSQ_VF_DESIGN },
               4: { intent: 'DESIGN', sets: '3', reps: '3', vFloor: BSQ_VF_DESIGN, note: 'lighter' }
             }),
+            ...acc(),
           ]},
           dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
-            WU_B_pp,
             mm(mkEx('A1','Power Snatch',5,'3',null,'snatch'), {
               1: { sets: '5', reps: '3', ...OLY_T, vFloor: PSN_VF_3 },
               2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
@@ -1383,9 +1391,9 @@ const TEMPLATES = {
               3: { bench: { topReps: 8, topPct: 75 } },
               4: { bench: { topReps: 8, topPct: 75 } }
             }),
+            ...acc(),
           ]},
           dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
-            WU_B_pp,
             mm(mkEx('A1','Clean + Jerk',5,'3+2',null,['clean','jerk']), {
               1: { sets: '5', reps: '3+2', ...OLY_T },
               2: { sets: '4', reps: '2+2', ...OLY_MOD_D },
@@ -1404,6 +1412,7 @@ const TEMPLATES = {
               3: { sets: '4', reps: '3', ...CL_PULL_B1 },
               4: { sets: '3', reps: '3', ...CL_PULL_B1_W4 }
             }),
+            ...acc(),
           ]}
         },
         // ============================== BLOCK 2 ==============================
@@ -1427,9 +1436,9 @@ const TEMPLATES = {
               3: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
               4: { sets: '3', reps: '3', vFloor: BSQ_VF_3, note: 'moderate' }
             }),
+            ...acc(),
           ]},
           dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
-            WU_B_pp,
             mm(mkEx('A1','Power Snatch',4,'2',null,'snatch'), {
               1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
               2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
@@ -1454,9 +1463,9 @@ const TEMPLATES = {
               3: { bench: { topReps: 5, topPct: 85 } },
               4: { bench: { topReps: 5, topPct: 85 } }
             }),
+            ...acc(),
           ]},
           dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
-            WU_B_pp,
             mm(mkEx('A1','Clean + Jerk',4,'2+2',null,['clean','jerk']), {
               1: { sets: '4', reps: '2+2', ...OLY_D },
               2: { sets: '4', reps: '2+1', ...OLY_MOD_D },
@@ -1475,6 +1484,7 @@ const TEMPLATES = {
               3: { sets: '3', reps: '3', ...CL_PULL_B2 },
               4: { sets: '3', reps: '2', ...CL_PULL_B2_W4 }
             }),
+            ...acc(),
           ]}
         },
         // ============================== BLOCK 3 ==============================
@@ -1498,9 +1508,9 @@ const TEMPLATES = {
               3: { sets: '3', reps: '2', vFloor: BSQ_VF_2 },
               4: { sets: '3', reps: '2', vFloor: BSQ_VF_2, note: 'moderate' }
             }),
+            ...acc(),
           ]},
           dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
-            WU_B_pp,
             mm(mkEx('A1','Power Snatch',4,'2',null,'snatch'), {
               1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
               2: { sets: '3', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
@@ -1525,9 +1535,9 @@ const TEMPLATES = {
               3: { bench: { topReps: 3, topPct: 90 } },
               4: { bench: { topReps: 3, topPct: 90 } }
             }),
+            ...acc(),
           ]},
           dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
-            WU_B_pp,
             mm(mkEx('A1','Clean + Jerk',4,'2+1',null,['clean','jerk']), {
               1: { sets: '4', reps: '2+1', ...OLY_D },
               2: { sets: '3', reps: '1+1', ...OLY_MOD_D },
@@ -1546,6 +1556,7 @@ const TEMPLATES = {
               3: { sets: '3', reps: '2', ...CL_PULL_B3_W3 },
               4: { sets: '2', reps: '2', ...CL_PULL_B3_W4 }
             }),
+            ...acc(),
           ]}
         }
       }
