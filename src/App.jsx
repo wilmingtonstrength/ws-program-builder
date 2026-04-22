@@ -1347,7 +1347,6 @@ const TEMPLATES = {
         1: {
           pctLabel: 'Block 1 \u2014 Accumulation',
           dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
-            WU_A,
             mm(mkEx('A1','Jump',3,'3',null,null), {
               1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
               3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
@@ -1419,7 +1418,6 @@ const TEMPLATES = {
         2: {
           pctLabel: 'Block 2 \u2014 Transmutation',
           dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
-            WU_A,
             mm(mkEx('A1','Jump',3,'3',null,null), {
               1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
               3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
@@ -1491,7 +1489,6 @@ const TEMPLATES = {
         3: {
           pctLabel: 'Block 3 \u2014 Realization',
           dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
-            WU_A,
             mm(mkEx('A1','Jump',3,'3',null,null), {
               1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
               3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
