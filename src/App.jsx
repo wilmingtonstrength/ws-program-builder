@@ -1290,73 +1290,267 @@ const TEMPLATES = {
       }
     }
   },
-  matts_program: {
-    label: "Matt's Program (3-Day Oly, 4-Week Block)", days: ['dayA','dayB','dayC'], blocks: {
-      1: {
-        pctLabel:'Matt\u2019s Program', w1note:'Click Generate to build 4 weeks',
-        dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
-          WU_A,
-          mkEx('A1','Snatch',4,'2',OLY_B1,'snatch'),
-          mkEx('B1','Back Squat',4,'5',STR_B1,'back_squat'),
-        ]},
-        dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
-          WU_B_pp,
-          mkEx('A1','Power Snatch',4,'2',PWR_B1,'snatch'),
-          mkEx('B1','Push Press',4,'3',OLY_B1,'push_press'),
-          mkEx('C1','Snatch Pull',4,'3',PULL_B1,'snatch'),
-          mkEx('D1','Bench Press',3,'8'),
-        ]},
-        dayC: { header: 'Day 3 \u2014 Sat (Heavy)', exercises: [
-          WU_B_pp,
-          mkEx('A1','Clean + Jerk',4,'2',CJ_HEAVY_B1,['clean','jerk']),
-          mkEx('B1','Clean Pull',4,'3',PULL_B1,'clean'),
-          mkEx('C1','Front Squat',4,'3',FS_B1,'front_squat'),
-        ]}
-      },
-      2: {
-        pctLabel:'Matt\u2019s Program', w1note:'Click Generate to build 4 weeks',
-        dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
-          WU_A,
-          mkEx('A1','Snatch',4,'2',OLY_B2,'snatch'),
-          mkEx('B1','Back Squat',4,'3',STR_B2,'back_squat'),
-        ]},
-        dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
-          WU_B_pp,
-          mkEx('A1','Power Snatch',4,'2',PWR_B2,'snatch'),
-          mkEx('B1','Push Press',4,'3',OLY_B2,'push_press'),
-          mkEx('C1','Snatch Pull',4,'2',PULL_B2,'snatch'),
-          mkEx('D1','Incline Bench Press',3,'8'),
-        ]},
-        dayC: { header: 'Day 3 \u2014 Sat (Heavy)', exercises: [
-          WU_B_pp,
-          mkEx('A1','Clean + Jerk',4,'2',CJ_HEAVY_B2,['clean','jerk']),
-          mkEx('B1','Clean Pull',4,'2',PULL_B2,'clean'),
-          mkEx('C1','Front Squat',4,'3',FS_B2,'front_squat'),
-        ]}
-      },
-      3: {
-        pctLabel:'Matt\u2019s Program', w1note:'Click Generate to build 4 weeks',
-        dayA: { header: 'Day 1 \u2014 Tue (Heavy)', exercises: [
-          WU_A,
-          mkEx('A1','Snatch',4,'2',OLY_B3,'snatch'),
-          mkEx('B1','Back Squat',4,'3',STR_B3,'back_squat'),
-        ]},
-        dayB: { header: 'Day 2 \u2014 Fri (Powers)', exercises: [
-          WU_B_pp,
-          mkEx('A1','Power Snatch',4,'2',PWR_B3,'snatch'),
-          mkEx('B1','Push Press',4,'2',OLY_B3,'push_press'),
-          mkEx('C1','Snatch Pull',4,'2',PULL_B3,'snatch'),
-          mkEx('D1','DB Bench Press',3,'8'),
-        ]},
-        dayC: { header: 'Day 3 \u2014 Sat (Heavy)', exercises: [
-          WU_B_pp,
-          mkEx('A1','Clean + Jerk',4,'2',CJ_HEAVY_B3,['clean','jerk']),
-          mkEx('B1','Clean Pull',4,'2',PULL_B3,'clean'),
-          mkEx('C1','Front Squat',4,'2',FS_B3,'front_squat'),
-        ]}
+  matts_program: (function() {
+    // ===========================================================
+    // Matt's Program — 12-week macrocycle (3 blocks x 4 weeks)
+    // Block 1: Accumulation  |  Block 2: Transmutation  |  Block 3: Realization
+    // Tue: Jump, Snatch, Back Squat
+    // Fri: Power Snatch, Power Clean + Push Press, Snatch Pull, Bench
+    // Sat: Clean & Jerk, Front Squat, Clean Pull (Deadlift on W2 of each block)
+    // ===========================================================
+    // Attach per-week matts-program metadata to an exercise.
+    // pw is keyed by week 1..4. Each week may have:
+    //   { sets, reps, pctLo, pctHi, intent, vFloor, altExercise, altPrKey, bench, note }
+    const mm = (ex, pw) => { ex.matts = { perWeek: pw }; return ex }
+
+    // Velocity floors
+    const BSQ_VF_3 = '\u2265 0.50 m/s'
+    const BSQ_VF_2 = '\u2265 0.45 m/s'
+    const BSQ_VF_DESIGN = '\u2265 0.55 m/s peak'
+    const FSQ_VF_3 = '\u2265 0.60 m/s'
+    const FSQ_VF_2 = '\u2265 0.50 m/s'
+    const PSN_VF_3 = '\u2265 2.70 m/s peak'
+    const PSN_VF_2 = '\u2265 2.60 m/s peak'
+    const PSN_VF_1 = '\u2265 2.45 m/s peak'
+
+    // Olympic % bands
+    const OLY_T = { pctLo: 65, pctHi: 75 }     // triples normal
+    const OLY_D = { pctLo: 75, pctHi: 85 }     // doubles normal
+    const OLY_MOD_T = { pctLo: 60, pctHi: 70 } // moderate triples
+    const OLY_MOD_D = { pctLo: 70, pctHi: 80 } // moderate doubles
+
+    // Pull % bands
+    const SN_PULL_B1 = { pctLo: 100, pctHi: 110 }
+    const SN_PULL_B2 = { pctLo: 100, pctHi: 110 }
+    const SN_PULL_B3 = { pctLo: 105, pctHi: 115 }
+    const CL_PULL_B1 = { pctLo: 90, pctHi: 105 }
+    const CL_PULL_B1_W4 = { pctLo: 90, pctHi: 100 }
+    const CL_PULL_B2 = { pctLo: 100, pctHi: 110 }
+    const CL_PULL_B2_W4 = { pctLo: 100, pctHi: 105 }
+    const CL_PULL_B3 = { pctLo: 105, pctHi: 115 }
+    const CL_PULL_B3_W3 = { pctLo: 105, pctHi: 110 }
+    const CL_PULL_B3_W4 = { pctLo: 100, pctHi: 105 }
+
+    return {
+      label: "Matt's Program",
+      days: ['dayA','dayB','dayC'],
+      blocks: {
+        // ============================== BLOCK 1 ==============================
+        1: {
+          pctLabel: 'Block 1 \u2014 Accumulation',
+          dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
+            WU_A,
+            mm(mkEx('A1','Jump',3,'3',null,null), {
+              1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
+              3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
+            }),
+            mm(mkEx('B1','Snatch',5,'3',null,'snatch'), {
+              1: { sets: '5', reps: '3', ...OLY_T },
+              2: { sets: '4', reps: '2', ...OLY_MOD_D },
+              3: { sets: '4', reps: '3', ...OLY_T },
+              4: { intent: '2RM' }
+            }),
+            mm(mkEx('C1','Back Squat',5,'3',null,'back_squat'), {
+              1: { intent: 'DESIGN', sets: '5', reps: '3', vFloor: BSQ_VF_DESIGN },
+              2: { intent: '3RM', vFloor: BSQ_VF_3 },
+              3: { intent: 'DESIGN', sets: '5', reps: '3', vFloor: BSQ_VF_DESIGN },
+              4: { intent: 'DESIGN', sets: '3', reps: '3', vFloor: BSQ_VF_DESIGN, note: 'lighter' }
+            }),
+          ]},
+          dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
+            WU_B_pp,
+            mm(mkEx('A1','Power Snatch',5,'3',null,'snatch'), {
+              1: { sets: '5', reps: '3', ...OLY_T, vFloor: PSN_VF_3 },
+              2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
+              3: { sets: '4', reps: '3', ...OLY_T, vFloor: PSN_VF_3 },
+              4: { intent: '2RM', vFloor: PSN_VF_2 }
+            }),
+            mm(mkEx('B1','Power Clean + Push Press',4,'5',null,['clean','push_press']), {
+              1: { sets: '4', reps: '5', ...OLY_T },
+              2: { intent: '3RM' },
+              3: { sets: '4', reps: '5', ...OLY_T },
+              4: { sets: '3', reps: '5', ...OLY_MOD_T }
+            }),
+            mm(mkEx('C1','Snatch Pull',4,'3',null,'snatch'), {
+              1: { sets: '4', reps: '3', ...SN_PULL_B1 },
+              2: { sets: '3', reps: '3', ...SN_PULL_B1 },
+              3: { sets: '4', reps: '3', ...SN_PULL_B1 },
+              4: { sets: '3', reps: '3', ...SN_PULL_B1 }
+            }),
+            mm(mkEx('D1','Bench Press',1,'8',null,'bench_press'), {
+              1: { bench: { topReps: 8, topPct: 75 } },
+              2: { bench: { topReps: 8, topPct: 75 } },
+              3: { bench: { topReps: 8, topPct: 75 } },
+              4: { bench: { topReps: 8, topPct: 75 } }
+            }),
+          ]},
+          dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
+            WU_B_pp,
+            mm(mkEx('A1','Clean + Jerk',5,'3+2',null,['clean','jerk']), {
+              1: { sets: '5', reps: '3+2', ...OLY_T },
+              2: { sets: '4', reps: '2+2', ...OLY_MOD_D },
+              3: { sets: '5', reps: '2+2', ...OLY_D },
+              4: { intent: '2RM', reps: '2+2' }
+            }),
+            mm(mkEx('B1','Front Squat',4,'5',null,'front_squat'), {
+              1: { sets: '4', reps: '5', ...OLY_T, vFloor: FSQ_VF_3 },
+              2: { intent: '3RM', vFloor: FSQ_VF_3 },
+              3: { sets: '4', reps: '5', ...OLY_T, vFloor: FSQ_VF_3 },
+              4: { sets: '3', reps: '5', ...OLY_MOD_T, vFloor: FSQ_VF_3 }
+            }),
+            mm(mkEx('C1','Clean Pull',4,'3',null,'clean'), {
+              1: { sets: '4', reps: '3', ...CL_PULL_B1 },
+              2: { intent: '3RM', altExercise: 'Deadlift', altPrKey: 'deadlift' },
+              3: { sets: '4', reps: '3', ...CL_PULL_B1 },
+              4: { sets: '3', reps: '3', ...CL_PULL_B1_W4 }
+            }),
+          ]}
+        },
+        // ============================== BLOCK 2 ==============================
+        2: {
+          pctLabel: 'Block 2 \u2014 Transmutation',
+          dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
+            WU_A,
+            mm(mkEx('A1','Jump',3,'3',null,null), {
+              1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
+              3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
+            }),
+            mm(mkEx('B1','Snatch',5,'2',null,'snatch'), {
+              1: { sets: '5', reps: '2', ...OLY_D },
+              2: { sets: '4', reps: '2', ...OLY_MOD_D },
+              3: { sets: '4', reps: '2', ...OLY_D },
+              4: { intent: '1RM' }
+            }),
+            mm(mkEx('C1','Back Squat',4,'3',null,'back_squat'), {
+              1: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
+              2: { intent: '3RM', vFloor: BSQ_VF_3 },
+              3: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
+              4: { sets: '3', reps: '3', vFloor: BSQ_VF_3, note: 'moderate' }
+            }),
+          ]},
+          dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
+            WU_B_pp,
+            mm(mkEx('A1','Power Snatch',4,'2',null,'snatch'), {
+              1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
+              2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
+              3: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
+              4: { intent: '1RM', vFloor: PSN_VF_1 }
+            }),
+            mm(mkEx('B1','Power Clean + Push Press',4,'3',null,['clean','push_press']), {
+              1: { sets: '4', reps: '3', ...OLY_T },
+              2: { intent: '1RM' },
+              3: { sets: '4', reps: '3', ...OLY_T },
+              4: { sets: '3', reps: '5', ...OLY_MOD_T }
+            }),
+            mm(mkEx('C1','Snatch Pull',4,'3',null,'snatch'), {
+              1: { sets: '4', reps: '3', ...SN_PULL_B2 },
+              2: { sets: '3', reps: '3', ...SN_PULL_B2 },
+              3: { sets: '3', reps: '3', ...SN_PULL_B2 },
+              4: { sets: '3', reps: '3', ...SN_PULL_B2 }
+            }),
+            mm(mkEx('D1','Bench Press',1,'5',null,'bench_press'), {
+              1: { bench: { topReps: 5, topPct: 85 } },
+              2: { bench: { topReps: 5, topPct: 85 } },
+              3: { bench: { topReps: 5, topPct: 85 } },
+              4: { bench: { topReps: 5, topPct: 85 } }
+            }),
+          ]},
+          dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
+            WU_B_pp,
+            mm(mkEx('A1','Clean + Jerk',4,'2+2',null,['clean','jerk']), {
+              1: { sets: '4', reps: '2+2', ...OLY_D },
+              2: { sets: '4', reps: '2+1', ...OLY_MOD_D },
+              3: { sets: '4', reps: '2+2', ...OLY_D },
+              4: { intent: '1RM' }
+            }),
+            mm(mkEx('B1','Front Squat',4,'3',null,'front_squat'), {
+              1: { sets: '4', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
+              2: { intent: '2RM', vFloor: FSQ_VF_2 },
+              3: { sets: '4', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
+              4: { sets: '3', reps: '3', ...OLY_MOD_T, vFloor: FSQ_VF_3, note: 'moderate' }
+            }),
+            mm(mkEx('C1','Clean Pull',3,'3',null,'clean'), {
+              1: { sets: '3', reps: '3', ...CL_PULL_B2 },
+              2: { intent: '2RM', altExercise: 'Deadlift', altPrKey: 'deadlift' },
+              3: { sets: '3', reps: '3', ...CL_PULL_B2 },
+              4: { sets: '3', reps: '2', ...CL_PULL_B2_W4 }
+            }),
+          ]}
+        },
+        // ============================== BLOCK 3 ==============================
+        3: {
+          pctLabel: 'Block 3 \u2014 Realization',
+          dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
+            WU_A,
+            mm(mkEx('A1','Jump',3,'3',null,null), {
+              1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
+              3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
+            }),
+            mm(mkEx('B1','Snatch',4,'2',null,'snatch'), {
+              1: { sets: '4', reps: '2', ...OLY_D },
+              2: { sets: '3', reps: '2', ...OLY_MOD_D },
+              3: { sets: '4', reps: '1', ...OLY_D },
+              4: { intent: 'PR' }
+            }),
+            mm(mkEx('C1','Back Squat',4,'2',null,'back_squat'), {
+              1: { sets: '4', reps: '2', vFloor: BSQ_VF_2 },
+              2: { intent: '2RM', vFloor: BSQ_VF_2 },
+              3: { sets: '3', reps: '2', vFloor: BSQ_VF_2 },
+              4: { sets: '3', reps: '2', vFloor: BSQ_VF_2, note: 'moderate' }
+            }),
+          ]},
+          dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
+            WU_B_pp,
+            mm(mkEx('A1','Power Snatch',4,'2',null,'snatch'), {
+              1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
+              2: { sets: '3', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
+              3: { sets: '4', reps: '1', ...OLY_D, vFloor: PSN_VF_1 },
+              4: { intent: 'PR', vFloor: PSN_VF_1 }
+            }),
+            mm(mkEx('B1','Power Clean + Push Press',4,'2',null,['clean','push_press']), {
+              1: { sets: '4', reps: '2', ...OLY_D },
+              2: { intent: '1RM' },
+              3: { sets: '3', reps: '2', ...OLY_D },
+              4: { sets: '3', reps: '3', ...OLY_MOD_T }
+            }),
+            mm(mkEx('C1','Snatch Pull',3,'2',null,'snatch'), {
+              1: { sets: '3', reps: '2', ...SN_PULL_B3 },
+              2: { sets: '3', reps: '2', ...SN_PULL_B3 },
+              3: { sets: '3', reps: '2', ...SN_PULL_B3 },
+              4: { sets: '2', reps: '2', ...SN_PULL_B3 }
+            }),
+            mm(mkEx('D1','Bench Press',1,'3',null,'bench_press'), {
+              1: { bench: { topReps: 3, topPct: 90 } },
+              2: { bench: { topReps: 3, topPct: 90 } },
+              3: { bench: { topReps: 3, topPct: 90 } },
+              4: { bench: { topReps: 3, topPct: 90 } }
+            }),
+          ]},
+          dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
+            WU_B_pp,
+            mm(mkEx('A1','Clean + Jerk',4,'2+1',null,['clean','jerk']), {
+              1: { sets: '4', reps: '2+1', ...OLY_D },
+              2: { sets: '3', reps: '1+1', ...OLY_MOD_D },
+              3: { sets: '4', reps: '1+1', ...OLY_D },
+              4: { intent: 'PR' }
+            }),
+            mm(mkEx('B1','Front Squat',3,'3',null,'front_squat'), {
+              1: { sets: '3', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
+              2: { intent: '2RM', vFloor: FSQ_VF_2 },
+              3: { sets: '3', reps: '2', ...OLY_D, vFloor: FSQ_VF_2 },
+              4: { sets: '2', reps: '2', ...OLY_MOD_D, vFloor: FSQ_VF_2, note: 'moderate' }
+            }),
+            mm(mkEx('C1','Clean Pull',3,'2',null,'clean'), {
+              1: { sets: '3', reps: '2', ...CL_PULL_B3 },
+              2: { intent: '1RM', altExercise: 'Deadlift', altPrKey: 'deadlift' },
+              3: { sets: '3', reps: '2', ...CL_PULL_B3_W3 },
+              4: { sets: '2', reps: '2', ...CL_PULL_B3_W4 }
+            }),
+          ]}
+        }
       }
     }
-  },
+  })(),
 }
 
 
@@ -1633,9 +1827,11 @@ export default function App() {
       const r = edit['reps_w' + w]
       if (s || r) srOv[w] = { sets: s || null, reps: r || null }
     })
-    // Merge template-authored perWeek as fallback (coach edits win)
-    if (ex.perWeek) {
-      Object.entries(ex.perWeek).forEach(([wk, data]) => {
+    // Merge template-authored perWeek as fallback (coach edits win).
+    // Supports both ex.perWeek (custom templates) and ex.matts.perWeek (Matt's Program)
+    const applyPerWeek = (source) => {
+      if (!source) return
+      Object.entries(source).forEach(([wk, data]) => {
         const w = parseInt(wk); if (!w) return
         if (data.pctLo != null && pctOv[w] == null) {
           const lo = data.pctLo / 100
@@ -1647,6 +1843,8 @@ export default function App() {
         }
       })
     }
+    applyPerWeek(ex.perWeek)
+    applyPerWeek(ex.matts?.perWeek)
     merged.pctOverrides = Object.keys(pctOv).length > 0 ? pctOv : null
     merged.setsRepsOverrides = Object.keys(srOv).length > 0 ? srOv : null
     delete merged.pct_w1; delete merged.pct_w1_hi; delete merged.pct_w2; delete merged.pct_w2_hi; delete merged.pct_w3; delete merged.pct_w3_hi; delete merged.pct_w4; delete merged.pct_w4_hi
@@ -2603,158 +2801,6 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
     })
   }
 
-  // =====================================================================
-  // MATT'S PROGRAM — 3-Day Olympic, 4-week block with controlled randomness
-  // =====================================================================
-  // Day 1 (Tue, dayA): Classic snatch, C&J (volume-biased), Back Squat
-  // Day 2 (Fri, dayB): Power snatch, Push Press, Snatch Pull, Bench (accessory)
-  // Day 3 (Sat, dayC): Clean+Jerk (heavier), Clean Pull, Front Squat
-  //
-  // Volume wave: Wk1 100%, Wk2 110-115% (HS on supp lifts), Wk3 85-90%,
-  //              Wk4 60-70% (HS on competition lifts).
-  // Intensity zones vary by lift family (see below).
-  // =====================================================================
-  const doMattsProgramReroll = () => {
-    if (!bD || !setEdit) return
-
-    // Week 2 heavy-single placements — supplementary lifts only.
-    // Back squat + front squat + push press + at least one pull. Randomly
-    // include the second pull or not.
-    const wk2IncludeSecondPull = Math.random() < 0.65
-
-    days.forEach(dk => {
-      const exs = bD[dk]?.exercises || []
-      exs.forEach((ex, idx) => {
-        if (ex.series === 'WU') return
-        const n = ex.exercise.toLowerCase()
-        const cat = detectPctCategory(ex.exercise)
-
-        // ---- Classification ----
-        const isSnatch = cat === 'OLY' && n.includes('snatch') && !n.includes('pull')
-        const isClassicSnatch = isSnatch && dk === 'dayA'
-        const isPowerSnatch = cat === 'PWR' && n.includes('snatch')
-        const isSnatchPull = n.includes('snatch') && n.includes('pull')
-        const isCleanPull = n.includes('clean') && n.includes('pull') && !n.includes('snatch')
-        const isPull = isSnatchPull || isCleanPull
-        const isCJ = (n.includes('clean') && n.includes('jerk')) || (n.includes('jerk') && !n.includes('snatch') && !n.includes('pull'))
-        const isHeavyCJ = isCJ && dk === 'dayC'
-        const isPushPress = n === 'push press' || (n.includes('push press') && !n.includes('clean'))
-        const isStrictPress = n === 'press' || n === 'strict press' || n === 'behind-the-neck press'
-        const isDBPress = n.includes('db') && (n.includes('press') || n.includes('bench'))
-        const isBackSquat = n.includes('back squat')
-        const isFrontSquat = n === 'front squat' || n === 'front squat he'
-        const isHorizontalPress = (n.includes('bench press') || n.includes('incline') || isDBPress) && !n.includes('row')
-
-        let wd = [null, null, null, null]
-
-        // ---- Horizontal press (Friday accessory) — sets x reps only, no %
-        if (isHorizontalPress) {
-          // Strip pct so it renders as sets x reps only
-          wd[0] = { sets: ri(3,4), reps: pick(['5','8','6']), lo: null, hi: null, noPct: true }
-          wd[1] = { sets: ri(3,4), reps: pick(['5','6','8']), lo: null, hi: null, noPct: true }
-          wd[2] = { sets: 3, reps: pick(['5','8','6']), lo: null, hi: null, noPct: true }
-          wd[3] = { sets: 3, reps: pick(['5','6']), lo: null, hi: null, noPct: true }
-        }
-        // ---- Classic snatch (Tue, dayA) — mostly doubles, occasional triples, HS in Wk4
-        else if (isClassicSnatch) {
-          const wk1Rep = pick(['2','2','2','3'])
-          const wk3Rep = pick(['2','3','3'])
-          wd[0] = wk(ri(4,5), wk1Rep, wk1Rep === '3' ? 0.68 : 0.75, wk1Rep === '3' ? 0.73 : 0.82)
-          wd[1] = wk(ri(4,5), '2', 0.78, 0.85)
-          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '3' ? 0.65 : 0.72, wk3Rep === '3' ? 0.72 : 0.78)
-          const r = buildRamp('oly'); wd[3] = { ...r }
-        }
-        // ---- Power snatch (Fri, dayB) — doubles/triples, keep crisp, no HS
-        else if (isPowerSnatch) {
-          wd[0] = wk(ri(4,5), pick(['2','3']), 0.62, 0.72)
-          wd[1] = wk(ri(4,5), pick(['2','2','3']), 0.68, 0.75)
-          wd[2] = wk(ri(3,4), pick(['2','3']), 0.60, 0.68)
-          wd[3] = wk(3, '2', 0.60, 0.68)
-        }
-        // ---- Heavy C&J (Sat, dayC) — mostly doubles, occasional singles heavier, HS in Wk4
-        else if (isHeavyCJ) {
-          const wk1Rep = pick(['2','2','2+1'])
-          wd[0] = wk(ri(4,5), wk1Rep, 0.75, 0.82)
-          wd[1] = wk(ri(4,5), pick(['2','1+1']), 0.80, 0.87)
-          wd[2] = wk(ri(3,4), '2', 0.72, 0.78)
-          const r = buildRamp('oly'); wd[3] = { ...r }
-        }
-        // ---- Push Press (Fri, dayB) — 3-5 reps, HS in Wk2
-        else if (isPushPress || isStrictPress) {
-          const wk1Rep = pick(['3','4','5'])
-          const wk3Rep = pick(['3','5'])
-          wd[0] = wk(ri(3,4), wk1Rep, wk1Rep === '5' ? 0.65 : 0.72, wk1Rep === '5' ? 0.72 : 0.80)
-          { const r = buildRamp('pp'); wd[1] = { ...r } }
-          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '5' ? 0.62 : 0.70, wk3Rep === '5' ? 0.70 : 0.78)
-          wd[3] = wk(3, pick(['3','4']), 0.68, 0.75)
-        }
-        // ---- Back Squat (Tue, dayA) — 3-5 reps, occasional 6s, HS in Wk2
-        else if (isBackSquat) {
-          const wk1Rep = pick(['5','5','4','6'])
-          const wk3Rep = pick(['5','6','4'])
-          wd[0] = wk(ri(4,5), wk1Rep, wk1Rep === '6' ? 0.65 : (wk1Rep === '5' ? 0.70 : 0.75), wk1Rep === '6' ? 0.72 : (wk1Rep === '5' ? 0.78 : 0.82))
-          { const r = buildRamp('squat'); wd[1] = { ...r } }
-          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '6' ? 0.65 : (wk3Rep === '5' ? 0.68 : 0.72), wk3Rep === '6' ? 0.72 : (wk3Rep === '5' ? 0.75 : 0.80))
-          wd[3] = wk(ri(3,4), pick(['3','4']), 0.72, 0.80)
-        }
-        // ---- Front Squat (Sat, dayC) — 2-4 reps, occasional 5s, HS in Wk2
-        else if (isFrontSquat) {
-          const wk1Rep = pick(['3','4','3','5'])
-          const wk3Rep = pick(['2','3','4'])
-          wd[0] = wk(ri(4,5), wk1Rep, wk1Rep === '5' ? 0.65 : 0.72, wk1Rep === '5' ? 0.72 : 0.80)
-          { const r = buildRamp('squat'); wd[1] = { ...r } }
-          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '2' ? 0.78 : 0.72, wk3Rep === '2' ? 0.85 : 0.80)
-          wd[3] = wk(ri(3,4), pick(['2','3']), 0.75, 0.82)
-        }
-        // ---- Pulls (Fri snatch pull, Sat clean pull) — 2-3 reps, HS in Wk2
-        else if (isPull) {
-          const wk1Rep = pick(['3','2','3'])
-          const wk3Rep = pick(['3','2'])
-          wd[0] = wk(ri(3,4), wk1Rep, wk1Rep === '3' ? 0.90 : 0.95, wk1Rep === '3' ? 1.00 : 1.08)
-          // Decide HS — snatch pull always gets HS in Wk2, clean pull only sometimes
-          if (isSnatchPull || wk2IncludeSecondPull) {
-            const r = buildRamp('pull'); wd[1] = { ...r }
-          } else {
-            wd[1] = wk(ri(3,4), '2', 1.00, 1.10)
-          }
-          wd[2] = wk(ri(3,4), wk3Rep, wk3Rep === '3' ? 0.88 : 0.95, wk3Rep === '3' ? 0.95 : 1.05)
-          wd[3] = wk(3, pick(['2','3']), 0.92, 1.02)
-        }
-        // ---- Fallback for anything else with a pct (keep existing pct wave)
-        else if (cat && ex.pct) {
-          wd[0] = wk(ri(3,4), ex.reps, ex.pct[0], ex.pct[1])
-          wd[1] = wk(ri(3,5), ex.reps, ex.pct[1], ex.pct[2])
-          wd[2] = wk(ri(3,4), ex.reps, ex.pct[0], ex.pct[1])
-          wd[3] = wk(3, ex.reps, ex.pct[0], ex.pct[1])
-        }
-
-        // ---- Write overrides for all 4 weeks ----
-        if (wd[0]) {
-          ;[1,2,3,4].forEach(w => {
-            const d = wd[w - 1]
-            if (!d) return
-            setEdit(dk, idx, 'sets_w' + w, String(d.sets))
-            setEdit(dk, idx, 'reps_w' + w, String(d.reps))
-            if (!d.noPct && d.lo != null) {
-              const lo = Math.round(d.lo * 100) / 100
-              const hi = Math.round((d.hi != null ? d.hi : d.lo) * 100) / 100
-              setEdit(dk, idx, 'pct_w' + w, String(lo))
-              if (w > 1) setEdit(dk, idx, 'pct_w' + w + '_hi', String(hi))
-            } else if (d.noPct) {
-              // Clear any existing pct overrides for accessory lifts
-              setEdit(dk, idx, 'pct_w' + w, '')
-              if (w > 1) setEdit(dk, idx, 'pct_w' + w + '_hi', '')
-            }
-            if (d.note && setCellNote) {
-              const noteKey = `${tier}-${block}-${dk}-${idx}-${w}`
-              setCellNote(noteKey, d.note)
-            }
-          })
-        }
-      })
-    })
-  }
-
   // --- REROLL: Generate volume wave across 4 weeks ---
   const ZONE_TARGETS = {
     1: { '55-69': [25,30], '70-79': [45,50], '80-89': [20,25], '90+': [3,5] },
@@ -2938,7 +2984,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
 
       {setEdit && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-          <button onClick={tier === 'matts_program' ? doMattsProgramReroll : (tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll)} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{(tier === 'oly_4day_undulating' || tier === 'matts_program') ? 'Generate' : 'Reroll'}</button>
+          <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>
           <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
         </div>
       )}
@@ -3275,12 +3321,112 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     return ''
   }
 
+  // Matt's Program: fetch the per-week metadata (intent, vFloor, altExercise, bench, etc.)
+  const mattsW = (wk) => ex.matts?.perWeek?.[wk] || null
+
+  // Matt's Program: resolve PR for this week (may be an alt PR like deadlift)
+  const prForWk = (wk) => {
+    const mw = mattsW(wk)
+    if (mw?.altPrKey && ath) return getPR(ath.id, mw.altPrKey)
+    return pr
+  }
+
+  // Matt's Program: compute weight text from pctLo/pctHi + week PR
+  const mattsWeight = (wk) => {
+    const mw = mattsW(wk); if (!mw) return ''
+    if (mw.pctLo == null) return ''
+    const p = prForWk(wk); if (!p) return ''
+    const lo = mw.pctLo / 100, hi = (mw.pctHi != null ? mw.pctHi : mw.pctLo) / 100
+    if (useKg) {
+      const loK = rKg(p * lo), hiK = rKg(p * hi)
+      return loK === hiK ? loK + ' kg' : loK + '\u2013' + hiK + ' kg'
+    }
+    const loL = r5(p * lo), hiL = r5(p * hi)
+    return loL === hiL ? loL + ' lbs' : loL + '\u2013' + hiL + ' lbs'
+  }
+
   const wkCell = (wk) => {
     if (isWU) return <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}><div style={{ height: 46 }}></div></td>
     const noteKey = `${tier}-${block}-${dk}-${i}-${wk}`
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
-    const hint = getHint(wk)
 
+    // ====== Matt's Program custom render path ======
+    const mw = mattsW(wk)
+    if (mw) {
+      const designerLines = [
+        '1. 3s ecc triple',
+        '2. 3s ecc triple',
+        '3. 3s iso triple',
+        '4. 3s iso triple',
+        '5. Fast triple',
+      ]
+      return (
+        <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
+          <div style={{ minHeight: 46, padding: '3px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            {/* Intent badge takes priority: 3RM / 2RM / 1RM / PR / DESIGN */}
+            {mw.intent === '3RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>3RM</div>}
+            {mw.intent === '2RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>2RM</div>}
+            {mw.intent === '1RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>1RM</div>}
+            {mw.intent === 'PR' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>PR Attempt</div>}
+            {mw.intent === 'DESIGN' && (
+              <>
+                <div style={{ fontSize: 9, fontWeight: 800, color: '#0055bb', letterSpacing: 1, textTransform: 'uppercase' }}>Designer</div>
+                <div style={{ fontSize: 7, color: '#333', lineHeight: 1.3, textAlign: 'left' }}>
+                  {designerLines.map((l, li) => <div key={li}>{l}</div>)}
+                </div>
+              </>
+            )}
+            {/* Standard sets x reps (shown when no RM/PR intent and no DESIGN) */}
+            {!mw.intent && mw.sets && mw.reps && (
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#111' }}>{mw.sets}{'\u00d7'}{mw.reps}</div>
+            )}
+            {/* Weight (if pct present and PR known) */}
+            {mw.pctLo != null && mattsWeight(wk) && (
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#111' }}>{mattsWeight(wk)}</div>
+            )}
+            {/* Bench top + AMRAP */}
+            {mw.bench && (() => {
+              const bp = prForWk(wk)
+              const topP = mw.bench.topPct / 100
+              const dropP = (mw.bench.topPct - 10) / 100
+              const topW = bp ? (useKg ? rKg(bp * topP) + ' kg' : r5(bp * topP) + ' lbs') : null
+              const dropW = bp ? (useKg ? rKg(bp * dropP) + ' kg' : r5(bp * dropP) + ' lbs') : null
+              return (
+                <>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#111', textAlign: 'center' }}>{'Top: 1\u00d7' + mw.bench.topReps + (topW ? ' @ ' + topW : '')}</div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#111', textAlign: 'center' }}>AMRAP{dropW ? ' @ ' + dropW : ''}</div>
+                </>
+              )
+            })()}
+            {/* Alt exercise (e.g. "Deadlift") shown above the intent on swap weeks */}
+            {mw.altExercise && (
+              <div style={{ fontSize: 8, fontWeight: 700, color: '#0055bb', fontStyle: 'italic' }}>{mw.altExercise}</div>
+            )}
+            {/* Velocity floor */}
+            {mw.vFloor && (
+              <div style={{ fontSize: 7, fontStyle: 'italic', color: '#666', textAlign: 'center' }}>{mw.vFloor}</div>
+            )}
+            {/* Inline note (moderate, lighter, etc.) */}
+            {mw.note && !noteVal && (
+              <div style={{ fontSize: 7, color: '#888', fontStyle: 'italic' }}>{mw.note}</div>
+            )}
+            {/* Coach-editable note overlay (only shows if there is one — doesn't steal space otherwise) */}
+            {noteVal && (
+              <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
+                style={{ fontSize: 8, color: '#0055bb', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: '100%', textAlign: 'center' }} />
+            )}
+            {!noteVal && (
+              <input value="" onChange={e => setCellNote(noteKey, e.target.value)} placeholder="+"
+                className="no-print"
+                style={{ fontSize: 7, color: '#bbb', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 20, textAlign: 'center' }} />
+            )}
+          </div>
+        </td>
+      )
+    }
+    // ====== end Matt's custom render ======
+
+    const hint = getHint(wk)
     const hasPct = !!ex.pct
     const ov = ex.pctOverrides?.[wk]
     const isOverridden = ov != null
