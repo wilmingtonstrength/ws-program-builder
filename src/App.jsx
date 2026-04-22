@@ -1430,7 +1430,7 @@ const TEMPLATES = {
             }),
             mm(mkEx('C1','Back Squat',4,'3',null,'back_squat'), {
               1: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
-              2: { intent: '3RM', vFloor: BSQ_VF_3 },
+              2: { intent: '2RM', vFloor: BSQ_VF_2 },
               3: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
               4: { sets: '3', reps: '3', vFloor: BSQ_VF_3, note: 'moderate' }
             }),
