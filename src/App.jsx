@@ -3360,15 +3360,58 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
         '4. 3s iso triple',
         '5. Fast triple',
       ]
+      // Coach edits win: if coach has overridden sets/reps, use those instead of template.
+      const srEdit = ex.setsRepsOverrides?.[wk]
+      const displaySets = srEdit?.sets || mw.sets || ex.sets || ''
+      const displayReps = srEdit?.reps || mw.reps || ex.reps || ''
+      const srIsOverridden = !!(srEdit?.sets || srEdit?.reps)
+      // Effective intent: coach sets/reps edit clears the intent display
+      const effIntent = srIsOverridden ? null : mw.intent
+
+      // Coach pct override (if any)
+      const pctOv = ex.pctOverrides?.[wk]
+      const pctIsOverridden = pctOv != null
+      const pctOverrideVal = pctOv == null ? null : (typeof pctOv === 'object' ? { lo: Math.round(pctOv.lo*100), hi: Math.round(pctOv.hi*100) } : Math.round(pctOv*100))
+
+      // Weight: prefer coach override, then template pctLo/pctHi
+      let weightText = ''
+      const p = prForWk(wk)
+      if (p) {
+        if (pctIsOverridden) {
+          if (typeof pctOv === 'object') {
+            const lo = useKg ? rKg(p * pctOv.lo) : r5(p * pctOv.lo)
+            const hi = useKg ? rKg(p * pctOv.hi) : r5(p * pctOv.hi)
+            weightText = lo === hi ? lo + (useKg ? ' kg' : ' lbs') : lo + '\u2013' + hi + (useKg ? ' kg' : ' lbs')
+          } else {
+            weightText = useKg ? rKg(p * pctOv) + ' kg' : r5(p * pctOv) + ' lbs'
+          }
+        } else if (mw.pctLo != null) {
+          weightText = mattsWeight(wk)
+        }
+      }
+
       return (
         <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
-          <div style={{ minHeight: 46, padding: '3px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            {/* Intent badge takes priority: 3RM / 2RM / 1RM / PR / DESIGN */}
-            {mw.intent === '3RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>3RM</div>}
-            {mw.intent === '2RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>2RM</div>}
-            {mw.intent === '1RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>1RM</div>}
-            {mw.intent === 'PR' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>PR Attempt</div>}
-            {mw.intent === 'DESIGN' && (
+          {/* Editable sets x reps at top (always) */}
+          <SetsRepsEdit
+            sets={displaySets} reps={displayReps} isOverridden={srIsOverridden}
+            onChange={(s, r) => {
+              if (s === null && r === null) {
+                setEdit(dk, i, 'sets_w' + wk, '')
+                setEdit(dk, i, 'reps_w' + wk, '')
+              } else {
+                if (s) setEdit(dk, i, 'sets_w' + wk, s)
+                if (r) setEdit(dk, i, 'reps_w' + wk, r)
+              }
+            }}
+          />
+          <div style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minHeight: 46 }}>
+            {/* Intent badge (only when no coach sets/reps override) */}
+            {effIntent === '3RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>3RM</div>}
+            {effIntent === '2RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>2RM</div>}
+            {effIntent === '1RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>1RM</div>}
+            {effIntent === 'PR' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>PR Attempt</div>}
+            {effIntent === 'DESIGN' && (
               <>
                 <div style={{ fontSize: 9, fontWeight: 800, color: '#0055bb', letterSpacing: 1, textTransform: 'uppercase' }}>Designer</div>
                 <div style={{ fontSize: 7, color: '#333', lineHeight: 1.3, textAlign: 'left' }}>
@@ -3376,13 +3419,9 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
                 </div>
               </>
             )}
-            {/* Standard sets x reps (shown when no RM/PR intent and no DESIGN) */}
-            {!mw.intent && mw.sets && mw.reps && (
-              <div style={{ fontSize: 10, fontWeight: 800, color: '#111' }}>{mw.sets}{'\u00d7'}{mw.reps}</div>
-            )}
-            {/* Weight (if pct present and PR known) */}
-            {mw.pctLo != null && mattsWeight(wk) && (
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#111' }}>{mattsWeight(wk)}</div>
+            {/* Weight line (from pct + PR) */}
+            {weightText && !mw.bench && (
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#111' }}>{weightText}</div>
             )}
             {/* Bench top + AMRAP */}
             {mw.bench && (() => {
@@ -3398,7 +3437,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
                 </>
               )
             })()}
-            {/* Alt exercise (e.g. "Deadlift") shown above the intent on swap weeks */}
+            {/* Alt exercise (e.g. "Deadlift") on swap weeks */}
             {mw.altExercise && (
               <div style={{ fontSize: 8, fontWeight: 700, color: '#0055bb', fontStyle: 'italic' }}>{mw.altExercise}</div>
             )}
@@ -3406,21 +3445,40 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             {mw.vFloor && (
               <div style={{ fontSize: 7, fontStyle: 'italic', color: '#666', textAlign: 'center' }}>{mw.vFloor}</div>
             )}
-            {/* Inline note (moderate, lighter, etc.) */}
+            {/* Inline tag (moderate, lighter) */}
             {mw.note && !noteVal && (
               <div style={{ fontSize: 7, color: '#888', fontStyle: 'italic' }}>{mw.note}</div>
             )}
-            {/* Coach-editable note overlay (only shows if there is one — doesn't steal space otherwise) */}
-            {noteVal && (
+            {/* Coach-editable note */}
+            {noteVal ? (
               <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
                 style={{ fontSize: 8, color: '#0055bb', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: '100%', textAlign: 'center' }} />
-            )}
-            {!noteVal && (
-              <input value="" onChange={e => setCellNote(noteKey, e.target.value)} placeholder="+"
+            ) : (
+              <input value="" onChange={e => setCellNote(noteKey, e.target.value)} placeholder="+ note"
                 className="no-print"
-                style={{ fontSize: 7, color: '#bbb', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 20, textAlign: 'center' }} />
+                style={{ fontSize: 7, color: '#bbb', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 40, textAlign: 'center' }} />
             )}
           </div>
+          {/* Editable % pinned bottom-right (same UX as every other template) */}
+          <PctEdit
+            wk={wk}
+            isOverridden={pctIsOverridden}
+            defaultPct={mw.pctLo != null && mw.pctLo === (mw.pctHi != null ? mw.pctHi : mw.pctLo) ? mw.pctLo : null}
+            rangeLo={mw.pctLo != null ? mw.pctLo : null}
+            rangeHi={mw.pctHi != null ? mw.pctHi : (mw.pctLo != null ? mw.pctLo : null)}
+            overrideVal={pctOverrideVal}
+            onChange={v => {
+              if (v === null) {
+                setEdit(dk, i, 'pct_w' + wk, '')
+                setEdit(dk, i, 'pct_w' + wk + '_hi', '')
+              } else if (typeof v === 'object') {
+                setEdit(dk, i, 'pct_w' + wk, String(v.lo))
+                setEdit(dk, i, 'pct_w' + wk + '_hi', String(v.hi))
+              } else {
+                setEdit(dk, i, 'pct_w' + wk, String(v / 100))
+              }
+            }}
+          />
         </td>
       )
     }
