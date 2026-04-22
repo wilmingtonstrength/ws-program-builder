@@ -3501,13 +3501,13 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
           <ExerciseInput value={ex.exercise} onChange={v => setEdit(dk, i, 'exercise', v)} library={library} />
           <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 14, flexShrink: 0 }}>
-            {(ex.pct && !isWU) && (
+            {((ex.pct || ex.matts) && !isWU) && (
               <button onClick={() => toggleKg(ex.exercise)} title={useKg ? 'Switch to lbs' : 'Switch to kg'}
                 style={{ padding: '1px 4px', fontSize: 7, fontWeight: 800, letterSpacing: 0.5, border: '1px solid', borderColor: useKg ? '#0055bb' : '#ccc', background: useKg ? '#e8f0ff' : 'transparent', color: useKg ? '#0055bb' : '#bbb', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
                 KG
               </button>
             )}
-            {!ex.pct && !isWU && (
+            {!ex.pct && !ex.matts && !isWU && (
               <button onClick={() => showPctSetup ? setShowPctSetup(false) : openPctSetup()} title="Add percentage loading"
                 style={{ padding: '1px 3px', fontSize: 7, fontWeight: 800, border: '1px solid', borderColor: showPctSetup ? '#888' : '#ddd', background: showPctSetup ? '#f0f0f0' : 'transparent', color: showPctSetup ? '#555' : '#ccc', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
                 %
