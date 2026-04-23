@@ -2414,6 +2414,8 @@ export default function App() {
               #sheet2 { page-break-before: always; }
               td { padding: 2px 3px !important; }
               table { font-size: 8px !important; }
+              /* Sets x reps at top-left of each cell: force black bold on print */
+              .sr-display { color: #111 !important; font-weight: 800 !important; font-size: 10px !important; padding: 2px 4px !important; }
             }
           `}</style>
         </div>
@@ -3642,9 +3644,12 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent }) {
         style={{ width: 56, fontSize: 9, fontWeight: 700, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, color: '#0055bb' }} />
     </div>
   )
+  // Visible on screen AND on print. On screen the label is tinted blue when
+  // the coach has overridden sets/reps; on print we force black bold so it
+  // reads cleanly on paper regardless of override state.
   return (
-    <div className="no-print" onClick={startEdit}
-      style={{ padding: '2px 4px', fontSize: 9, fontWeight: 700, cursor: 'pointer', color: isOverridden ? '#0055bb' : '#999', position: 'relative', zIndex: 3 }}
+    <div className="sr-display" onClick={startEdit}
+      style={{ padding: '2px 4px', fontSize: 10, fontWeight: 800, cursor: 'pointer', color: isOverridden ? '#0055bb' : '#111', position: 'relative', zIndex: 3 }}
       title="Click to edit sets\u00d7reps (or type 2RM / 3RM / HS / MAX / PR)">
       {display}
     </div>
