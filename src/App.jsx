@@ -1592,6 +1592,7 @@ function ExerciseInput({ value, onChange, library: libProp }) {
   const [text, setText] = useState(value)
   const [showDrop, setShowDrop] = useState(false)
   const [filtered, setFiltered] = useState([])
+  const [editing, setEditing] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -1604,29 +1605,52 @@ function ExerciseInput({ value, onChange, library: libProp }) {
     }
   }, [value])
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setShowDrop(false) }
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setShowDrop(false)
+        setEditing(false)
+      }
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handlePatternChange = (p) => { setPattern(p); setFiltered(lib[p] || []); setShowDrop(true); setText('') }
+  const handlePatternChange = (p) => { setPattern(p); setFiltered(lib[p] || []); setShowDrop(true); setText(''); setEditing(true) }
   const handleTextChange = (e) => {
     const v = e.target.value; setText(v); onChange(v)
     if (pattern) { setFiltered((lib[pattern] || []).filter(ex => ex.toLowerCase().includes(v.toLowerCase()))); setShowDrop(true) }
   }
-  const handleSelect = (ex) => { setText(ex); onChange(ex); setShowDrop(false) }
+  const handleSelect = (ex) => { setText(ex); onChange(ex); setShowDrop(false); setEditing(false) }
 
   return (
-    <div ref={ref} style={{ position: 'relative', flex: 1 }}>
+    <div ref={ref} style={{ position: 'relative', flex: 1, minWidth: 0 }}>
       <select value={pattern} onChange={e => handlePatternChange(e.target.value)}
         style={{ fontSize: 8, color: '#aaa', border: 'none', background: 'transparent', padding: '0 0 1px 0', cursor: 'pointer', width: '100%', outline: 'none' }}>
         <option value="">— pattern —</option>
         {Object.keys(lib).map(p => <option key={p} value={p}>{p}</option>)}
       </select>
-      <input type="text" value={text} onChange={handleTextChange}
-        onFocus={() => { if (pattern) { setFiltered(lib[pattern] || []); setShowDrop(true) } }}
-        placeholder="exercise..."
-        style={{ width: '100%', border: 'none', borderBottom: '1px dashed #bbb', background: 'transparent', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', outline: 'none', padding: '1px 0' }} />
+      {editing ? (
+        <input type="text" value={text} autoFocus onChange={handleTextChange}
+          onFocus={() => { if (pattern) { setFiltered(lib[pattern] || []); setShowDrop(true) } }}
+          onBlur={() => { setTimeout(() => { setEditing(false); setShowDrop(false) }, 150) }}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') { setEditing(false); setShowDrop(false); e.currentTarget.blur() } }}
+          placeholder="exercise..."
+          style={{ width: '100%', border: 'none', borderBottom: '1px dashed #bbb', background: 'transparent', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', outline: 'none', padding: '1px 0' }} />
+      ) : (
+        <div onClick={() => setEditing(true)}
+          style={{
+            width: '100%', minHeight: 16, cursor: 'text',
+            borderBottom: '1px dashed #bbb',
+            fontWeight: 700, fontFamily: 'inherit', padding: '1px 0',
+            // Fit-to-width: long names shrink one notch and wrap to two lines
+            fontSize: (text && text.length > 20) ? 10 : 12,
+            lineHeight: (text && text.length > 20) ? 1.15 : 1.3,
+            overflowWrap: 'break-word', wordBreak: 'break-word', whiteSpace: 'normal',
+            color: text ? '#111' : '#bbb',
+          }}>
+          {text || 'exercise...'}
+        </div>
+      )}
       {showDrop && filtered.length > 0 && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #999', maxHeight: 180, overflowY: 'auto', zIndex: 9999, boxShadow: '0 4px 10px rgba(0,0,0,0.2)', minWidth: 200 }}>
           {filtered.map(ex => (
@@ -3604,9 +3628,9 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           </div>
         )}
         {<div style={{ display: 'flex', gap: 3, alignItems: 'center', marginTop: 2 }}>
-          <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 13, fontWeight: 800 }} />
-          <span style={{ fontSize: 11, color: '#555' }}>×</span>
-          <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 13, fontWeight: 800 }} />
+          <EditField value={ex.sets} onChange={v => setEdit(dk, i, 'sets', v)} style={{ fontSize: 11, fontWeight: 800 }} />
+          <span style={{ fontSize: 10, color: '#555' }}>×</span>
+          <EditField value={ex.reps} onChange={v => setEdit(dk, i, 'reps', v)} style={{ fontSize: 11, fontWeight: 800 }} />
           {!isWU && (ex.note ? (
             <EditField
               value={ex.note}
