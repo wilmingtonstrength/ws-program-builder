@@ -2054,11 +2054,16 @@ export default function App() {
       const structuralKeys = tid.filter(t => !overheadKeys.includes(t))
       const ohKeys = tid.filter(t => overheadKeys.includes(t))
       const structVals = structuralKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
-      // Structural keys (clean, squat, etc.) are the limiting factor — use them if present
-      if (structVals.length > 0) return Math.min(...structVals)
-      // Fallback: best overhead-type PR only if no structural found
       const ohVals = ohKeys.map(t => prs[aId + '-' + t]).filter(v => v != null)
-      return ohVals.length ? Math.max(...ohVals) : null
+      const structMin = structVals.length ? Math.min(...structVals) : null
+      const ohMax = ohVals.length ? Math.max(...ohVals) : null
+      // For combo lifts like Clean + Jerk, the weight is limited by whichever
+      // component is weaker. If BOTH a structural (clean) and an overhead
+      // (jerk/press/overhead) PR exist, use the LESSER so the athlete can
+      // actually complete the lift.
+      if (structMin != null && ohMax != null) return Math.min(structMin, ohMax)
+      if (structMin != null) return structMin
+      return ohMax
     }
     const direct = prs[aId + '-' + tid] || prs[String(aId) + '-' + tid] || null
     if (direct) return direct
