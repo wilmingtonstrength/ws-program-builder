@@ -1426,7 +1426,7 @@ const TEMPLATES = {
               1: { sets: '5', reps: '2', ...OLY_D },
               2: { sets: '4', reps: '2', ...OLY_MOD_D },
               3: { sets: '4', reps: '2', ...OLY_D },
-              4: { intent: '1RM' }
+              4: { intent: 'HS' }
             }),
             mm(mkEx('C1','Back Squat',4,'3',null,'back_squat'), {
               1: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
@@ -1441,11 +1441,11 @@ const TEMPLATES = {
               1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
               2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
               3: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
-              4: { intent: '1RM', vFloor: PSN_VF_1 }
+              4: { intent: 'HS', vFloor: PSN_VF_1 }
             }),
             mm(mkEx('B1','Power Clean + Push Press',4,'3',null,['clean','push_press']), {
               1: { sets: '4', reps: '3', ...OLY_T },
-              2: { intent: '1RM' },
+              2: { intent: 'HS' },
               3: { sets: '4', reps: '3', ...OLY_T },
               4: { sets: '3', reps: '5', ...OLY_MOD_T }
             }),
@@ -1468,7 +1468,7 @@ const TEMPLATES = {
               1: { sets: '4', reps: '2+2', ...OLY_D },
               2: { sets: '4', reps: '2+1', ...OLY_MOD_D },
               3: { sets: '4', reps: '2+2', ...OLY_D },
-              4: { intent: '1RM' }
+              4: { intent: 'HS' }
             }),
             mm(mkEx('B1','Front Squat',4,'3',null,'front_squat'), {
               1: { sets: '4', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
@@ -1516,7 +1516,7 @@ const TEMPLATES = {
             }),
             mm(mkEx('B1','Power Clean + Push Press',4,'2',null,['clean','push_press']), {
               1: { sets: '4', reps: '2', ...OLY_D },
-              2: { intent: '1RM' },
+              2: { intent: 'HS' },
               3: { sets: '3', reps: '2', ...OLY_D },
               4: { sets: '3', reps: '3', ...OLY_MOD_T }
             }),
@@ -1600,7 +1600,7 @@ const TEMPLATES = {
               1: { sets: '4', reps: '3', ...Z_65_75 },
               2: { sets: '4', reps: '2', ...Z_65_75 },
               3: { sets: '4', reps: '2', ...Z_75_85 },
-              4: { intent: '1RM', note: 'up to 95%' }
+              4: { intent: 'HS', note: 'up to 95%' }
             }),
             mm(mkEx('B1','Clean + Jerk',4,'2+3',null,['overhead','jerk','push_press','press','clean']), {
               1: { sets: '4', reps: '2+3', ...Z_65_75 },
@@ -1648,7 +1648,7 @@ const TEMPLATES = {
               1: { sets: '5', reps: '2+2', ...Z_70_80 },
               2: { sets: '4', reps: '2+2', ...Z_70_80 },
               3: { sets: '4', reps: '2+2', ...Z_70_80 },
-              4: { intent: '1RM', note: 'up to 95%' }
+              4: { intent: 'HS', note: 'up to 95%' }
             }),
             mm(mkEx('C1','Front Squat',4,'5',null,'front_squat'), {
               1: { sets: '4', reps: '5', ...Z_65_75 },
@@ -1673,7 +1673,7 @@ const TEMPLATES = {
               1: { sets: '5', reps: '2', ...Z_75_85 },
               2: { sets: '4', reps: '2', ...Z_75_85 },
               3: { sets: '5', reps: '2', ...Z_75_85 },
-              4: { intent: '1RM', note: 'up to 95%' }
+              4: { intent: 'HS', note: 'up to 95%' }
             }),
             mm(mkEx('B1','Clean + Jerk',4,'2+2',null,['overhead','jerk','push_press','press','clean']), {
               1: { sets: '4', reps: '2+2', ...Z_75_85 },
@@ -1721,7 +1721,7 @@ const TEMPLATES = {
               1: { sets: '5', reps: '1+2', ...Z_75_90 },
               2: { sets: '4', reps: '1+2', ...Z_75_90 },
               3: { sets: '4', reps: '1+2', ...Z_75_90 },
-              4: { intent: '1RM', note: 'up to 95%' }
+              4: { intent: 'HS', note: 'up to 95%' }
             }),
             mm(mkEx('C1','Front Squat',4,'3',null,'front_squat'), {
               1: { sets: '4', reps: '3', ...Z_75_85 },
@@ -1745,7 +1745,7 @@ const TEMPLATES = {
             mm(mkEx('A1','Snatch',6,'1',null,'snatch'), {
               1: { sets: '6', reps: '1', ...Z_80_90 },
               2: { sets: '4', reps: '2', ...Z_70_80 },
-              3: { intent: '1RM', note: 'up to 95%' },
+              3: { intent: 'HS', note: 'up to 95%' },
               4: { intent: 'MAX' }
             }),
             mm(mkEx('B1','Clean + Jerk (1+1 variation)',5,'1+1',null,['overhead','jerk','push_press','press','clean']), {
@@ -1791,9 +1791,9 @@ const TEMPLATES = {
               4: { sets: '4', reps: '2', ...Z_75_85 }
             }),
             mm(mkEx('B1','Clean + Jerk singles',1,'1',null,['overhead','jerk','push_press','press','clean']), {
-              1: { intent: '1RM', note: 'up to 95%' },
+              1: { intent: 'HS', note: 'up to 95%' },
               2: { sets: '3', reps: '1', ...Z_75_85 },
-              3: { intent: '1RM', note: 'up to 95%' },
+              3: { intent: 'HS', note: 'up to 95%' },
               4: { intent: 'MAX' }
             }),
             mm(mkEx('C1','Front Squat',4,'2',null,'front_squat'), {
@@ -3708,6 +3708,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             {effIntent === '2RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>2RM</div>}
             {effIntent === '1RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>1RM</div>}
             {effIntent === 'PR' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>PR Attempt</div>}
+            {effIntent === 'HS' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>Heavy Single</div>}
             {effIntent === 'MAX' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>MAX</div>}
             {effIntent === 'DESIGN' && (
               <>
