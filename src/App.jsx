@@ -2122,6 +2122,14 @@ export default function App() {
       const r = edit['reps_w' + w]
       if (s || r) srOv[w] = { sets: s || null, reps: r || null }
     })
+    // Parse per-week intent overrides (2RM/3RM/1RM/HS/MAX/PR typed into cell)
+    const intentOv = {}
+    ;[1,2,3,4].forEach(w => {
+      const it = edit['intent_w' + w]
+      if (it) intentOv[w] = it
+    })
+    merged.intentOverrides = Object.keys(intentOv).length > 0 ? intentOv : null
+    delete merged.intent_w1; delete merged.intent_w2; delete merged.intent_w3; delete merged.intent_w4
     // Merge template-authored perWeek as fallback (coach edits win).
     // Supports both ex.perWeek (custom templates) and ex.matts.perWeek (Matt's Program)
     const applyPerWeek = (source) => {
@@ -2202,6 +2210,106 @@ export default function App() {
       await sb.from('program_cell_notes').upsert({ template: tmpl, block: blk, day, ex_index: exIdx, week: wk, value: val, updated_at: new Date().toISOString() }, { onConflict: 'template,block,day,ex_index,week' })
       setSaving(false)
     }, 800)
+  }
+
+  // Snapshot the current template (merged with all coach edits and cell notes
+  // across every block) and save it as a new custom template. All sets/reps/%
+  // overrides, accessory fills, exercise swaps, and notes are frozen in.
+  const saveAsCustomTemplate = async () => {
+    if (!tD) { alert('No template loaded'); return }
+    const defaultName = (tD.label || 'Custom') + ' \u2014 Saved'
+    const name = window.prompt('Save as new custom template. Name:', defaultName)
+    if (!name || !name.trim()) return
+    const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40)
+    if (!slug) { alert('Invalid name'); return }
+    if (TEMPLATES[slug]) { alert('That name conflicts with a built-in template. Pick another.'); return }
+    const srcBlocks = tD.blocks || {}
+    const blockKeys = Object.keys(srcBlocks).map(n => parseInt(n)).filter(n => !isNaN(n)).sort()
+    const newBlocks = {}
+    blockKeys.forEach(b => {
+      const srcBD = srcBlocks[b]; if (!srcBD) return
+      const destBD = {}
+      if (srcBD.pctLabel) destBD.pctLabel = srcBD.pctLabel
+      if (srcBD.w1note) destBD.w1note = srcBD.w1note
+      ;(tD.days || []).forEach(d => {
+        const dayData = srcBD[d]; if (!dayData) return
+        destBD[d] = { header: dayData.header, exercises: [] }
+        dayData.exercises.forEach((ex, exIdx) => {
+          const editKey = `${tier}-${b}-${d}-${exIdx}`
+          const edit = edits[editKey] || {}
+          // Start from the source exercise, then overlay coach edits
+          const baseExercise = edit.exercise || ex.exercise
+          const baseSeries = edit.series || ex.series
+          const baseNote = edit.note || ex.note || ''
+          // Prefer an explicitly-edited prKey, else keep source, else detect
+          const basePrKey = (edit.prKey !== undefined && edit.prKey !== null && edit.prKey !== '')
+            ? edit.prKey
+            : (ex.prKey != null ? ex.prKey : detectPrKey(baseExercise))
+          // Base pct: prefer coach-defined base (added via the % setup UI), else the source ex.pct
+          const basePct = ex.pct ? [...ex.pct] : null
+          // Build the baked exercise using mkEx (handles string coercion etc.)
+          const baked = mkEx(baseSeries, baseExercise, parseInt(ex.sets) || 0, ex.reps || '', basePct, basePrKey, baseNote)
+          // Preserve matts perWeek metadata if present (intent, vFloor, altExercise, bench, etc.)
+          if (ex.matts && ex.matts.perWeek) {
+            baked.matts = { perWeek: JSON.parse(JSON.stringify(ex.matts.perWeek)) }
+          }
+          // Freeze per-week sets/reps/pct edits into the exercise.
+          // We merge them into matts.perWeek (creating it if needed) so the
+          // new template renders them as defaults on every future load.
+          const pw = baked.matts ? baked.matts.perWeek : {}
+          ;[1,2,3,4].forEach(wk => {
+            const sW = edit['sets_w' + wk]
+            const rW = edit['reps_w' + wk]
+            const pLo = edit['pct_w' + wk]
+            const pHi = edit['pct_w' + wk + '_hi']
+            if (!sW && !rW && pLo == null && pHi == null) return
+            const current = pw[wk] ? { ...pw[wk] } : {}
+            if (sW) current.sets = String(sW)
+            if (rW) current.reps = String(rW)
+            if (pLo != null && pLo !== '') {
+              const loN = parseFloat(pLo)
+              if (!isNaN(loN)) current.pctLo = Math.round(loN * 100)
+            }
+            if (pHi != null && pHi !== '') {
+              const hiN = parseFloat(pHi)
+              if (!isNaN(hiN)) current.pctHi = Math.round(hiN * 100)
+            }
+            pw[wk] = current
+          })
+          if (Object.keys(pw).length > 0) {
+            baked.matts = { perWeek: pw }
+          }
+          // Bake cell notes (if any)
+          ;[1,2,3,4].forEach(wk => {
+            const noteKey = `${tier}-${b}-${d}-${exIdx}-${wk}`
+            const nv = cellNotes[noteKey]
+            if (nv != null && nv !== '') {
+              if (!baked.matts) baked.matts = { perWeek: {} }
+              if (!baked.matts.perWeek[wk]) baked.matts.perWeek[wk] = {}
+              baked.matts.perWeek[wk].note = nv
+            }
+          })
+          // Apply coach-edited top-level sets/reps overrides (rare but possible)
+          if (edit.sets) baked.sets = String(edit.sets)
+          if (edit.reps) baked.reps = String(edit.reps)
+          destBD[d].exercises.push(baked)
+        })
+      })
+      newBlocks[b] = destBD
+    })
+    const obj = { label: name.trim(), days: [...(tD.days || [])], blocks: newBlocks }
+    setSaving(true)
+    // Serialize: custom_templates expects JSON
+    const { error } = await sb.from('custom_templates').upsert({
+      id: slug, template_json: JSON.stringify(obj), updated_at: new Date().toISOString()
+    }, { onConflict: 'id' })
+    setSaving(false)
+    if (error) { alert('Save failed: ' + error.message); return }
+    setCustomTemplates(prev => ({ ...prev, [slug]: obj }))
+    // Switch to the new template so further edits build on this snapshot
+    setTier(slug)
+    localStorage.setItem('ws_tier', slug)
+    alert('Saved as "' + name.trim() + '". Now active.')
   }
 
   const page1Days = days.slice(0, 2)
@@ -2289,7 +2397,7 @@ export default function App() {
               )}
             </div>
 
-            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} edits={edits} block={block} tier={tier} setEdit={setEdit} bD={bD} setCellNote={setCellNote} />}
+            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} edits={edits} block={block} tier={tier} setEdit={setEdit} bD={bD} setCellNote={setCellNote} saveAsCustomTemplate={saveAsCustomTemplate} />}
           </div>
 
           <style>{`
@@ -2836,7 +2944,7 @@ function TemplateCreator({ allTemplates, customTemplates, setCustomTemplates, li
   )
 }
 
-function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, bD, setCellNote }) {
+function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, bD, setCellNote, saveAsCustomTemplate }) {
   // edits prop forces re-render when any edit changes (percentage, sets, reps)
   void edits
 
@@ -3278,9 +3386,17 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
       <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', borderBottom: '2px solid #111', paddingBottom: 4, marginBottom: 10 }}>Block Analytics</div>
 
       {setEdit && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-          <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>
-          <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+            <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>
+            <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
+          </div>
+          {saveAsCustomTemplate && (
+            <button onClick={saveAsCustomTemplate} title="Snapshot this template (all 3 blocks, all edits baked in) and save as a new custom template"
+              style={{ width: '100%', padding: '6px 8px', background: '#0055bb', border: 'none', color: '#fff', fontWeight: 800, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>
+              Save as Custom Template
+            </button>
+          )}
         </div>
       )}
 
@@ -3477,7 +3593,11 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
   return <div className="no-print" onClick={startEdit} style={{ position: 'absolute', bottom: 1, right: 2, width: 14, height: 10, cursor: 'pointer', zIndex: 5, opacity: 0 }} title={'Click to override % (e.g. 65-75)'} />
 }
 
-function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
+// Accepted intent shortcuts. Typing any of these into the sets/reps input
+// (alone, case-insensitive) writes it as an intent override for that week:
+//   3RM, 2RM, 1RM, HS, MAX, PR
+const INTENT_SHORTCUTS = ['3RM','2RM','1RM','HS','MAX','PR']
+function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
 
@@ -3491,7 +3611,19 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
   const finish = () => {
     setEditing(false)
     const v = val.trim()
-    if (v === '' || v === 'x' || v === 'X') { onChange(null, null); return }
+    if (v === '' || v === 'x' || v === 'X') {
+      onChange(null, null)
+      if (onChangeIntent) onChangeIntent(null)
+      return
+    }
+    // Intent shortcut?
+    const upper = v.toUpperCase().replace(/\s+/g, '')
+    if (INTENT_SHORTCUTS.includes(upper)) {
+      if (onChangeIntent) onChangeIntent(upper)
+      return
+    }
+    // Clear any intent override when switching back to normal sets x reps
+    if (onChangeIntent) onChangeIntent(null)
     // Parse "5x2", "5×2", or just "5" (sets only, keep reps)
     const sep = v.includes('\u00d7') ? '\u00d7' : 'x'
     const parts = v.split(sep).map(p => p.trim())
@@ -3506,14 +3638,14 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange }) {
     <div style={{ padding: '2px 4px', position: 'relative', zIndex: 3 }}>
       <input autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={finish}
         onKeyDown={e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') setEditing(false) }}
-        placeholder="5x3"
-        style={{ width: 40, fontSize: 9, fontWeight: 700, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, color: '#0055bb' }} />
+        placeholder="5x3 or 2RM"
+        style={{ width: 56, fontSize: 9, fontWeight: 700, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, color: '#0055bb' }} />
     </div>
   )
   return (
     <div className="no-print" onClick={startEdit}
       style={{ padding: '2px 4px', fontSize: 9, fontWeight: 700, cursor: 'pointer', color: isOverridden ? '#0055bb' : '#999', position: 'relative', zIndex: 3 }}
-      title="Click to edit sets\u00d7reps for this week">
+      title="Click to edit sets\u00d7reps (or type 2RM / 3RM / HS / MAX / PR)">
       {display}
     </div>
   )
@@ -3633,10 +3765,16 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     return pr
   }
 
-  // Matt's Program: compute weight text from pctLo/pctHi + week PR
+  // Matt's Program: compute weight text from pctLo/pctHi + week PR.
+  // Falls back to getHint (standard ex.pct + pctOverrides path) if the matts
+  // data doesn't include a pct for this week — so custom-template cells
+  // that have just an intent override still print the correct weight.
   const mattsWeight = (wk) => {
-    const mw = mattsW(wk); if (!mw) return ''
-    if (mw.pctLo == null) return ''
+    const mw = mattsW(wk)
+    if (!mw || mw.pctLo == null) {
+      // Fall back to standard weight computation (uses ex.pct + ex.pctOverrides).
+      return getHint(wk)
+    }
     const p = prForWk(wk); if (!p) return ''
     const lo = mw.pctLo / 100, hi = (mw.pctHi != null ? mw.pctHi : mw.pctLo) / 100
     if (useKg) {
@@ -3653,7 +3791,12 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
 
     // ====== Matt's Program custom render path ======
-    const mw = mattsW(wk)
+    // Uses the matts-style cell when the template has perWeek metadata OR
+    // when the coach has typed an intent shortcut (2RM/3RM/HS/MAX/PR) into
+    // this week's cell — so intent badges work for any template.
+    let mw = mattsW(wk)
+    const intentOverrideForCell = ex.intentOverrides?.[wk]
+    if (!mw && intentOverrideForCell) mw = {}
     if (mw) {
       const designerLines = [
         '1. 3s ecc triple',
@@ -3667,8 +3810,10 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       const displaySets = srEdit?.sets || mw.sets || ex.sets || ''
       const displayReps = srEdit?.reps || mw.reps || ex.reps || ''
       const srIsOverridden = !!(srEdit?.sets || srEdit?.reps)
-      // Effective intent: coach sets/reps edit clears the intent display
-      const effIntent = srIsOverridden ? null : mw.intent
+      // Effective intent: coach runtime intent override wins over template mw.intent,
+      // and a coach sets/reps edit clears any intent display.
+      const intentOv = ex.intentOverrides?.[wk]
+      const effIntent = intentOv != null ? intentOv : (srIsOverridden ? null : mw.intent)
 
       // Coach pct override (if any)
       const pctOv = ex.pctOverrides?.[wk]
@@ -3706,6 +3851,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
                 if (r) setEdit(dk, i, 'reps_w' + wk, r)
               }
             }}
+            onChangeIntent={(it) => setEdit(dk, i, 'intent_w' + wk, it || '')}
           />
           <div style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minHeight: 46 }}>
             {/* Intent badge (only when no coach sets/reps override) */}
