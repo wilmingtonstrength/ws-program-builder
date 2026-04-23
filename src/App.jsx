@@ -2001,10 +2001,17 @@ export default function App() {
       const map = {}
       all.forEach(r => { const k = r.athlete_id + '-' + r.test_id; const v = parseFloat(r.converted_value ?? r.raw_value); if (!isNaN(v) && (!map[k] || v > map[k])) map[k] = v })
       setPrs(map)
-      const { data: savedEdits } = await sb.from('program_edits').select('*')
-      if (savedEdits && savedEdits.length > 0) {
+      // Load ALL program_edits rows — paginate past Supabase's default 1000-row cap
+      let allEdits = [], editsFrom = 0
+      while (true) {
+        const { data } = await sb.from('program_edits').select('*').range(editsFrom, editsFrom + 999)
+        if (data) allEdits = [...allEdits, ...data]
+        if (!data || data.length < 1000) break
+        editsFrom += 1000
+      }
+      if (allEdits.length > 0) {
         const editMap = {}
-        savedEdits.forEach(r => {
+        allEdits.forEach(r => {
           if (r.field === 'prKey') return
           const k = `${r.template}-${r.block}-${r.day}-${r.ex_index}`
           if (!editMap[k]) editMap[k] = {}
@@ -2012,10 +2019,17 @@ export default function App() {
         })
         setEdits(editMap)
       }
-      const { data: savedNotes } = await sb.from('program_cell_notes').select('*')
-      if (savedNotes && savedNotes.length > 0) {
+      // Load ALL program_cell_notes rows, same pagination
+      let allNotes = [], notesFrom = 0
+      while (true) {
+        const { data } = await sb.from('program_cell_notes').select('*').range(notesFrom, notesFrom + 999)
+        if (data) allNotes = [...allNotes, ...data]
+        if (!data || data.length < 1000) break
+        notesFrom += 1000
+      }
+      if (allNotes.length > 0) {
         const noteMap = { ...DEFAULT_CELL_NOTES }
-        savedNotes.forEach(r => { noteMap[`${r.template}-${r.block}-${r.day}-${r.ex_index}-${r.week}`] = r.value })
+        allNotes.forEach(r => { noteMap[`${r.template}-${r.block}-${r.day}-${r.ex_index}-${r.week}`] = r.value })
         setCellNotes(noteMap)
       }
       const { data: ctData } = await sb.from('custom_templates').select('*')
@@ -2298,18 +2312,25 @@ export default function App() {
       newBlocks[b] = destBD
     })
     const obj = { label: name.trim(), days: [...(tD.days || [])], blocks: newBlocks }
+    // Count how many exercises + how many edits were baked, for visible confirmation
+    let totalEx = 0, totalWithEdits = 0
+    Object.values(newBlocks).forEach(bd => (tD.days || []).forEach(d => {
+      const exs = bd[d]?.exercises || []
+      totalEx += exs.length
+      exs.forEach(e => { if (e.matts && Object.keys(e.matts.perWeek || {}).length > 0) totalWithEdits++ })
+    }))
     setSaving(true)
     // Serialize: custom_templates expects JSON
     const { error } = await sb.from('custom_templates').upsert({
       id: slug, template_json: JSON.stringify(obj), updated_at: new Date().toISOString()
     }, { onConflict: 'id' })
     setSaving(false)
-    if (error) { alert('Save failed: ' + error.message); return }
+    if (error) { alert('Save failed: ' + (error.message || JSON.stringify(error))); return }
     setCustomTemplates(prev => ({ ...prev, [slug]: obj }))
     // Switch to the new template so further edits build on this snapshot
     setTier(slug)
     localStorage.setItem('ws_tier', slug)
-    alert('Saved as "' + name.trim() + '". Now active.')
+    alert('Saved as "' + name.trim() + '"\n' + totalEx + ' exercises baked, ' + totalWithEdits + ' with per-week edits. Now active.')
   }
 
   const page1Days = days.slice(0, 2)
