@@ -3283,7 +3283,12 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
 }
 
 function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library, useKg, toggleKg }) {
-  const effectivePrKey = EXERCISE_PR_KEYS[ex.exercise] !== undefined ? EXERCISE_PR_KEYS[ex.exercise] : ex.prKey
+  // Prefer the explicit PR key on the exercise; fall back to the global map;
+  // fall back to name-based detection (handles custom templates whose saved
+  // prKey might not match anything).
+  const effectivePrKey = EXERCISE_PR_KEYS[ex.exercise] !== undefined
+    ? EXERCISE_PR_KEYS[ex.exercise]
+    : (ex.prKey || detectPrKey(ex.exercise))
   const pr = ath && effectivePrKey ? getPR(ath.id, effectivePrKey) : null
   const cellBorder = '1px solid #777'
   const tdBase = { borderBottom: isLast ? '2px solid #111' : '1px solid #999', borderRight: cellBorder, padding: 0, verticalAlign: 'top', background: isWU ? '#fafafa' : 'transparent' }
@@ -3331,9 +3336,9 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   // returns '' so the percentage range is NOT shown to the athlete. The
   // coach can still edit the percentage range via the PctEdit override UI.
   const getHint = (wk) => {
-    if (!ex.pct) return ''
     if (!pr) return ''
     const ov = ex.pctOverrides?.[wk]
+    // If coach has a per-week override, use it even when there's no base ex.pct.
     if (ov != null) {
       if (typeof ov === 'object') {
         if (useKg) { const lo = rKg(pr * ov.lo), hi = rKg(pr * ov.hi); return lo === hi ? lo + ' kg' : lo + '\u2013' + hi + ' kg' }
@@ -3341,6 +3346,8 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       }
       return fmt(pr * ov)
     }
+    // No override: fall back to the exercise's base pct if present.
+    if (!ex.pct) return ''
     if (wk === 1) return fmt(pr * ex.pct[0])
     if (wk >= 2 && wk <= 4) {
       if (useKg) {
@@ -3536,33 +3543,51 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             }
           }}
         />
-        {/* Ramp-up note (e.g. "70,78,85,90,95%") sits high so it reads as the headline.
-            Plain coach notes sit beneath the weight. */}
+        {/* Weight in the top-right (opposite side of sets x reps).
+            Ramp-up percentage notes (e.g. "70,78,85,90,95%") still sit
+            centered as the headline since they aren't a single weight. */}
         {(() => {
           const isRamp = noteVal && /^\s*(\d+\s*,\s*)+\d+\s*%?\s*$/.test(noteVal)
-          const weightTop = isRamp ? 30 : 16
-          const noteTop = isRamp ? 16 : 30
           return (
             <>
-              {hint && (
-                <div style={{ position: 'absolute', top: weightTop, left: 3, right: 3, fontSize: 10, color: '#111', fontWeight: 700, fontFamily: 'Arial, sans-serif', textAlign: 'center', pointerEvents: 'none' }}>
+              {hint && !isRamp && (
+                <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 10, color: '#111', fontWeight: 700, fontFamily: 'Arial, sans-serif', textAlign: 'right', pointerEvents: 'none' }}>
                   {hint}
                 </div>
               )}
-              <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
-                placeholder={hint ? '' : 'note'}
-                className={noteVal ? '' : 'no-print'}
-                style={{ position: 'absolute', top: noteTop, left: 3, fontSize: isRamp ? 9 : 8, color: '#0055bb', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', fontFamily: 'Arial, sans-serif', padding: 0, width: 'calc(100% - 6px)', textAlign: 'center' }} />
+              {isRamp && (
+                <div style={{ position: 'absolute', top: 16, left: 3, right: 3, fontSize: 9, color: '#0055bb', fontWeight: 700, fontFamily: 'Arial, sans-serif', textAlign: 'center', pointerEvents: 'none' }}>
+                  {noteVal}
+                </div>
+              )}
+              {/* Coach-editable note: only renders visibly when there is actual content.
+                  When empty, the input is hidden on both screen and print so the
+                  "note" placeholder doesn't clutter the middle of the cell. */}
+              {!isRamp && (
+                <input value={noteVal} onChange={e => setCellNote(noteKey, e.target.value)}
+                  placeholder=""
+                  className={noteVal ? '' : 'no-print'}
+                  style={{
+                    position: 'absolute', top: 18, left: 3,
+                    fontSize: 8, color: '#0055bb', fontWeight: 700,
+                    border: 'none', outline: 'none', background: 'transparent',
+                    fontFamily: 'Arial, sans-serif', padding: 0,
+                    width: 'calc(100% - 6px)', textAlign: 'center',
+                    // When there is no note value, render invisibly so it
+                    // doesn't cover the weight or the empty cell.
+                    opacity: noteVal ? 1 : 0,
+                  }} />
+              )}
             </>
           )
         })()}
-        {hasPct && (
+        {(hasPct || isOverridden) && (
           <PctEdit
             wk={wk}
             isOverridden={isOverridden}
-            defaultPct={wk === 1 ? Math.round(ex.pct[0]*100) : null}
-            rangeLo={Math.round(ex.pct[1]*100)}
-            rangeHi={Math.round(ex.pct[2]*100)}
+            defaultPct={wk === 1 && ex.pct ? Math.round(ex.pct[0]*100) : null}
+            rangeLo={ex.pct ? Math.round(ex.pct[1]*100) : null}
+            rangeHi={ex.pct ? Math.round(ex.pct[2]*100) : null}
             overrideVal={overrideVal}
             onChange={v => {
               if (v === null) {
