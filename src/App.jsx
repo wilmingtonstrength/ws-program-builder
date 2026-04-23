@@ -2333,8 +2333,13 @@ export default function App() {
     alert('Saved as "' + name.trim() + '"\n' + totalEx + ' exercises baked, ' + totalWithEdits + ' with per-week edits. Now active.')
   }
 
-  const page1Days = days.slice(0, 2)
-  const page2Days = days.slice(2)
+  // Print pagination:
+  //   <= 3 days total: everything on ONE page (no second sheet). Fills the
+  //     page vertically so cells can be as tall as possible.
+  //   4+ days: first 2 on page 1, rest on page 2 (same as before).
+  const singlePage = days.length <= 3
+  const page1Days = singlePage ? days : days.slice(0, 2)
+  const page2Days = singlePage ? [] : days.slice(2)
 
   return (
     <div style={{ background: '#f0f0f0', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
@@ -2437,6 +2442,9 @@ export default function App() {
               table { font-size: 8px !important; }
               /* Sets x reps at top-left of each cell: force black bold on print */
               .sr-display { color: #111 !important; font-weight: 800 !important; font-size: 10px !important; padding: 2px 4px !important; }
+              /* Make week cells taller on paper so athletes have room to write.
+                 The spacer is what reserves vertical space inside each week cell. */
+              .cell-spacer { height: 78px !important; min-height: 78px !important; }
             }
           `}</style>
         </div>
@@ -3812,7 +3820,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   }
 
   const wkCell = (wk) => {
-    if (isWU) return <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}><div style={{ height: 46 }}></div></td>
+    if (isWU) return <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}><div className="cell-spacer" style={{ height: 46 }}></div></td>
     const noteKey = `${tier}-${block}-${dk}-${i}-${wk}`
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
 
@@ -3879,7 +3887,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             }}
             onChangeIntent={(it) => setEdit(dk, i, 'intent_w' + wk, it || '')}
           />
-          <div style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minHeight: 46 }}>
+          <div className="cell-spacer" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minHeight: 46 }}>
             {/* Intent badge (only when no coach sets/reps override) */}
             {effIntent === '3RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>3RM</div>}
             {effIntent === '2RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>2RM</div>}
@@ -4039,7 +4047,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
             }}
           />
         )}
-        <div style={{ height: 46 }}></div>
+        <div className="cell-spacer" style={{ height: 46 }}></div>
       </td>
     )
   }
