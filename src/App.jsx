@@ -1570,10 +1570,13 @@ function detectPrKey(name) {
   if (EXERCISE_PR_KEYS[name] !== undefined) return EXERCISE_PR_KEYS[name]
   // Name-based fallback
   if (n.includes('snatch')) return 'snatch'
+  // Clean + Jerk / Clean + Push Press combos load from the overhead/jerk/press
+  // PRs (the jerk/press is the limiter), falling back to clean only if the
+  // athlete has no overhead PR recorded.
   if (n.includes('clean') && (n.includes('jerk') || n.includes('push jerk') || n.includes('push press')))
-    return ['clean','press','push_press','jerk','overhead']
+    return ['overhead','jerk','push_press','press','clean']
   if (n.includes('clean')) return 'clean'
-  if (n.includes('jerk') || n.includes('push press')) return ['press','push_press','jerk','overhead']
+  if (n.includes('jerk') || n.includes('push press')) return ['overhead','jerk','push_press','press']
   if (n.includes('front squat') || n.includes('ohs')) return 'front_squat'
   if (n.includes('back squat')) return 'back_squat'
   if (n.includes('deadlift')) return 'deadlift'
