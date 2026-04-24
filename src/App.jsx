@@ -2334,12 +2334,13 @@ export default function App() {
   }
 
   // Print pagination:
-  //   <= 3 days total: everything on ONE page (no second sheet). Fills the
-  //     page vertically so cells can be as tall as possible.
-  //   4+ days: first 2 on page 1, rest on page 2 (same as before).
-  const singlePage = days.length <= 3
-  const page1Days = singlePage ? days : days.slice(0, 2)
-  const page2Days = singlePage ? [] : days.slice(2)
+  //   Sheet 1 = Day 1 + Day 2
+  //   Sheet 2 = Day 3 (+ Day 4 if present)
+  // Two days per sheet keeps the athlete from flipping between days on one
+  // page. The print CSS makes cells tall so Sheet 2 with just Day 3 still
+  // fills the page with writing room.
+  const page1Days = days.slice(0, 2)
+  const page2Days = days.slice(2)
 
   return (
     <div style={{ background: '#f0f0f0', fontFamily: 'Arial, sans-serif', fontSize: 12 }}>
