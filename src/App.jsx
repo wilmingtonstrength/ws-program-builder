@@ -2437,9 +2437,17 @@ export default function App() {
               .print-only { display: block !important }
               select { display: none !important }
               input { border: none !important; padding: 0 !important; }
-              /* Keep each sheet on exactly ONE physical page. */
-              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; page-break-inside: avoid; break-inside: avoid; page-break-after: always; break-after: page; }
-              #sheet2 { page-break-before: always; page-break-after: auto; }
+              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; }
+              /* Sheet 1 must stay on page 1 only (no spill to page 2). */
+              #sheet { page-break-inside: avoid; break-inside: avoid; page-break-after: always; break-after: page; }
+              /* Sheet 2 always starts on a new page. It's allowed to flow
+                 naturally from there — we don't force page-break-inside:avoid
+                 because that can orphan table headers when content is tall. */
+              #sheet2 { page-break-before: always; }
+              /* Don't let table headers repeat across pages (avoids the empty
+                 "# EXERCISE WEEK 1..4" ghost row at the top of page 2). */
+              thead { display: table-row-group !important; }
+              thead tr { page-break-inside: avoid; }
               td { padding: 2px 3px !important; }
               table { font-size: 8px !important; }
               /* Sets x reps at top-left of each cell: force black bold on print */
