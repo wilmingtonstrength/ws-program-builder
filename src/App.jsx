@@ -2437,28 +2437,25 @@ export default function App() {
               .print-only { display: block !important }
               select { display: none !important }
               input { border: none !important; padding: 0 !important; }
-              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; }
-              /* Sheet 1 must stay on page 1 only (no spill to page 2). */
-              #sheet { page-break-inside: avoid; break-inside: avoid; }
-              /* Sheet 2 always starts on a new page. Only page-break-BEFORE
-                 is used (not AFTER on #sheet) to avoid the browser inserting
-                 a blank page between them. */
+              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 4px 8px !important; box-shadow: none !important; }
+              /* Sheet 2 starts on a new page. page-break-BEFORE only — no
+                 AFTER on sheet 1 — so browsers don't insert a blank page
+                 between them. Also no page-break-inside: avoid on sheet 1;
+                 letting content flow is safer than forcing a push. */
               #sheet2 { page-break-before: always; break-before: page; }
-              /* Hide the repeated compact sheet header on sheet 2 — it's
-                 redundant with page 1 and was causing a ghost line at the
-                 top of page 2 when followed by a tall Day 3 table. */
+              /* Hide the repeated SheetHeader on sheet 2 (redundant with
+                 page 1 and leaves a visible border line if kept). */
               #sheet2 > div:first-child { display: none !important; }
-              /* Don't let table headers repeat across pages (avoids the empty
-                 "# EXERCISE WEEK 1..4" ghost row at the top of page 2). */
+              /* Don't let table theads repeat at top of every page. */
               thead { display: table-row-group !important; }
               thead tr { page-break-inside: avoid; }
-              td { padding: 2px 3px !important; }
+              td { padding: 1px 3px !important; }
               table { font-size: 8px !important; }
-              /* Sets x reps at top-left of each cell: force black bold on print */
-              .sr-display { color: #111 !important; font-weight: 800 !important; font-size: 10px !important; padding: 2px 4px !important; }
-              /* Week-cell writing space. Tuned so 2 days (~12 exercise rows)
-                 fit on one sheet while still giving athletes room to write. */
-              .cell-spacer { height: 52px !important; min-height: 52px !important; }
+              /* Sets x reps at top-left of each cell. */
+              .sr-display { color: #111 !important; font-weight: 800 !important; font-size: 10px !important; padding: 1px 3px !important; }
+              /* Cell height tuned so Day 1 + Day 2 fit on page 1 without
+                 the browser pushing anything to a blank page 2. */
+              .cell-spacer { height: 42px !important; min-height: 42px !important; }
             }
           `}</style>
         </div>
