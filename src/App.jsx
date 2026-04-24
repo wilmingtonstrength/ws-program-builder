@@ -2437,15 +2437,16 @@ export default function App() {
               .print-only { display: block !important }
               select { display: none !important }
               input { border: none !important; padding: 0 !important; }
-              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; }
-              #sheet2 { page-break-before: always; }
+              /* Keep each sheet on exactly ONE physical page. */
+              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; page-break-inside: avoid; break-inside: avoid; page-break-after: always; break-after: page; }
+              #sheet2 { page-break-before: always; page-break-after: auto; }
               td { padding: 2px 3px !important; }
               table { font-size: 8px !important; }
               /* Sets x reps at top-left of each cell: force black bold on print */
               .sr-display { color: #111 !important; font-weight: 800 !important; font-size: 10px !important; padding: 2px 4px !important; }
-              /* Make week cells taller on paper so athletes have room to write.
-                 The spacer is what reserves vertical space inside each week cell. */
-              .cell-spacer { height: 78px !important; min-height: 78px !important; }
+              /* Week-cell writing space. Tuned so 2 days (~12 exercise rows)
+                 fit on one sheet while still giving athletes room to write. */
+              .cell-spacer { height: 52px !important; min-height: 52px !important; }
             }
           `}</style>
         </div>
