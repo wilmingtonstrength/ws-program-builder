@@ -2276,7 +2276,8 @@ export default function App() {
             const rW = edit['reps_w' + wk]
             const pLo = edit['pct_w' + wk]
             const pHi = edit['pct_w' + wk + '_hi']
-            if (!sW && !rW && pLo == null && pHi == null) return
+            const iW = edit['intent_w' + wk]
+            if (!sW && !rW && pLo == null && pHi == null && !iW) return
             const current = pw[wk] ? { ...pw[wk] } : {}
             if (sW) current.sets = String(sW)
             if (rW) current.reps = String(rW)
@@ -2288,6 +2289,7 @@ export default function App() {
               const hiN = parseFloat(pHi)
               if (!isNaN(hiN)) current.pctHi = Math.round(hiN * 100)
             }
+            if (iW) current.intent = iW
             pw[wk] = current
           })
           if (Object.keys(pw).length > 0) {
@@ -3639,14 +3641,16 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
 // (alone, case-insensitive) writes it as an intent override for that week:
 //   3RM, 2RM, 1RM, HS, MAX, PR
 const INTENT_SHORTCUTS = ['3RM','2RM','1RM','HS','MAX','PR']
-function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent }) {
+function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent, displayOverride }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
 
-  const display = sets + '\u00d7' + reps
+  // When the cell carries an intent override (e.g. "2RM") show that instead
+  // of the raw sets x reps so the coach sees what they typed.
+  const display = displayOverride || (sets + '\u00d7' + reps)
 
   const startEdit = () => {
-    setVal(sets + 'x' + reps)
+    setVal(displayOverride || (sets + 'x' + reps))
     setEditing(true)
   }
 
@@ -3852,13 +3856,13 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       ]
       // Coach edits win: if coach has overridden sets/reps, use those instead of template.
       const srEdit = ex.setsRepsOverrides?.[wk]
+      // Effective intent: coach runtime intent override wins over template mw.intent.
+      // A coach sets/reps edit clears the template intent (but NOT a coach intent override).
+      const intentOv = ex.intentOverrides?.[wk]
+      const effIntent = intentOv != null ? intentOv : (srEdit?.sets || srEdit?.reps ? null : mw.intent)
       const displaySets = srEdit?.sets || mw.sets || ex.sets || ''
       const displayReps = srEdit?.reps || mw.reps || ex.reps || ''
-      const srIsOverridden = !!(srEdit?.sets || srEdit?.reps)
-      // Effective intent: coach runtime intent override wins over template mw.intent,
-      // and a coach sets/reps edit clears any intent display.
-      const intentOv = ex.intentOverrides?.[wk]
-      const effIntent = intentOv != null ? intentOv : (srIsOverridden ? null : mw.intent)
+      const srIsOverridden = !!(srEdit?.sets || srEdit?.reps || intentOv)
 
       // Coach pct override (if any)
       const pctOv = ex.pctOverrides?.[wk]
@@ -3887,6 +3891,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           {/* Editable sets x reps at top (always) */}
           <SetsRepsEdit
             sets={displaySets} reps={displayReps} isOverridden={srIsOverridden}
+            displayOverride={intentOv ? (intentOv === 'HS' ? 'Heavy Single' : intentOv === 'PR' ? 'PR Attempt' : intentOv) : null}
             onChange={(s, r) => {
               if (s === null && r === null) {
                 setEdit(dk, i, 'sets_w' + wk, '')
@@ -3998,6 +4003,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
               if (r) setEdit(dk, i, 'reps_w' + wk, r)
             }
           }}
+          onChangeIntent={(it) => setEdit(dk, i, 'intent_w' + wk, it || '')}
         />
         {/* Weight in the top-right (opposite side of sets x reps).
             Ramp-up percentage notes (e.g. "70,78,85,90,95%") still sit
