@@ -2444,6 +2444,10 @@ export default function App() {
                  is used (not AFTER on #sheet) to avoid the browser inserting
                  a blank page between them. */
               #sheet2 { page-break-before: always; break-before: page; }
+              /* Hide the repeated compact sheet header on sheet 2 — it's
+                 redundant with page 1 and was causing a ghost line at the
+                 top of page 2 when followed by a tall Day 3 table. */
+              #sheet2 > div:first-child { display: none !important; }
               /* Don't let table headers repeat across pages (avoids the empty
                  "# EXERCISE WEEK 1..4" ghost row at the top of page 2). */
               thead { display: table-row-group !important; }
