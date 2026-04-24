@@ -2439,11 +2439,11 @@ export default function App() {
               input { border: none !important; padding: 0 !important; }
               #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 6px 8px !important; box-shadow: none !important; }
               /* Sheet 1 must stay on page 1 only (no spill to page 2). */
-              #sheet { page-break-inside: avoid; break-inside: avoid; page-break-after: always; break-after: page; }
-              /* Sheet 2 always starts on a new page. It's allowed to flow
-                 naturally from there — we don't force page-break-inside:avoid
-                 because that can orphan table headers when content is tall. */
-              #sheet2 { page-break-before: always; }
+              #sheet { page-break-inside: avoid; break-inside: avoid; }
+              /* Sheet 2 always starts on a new page. Only page-break-BEFORE
+                 is used (not AFTER on #sheet) to avoid the browser inserting
+                 a blank page between them. */
+              #sheet2 { page-break-before: always; break-before: page; }
               /* Don't let table headers repeat across pages (avoids the empty
                  "# EXERCISE WEEK 1..4" ghost row at the top of page 2). */
               thead { display: table-row-group !important; }
