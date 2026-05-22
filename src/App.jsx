@@ -1993,13 +1993,24 @@ export default function App() {
       setStatus('Fetching PRs...')
       let all = [], from = 0
       while (true) {
-        const { data } = await sb.from('results').select('athlete_id,test_id,converted_value,raw_value').range(from, from + 499)
+        const { data } = await sb.from('results').select('athlete_id,test_id,test_date,converted_value,raw_value').range(from, from + 499)
         if (data) all = [...all, ...data]
         if (!data || data.length < 500) break
         from += 500
       }
+      // Use MOST RECENT max per (athlete, test) rather than all-time PR.
+      // If an athlete loses or gains weight, their programming should follow
+      // their latest tested capacity. Strict latest test_date wins.
+      const latest = {}
+      all.forEach(r => {
+        const v = parseFloat(r.converted_value ?? r.raw_value)
+        if (isNaN(v)) return
+        const k = r.athlete_id + '-' + r.test_id
+        const d = r.test_date || ''
+        if (!latest[k] || d > latest[k].d) latest[k] = { v, d }
+      })
       const map = {}
-      all.forEach(r => { const k = r.athlete_id + '-' + r.test_id; const v = parseFloat(r.converted_value ?? r.raw_value); if (!isNaN(v) && (!map[k] || v > map[k])) map[k] = v })
+      Object.keys(latest).forEach(k => { map[k] = latest[k].v })
       setPrs(map)
       // Load ALL program_edits rows — paginate past Supabase's default 1000-row cap
       let allEdits = [], editsFrom = 0
