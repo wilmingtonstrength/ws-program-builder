@@ -1941,8 +1941,8 @@ function EditField({ value, onChange, style = {}, placeholder = '' }) {
       style={{ border: 'none', borderBottom: '2px solid #111', background: 'transparent', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', outline: 'none', padding: 0, width: 80, ...style }} />
   )
   return (
-    <span onClick={() => setEditing(true)} style={{ cursor: 'pointer', borderBottom: '1px dashed #ccc', ...style }}>
-      {value || <span style={{ color: '#ccc', fontStyle: 'italic', fontWeight: 400 }}>{placeholder}</span>}
+    <span onClick={() => setEditing(true)} style={{ cursor: 'pointer', borderBottom: '1px dashed #ccc', minWidth: 16, display: 'inline-block', ...style }}>
+      {value || <span style={{ color: '#ccc', fontStyle: 'italic', fontWeight: 400 }}>{placeholder || ' '}</span>}
     </span>
   )
 }
@@ -2147,7 +2147,7 @@ export default function App() {
       const r = edit['reps_w' + w]
       if (s || r) srOv[w] = { sets: s || null, reps: r || null }
     })
-    // Parse per-week intent overrides (2RM/3RM/1RM/HS/MAX/PR typed into cell)
+    // Parse per-week intent overrides (5RM/3RM/2RM/1RM/HS/MAX/PR typed into cell)
     const intentOv = {}
     ;[1,2,3,4].forEach(w => {
       const it = edit['intent_w' + w]
@@ -3650,8 +3650,8 @@ function PctEdit({ wk, isOverridden, defaultPct, rangeLo, rangeHi, overrideVal, 
 
 // Accepted intent shortcuts. Typing any of these into the sets/reps input
 // (alone, case-insensitive) writes it as an intent override for that week:
-//   3RM, 2RM, 1RM, HS, MAX, PR
-const INTENT_SHORTCUTS = ['3RM','2RM','1RM','HS','MAX','PR']
+//   5RM, 3RM, 2RM, 1RM, HS, MAX, PR
+const INTENT_SHORTCUTS = ['5RM','3RM','2RM','1RM','HS','MAX','PR']
 function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent, displayOverride }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState('')
@@ -3695,7 +3695,7 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent, disp
     <div style={{ padding: '2px 4px', position: 'relative', zIndex: 3 }}>
       <input autoFocus value={val} onChange={e => setVal(e.target.value)} onBlur={finish}
         onKeyDown={e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') setEditing(false) }}
-        placeholder="5x3 or 2RM"
+        placeholder="5x3 or 5RM"
         style={{ width: 56, fontSize: 9, fontWeight: 700, border: 'none', borderBottom: '1px solid #0055bb', background: 'transparent', fontFamily: 'inherit', outline: 'none', padding: 0, color: '#0055bb' }} />
     </div>
   )
@@ -3705,7 +3705,7 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent, disp
   return (
     <div className="sr-display" onClick={startEdit}
       style={{ padding: '2px 4px', fontSize: 10, fontWeight: 800, cursor: 'pointer', color: isOverridden ? '#0055bb' : '#111', position: 'relative', zIndex: 3 }}
-      title="Click to edit sets\u00d7reps (or type 2RM / 3RM / HS / MAX / PR)">
+      title="Click to edit sets\u00d7reps (or type 5RM / 3RM / 2RM / HS / MAX / PR)">
       {display}
     </div>
   )
@@ -3852,7 +3852,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
 
     // ====== Matt's Program custom render path ======
     // Uses the matts-style cell when the template has perWeek metadata OR
-    // when the coach has typed an intent shortcut (2RM/3RM/HS/MAX/PR) into
+    // when the coach has typed an intent shortcut (5RM/3RM/2RM/HS/MAX/PR) into
     // this week's cell — so intent badges work for any template.
     let mw = mattsW(wk)
     const intentOverrideForCell = ex.intentOverrides?.[wk]
@@ -3894,6 +3894,8 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           }
         } else if (mw.pctLo != null) {
           weightText = mattsWeight(wk)
+        } else if (effIntent === '5RM') {
+          weightText = useKg ? rKg(p * 0.85) + ' kg' : r5(p * 0.85) + ' lbs'
         }
       }
 
@@ -3916,6 +3918,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           />
           <div className="cell-spacer" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minHeight: 46 }}>
             {/* Intent badge (only when no coach sets/reps override) */}
+            {effIntent === '5RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>5RM</div>}
             {effIntent === '3RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>3RM</div>}
             {effIntent === '2RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>2RM</div>}
             {effIntent === '1RM' && <div style={{ fontSize: 11, fontWeight: 800, color: '#c44', letterSpacing: 0.5 }}>1RM</div>}
