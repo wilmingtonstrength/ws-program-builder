@@ -1328,10 +1328,9 @@ const TEMPLATES = {
           dayA: { header: 'Monday — Acceleration / Clean / Squat', exercises: [
             mkEx('WU','Acceleration','','',null,null,'flys, resistance sprints'),
             mkEx('A1','Power Clean + Power Jerk',4,'2+2',M_OLY_B1,'clean'),
-            mkEx('B1','Back Squat',4,'5',M_SQ_B1,'back_squat'),
-            mkEx('C1','Single Leg Squat',4,'5',M_SQ_B1,null,'S1 3s ecc, S2 iso, S3-4 normal'),
-            mkEx('D1','Calf Raises',3,'10',null,null),
-            mkEx('D2','Core',3,'10',null,null),
+            mkEx('B1','Back Squat',4,'5',M_SQ_B1,'back_squat','S1 3s ecc, S2 iso, S3-4 normal'),
+            mkEx('C1','Calf Raises',3,'10',null,null),
+            mkEx('C2','Core',3,'10',null,null),
           ]},
           dayB: { header: 'Wednesday — Jumps / Snatch / Posterior', exercises: [
             mkEx('WU','Approach Jumps','','',null,null),
@@ -1342,7 +1341,7 @@ const TEMPLATES = {
           ]},
           dayC: { header: 'Friday — Upper / Single Leg', exercises: [
             mm(mkEx('A1','Bench Press',1,'5',null,'bench_press'), benchWeeks(5, 80)),
-            mkEx('B1','RFE Split Squat',3,'8',null,null),
+            mkEx('B1','RFE Split Squat',3,'5ea',null,null),
             mkEx('C1','Chest Supported Rows',3,'8',null,null),
             mkEx('C2','Lateral Raises',3,'10',null,null),
           ]}
@@ -1353,10 +1352,9 @@ const TEMPLATES = {
           dayA: { header: 'Monday — Acceleration / Clean / Squat', exercises: [
             mkEx('WU','Acceleration','','',null,null,'flys, resistance sprints'),
             mkEx('A1','Power Clean + Power Jerk',4,'2+2',M_OLY_B2,'clean'),
-            mkEx('B1','Back Squat',4,'5',M_SQ_B2,'back_squat'),
-            mkEx('C1','Single Leg Squat',4,'5',M_SQ_B2,null,'S1 3s ecc, S2 iso, S3-4 normal'),
-            mkEx('D1','Calf Raises',3,'10',null,null),
-            mkEx('D2','Core',3,'10',null,null),
+            mkEx('B1','Back Squat',4,'5',M_SQ_B2,'back_squat','S1 3s ecc, S2 iso, S3-4 normal'),
+            mkEx('C1','Calf Raises',3,'10',null,null),
+            mkEx('C2','Core',3,'10',null,null),
           ]},
           dayB: { header: 'Wednesday — Jumps / Snatch / Posterior', exercises: [
             mkEx('WU','Approach Jumps','','',null,null),
@@ -1367,7 +1365,7 @@ const TEMPLATES = {
           ]},
           dayC: { header: 'Friday — Upper / Single Leg', exercises: [
             mm(mkEx('A1','Bench Press',1,'5',null,'bench_press'), benchWeeks(5, 85)),
-            mkEx('B1','RFE Split Squat',3,'8',null,null),
+            mkEx('B1','RFE Split Squat',3,'5ea',null,null),
             mkEx('C1','Chest Supported Rows',3,'8',null,null),
             mkEx('C2','Lateral Raises',3,'10',null,null),
           ]}
@@ -1378,10 +1376,9 @@ const TEMPLATES = {
           dayA: { header: 'Monday — Acceleration / Clean / Squat', exercises: [
             mkEx('WU','Acceleration','','',null,null,'flys, resistance sprints'),
             mkEx('A1','Power Clean + Power Jerk',4,'2+2',M_OLY_B3,'clean'),
-            mkEx('B1','Back Squat',4,'5',M_SQ_B3,'back_squat'),
-            mkEx('C1','Single Leg Squat',4,'5',M_SQ_B3,null,'S1 3s ecc, S2 iso, S3-4 normal'),
-            mkEx('D1','Calf Raises',3,'10',null,null),
-            mkEx('D2','Core',3,'10',null,null),
+            mkEx('B1','Back Squat',4,'5',M_SQ_B3,'back_squat','S1 3s ecc, S2 iso, S3-4 normal'),
+            mkEx('C1','Calf Raises',3,'10',null,null),
+            mkEx('C2','Core',3,'10',null,null),
           ]},
           dayB: { header: 'Wednesday — Jumps / Snatch / Posterior', exercises: [
             mkEx('WU','Approach Jumps','','',null,null),
@@ -1392,7 +1389,7 @@ const TEMPLATES = {
           ]},
           dayC: { header: 'Friday — Upper / Single Leg', exercises: [
             mm(mkEx('A1','Bench Press',1,'5',null,'bench_press'), benchWeeks(5, 90)),
-            mkEx('B1','RFE Split Squat',3,'8',null,null),
+            mkEx('B1','RFE Split Squat',3,'5ea',null,null),
             mkEx('C1','Chest Supported Rows',3,'8',null,null),
             mkEx('C2','Lateral Raises',3,'10',null,null),
           ]}
