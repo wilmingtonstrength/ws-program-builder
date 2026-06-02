@@ -3106,6 +3106,8 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
 
   const doReroll = () => {
     if (!bD || !setEdit) return
+    // Matt's Program uses simple linear periodization — no undulation
+    if (tier === 'matts_program') return
     days.forEach(dk => {
       const exs = bD[dk]?.exercises || []
       exs.forEach((ex, i) => {
@@ -3281,7 +3283,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
       {setEdit && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-            <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>
+            {tier !== 'matts_program' && <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>}
             <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
           </div>
           {saveAsCustomTemplate && (
