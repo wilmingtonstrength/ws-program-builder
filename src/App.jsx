@@ -1290,7 +1290,7 @@ const TEMPLATES = {
       }
     }
   },
-  matts_program: (function() {
+  matt_linear: (function() {
     // ===========================================================
     // Matt's Program — 12-week macrocycle (3 blocks x 4 weeks)
     // Simple linear block periodization. Same exercises, same sets/reps
@@ -1790,7 +1790,12 @@ export default function App() {
   const [prs, setPrs] = useState({})
   const [athleteId, setAthleteId] = useState(() => { try { return JSON.parse(localStorage.getItem('ws_athleteId')) || null } catch { return null } })
   const [tab, setTab] = useState(() => localStorage.getItem('ws_tab') || 'builder')
-  const [tier, setTier] = useState(() => localStorage.getItem('ws_tier') || 'beginner')
+  const [tier, setTier] = useState(() => {
+    const saved = localStorage.getItem('ws_tier') || 'beginner'
+    // Old matts_program was replaced — redirect to matt_linear
+    if (saved === 'matts_program') { localStorage.setItem('ws_tier', 'matt_linear'); return 'matt_linear' }
+    return saved
+  })
   const [block, setBlock] = useState(() => parseInt(localStorage.getItem('ws_block')) || 1)
   const [search, setSearch] = useState('')
   const [showAthDrop, setShowAthDrop] = useState(false)
@@ -3107,7 +3112,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
   const doReroll = () => {
     if (!bD || !setEdit) return
     // Matt's Program uses simple linear periodization — no undulation
-    if (tier === 'matts_program') return
+    if (tier === 'matt_linear') return
     days.forEach(dk => {
       const exs = bD[dk]?.exercises || []
       exs.forEach((ex, i) => {
@@ -3283,7 +3288,7 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
       {setEdit && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
-            {tier !== 'matts_program' && <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>}
+            {tier !== 'matt_linear' && <button onClick={tier === 'oly_4day_undulating' ? doUndulatingReroll : doReroll} style={{ flex: 1, padding: '5px 8px', background: '#e8b000', border: 'none', color: '#111', fontWeight: 700, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>{tier === 'oly_4day_undulating' ? 'Generate' : 'Reroll'}</button>}
             <button onClick={clearReroll} style={{ flex: 1, padding: '5px 8px', background: '#fff', border: '1.5px solid #ccc', color: '#666', fontWeight: 600, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Reset</button>
           </div>
           {saveAsCustomTemplate && (
