@@ -1293,51 +1293,30 @@ const TEMPLATES = {
   matts_program: (function() {
     // ===========================================================
     // Matt's Program — 12-week macrocycle (3 blocks x 4 weeks)
-    // Block 1: Accumulation  |  Block 2: Transmutation  |  Block 3: Realization
-    // Tue: Jump, Snatch, Back Squat
-    // Fri: Power Snatch, Power Clean + Push Press, Snatch Pull, Bench
-    // Sat: Clean & Jerk, Front Squat, Clean Pull (Deadlift on W2 of each block)
+    // Simple linear block periodization. Same exercises, same sets/reps
+    // every week within a block. Percentages step up across blocks.
+    // Mon: Acceleration / Power Clean+Jerk / Back Squat / Single Leg / Core
+    // Wed: Approach Jumps / Power Snatch / RDL / Nordic / Pull-ups
+    // Fri: Bench Press / RFE Split Squat / Rows / Lateral Raises
     // ===========================================================
-    // Attach per-week matts-program metadata to an exercise.
-    // pw is keyed by week 1..4. Each week may have:
-    //   { sets, reps, pctLo, pctHi, intent, vFloor, altExercise, altPrKey, bench, note }
     const mm = (ex, pw) => { ex.matts = { perWeek: pw }; return ex }
 
-    // Two empty accessory slots (same per block). User fills in exercise name +
-    // sets/reps/% at runtime in the builder. No matts metadata so they use the
-    // standard render path with full editability.
-    const acc = () => [
-      mkEx('ACC1','',3,'10',null,null),
-      mkEx('ACC2','',3,'10',null,null),
-    ]
+    // Block percentage bands — same range all 4 weeks within a block
+    const M_OLY_B1 = [0.65, 0.65, 0.75]
+    const M_OLY_B2 = [0.70, 0.70, 0.80]
+    const M_OLY_B3 = [0.75, 0.75, 0.85]
+    const M_SQ_B1  = [0.70, 0.70, 0.80]
+    const M_SQ_B2  = [0.75, 0.75, 0.85]
+    const M_SQ_B3  = [0.80, 0.80, 0.90]
+    const M_RDL_B1 = [0.65, 0.65, 0.75]
+    const M_RDL_B2 = [0.70, 0.70, 0.80]
+    const M_RDL_B3 = [0.75, 0.75, 0.85]
 
-    // Velocity floors
-    const BSQ_VF_3 = '\u2265 0.50 m/s'
-    const BSQ_VF_2 = '\u2265 0.45 m/s'
-    const BSQ_VF_DESIGN = '\u2265 0.55 m/s peak'
-    const FSQ_VF_3 = '\u2265 0.60 m/s'
-    const FSQ_VF_2 = '\u2265 0.50 m/s'
-    const PSN_VF_3 = '\u2265 2.70 m/s peak'
-    const PSN_VF_2 = '\u2265 2.60 m/s peak'
-    const PSN_VF_1 = '\u2265 2.45 m/s peak'
-
-    // Olympic % bands
-    const OLY_T = { pctLo: 65, pctHi: 75 }     // triples normal
-    const OLY_D = { pctLo: 75, pctHi: 85 }     // doubles normal
-    const OLY_MOD_T = { pctLo: 60, pctHi: 70 } // moderate triples
-    const OLY_MOD_D = { pctLo: 70, pctHi: 80 } // moderate doubles
-
-    // Pull % bands
-    const SN_PULL_B1 = { pctLo: 100, pctHi: 110 }
-    const SN_PULL_B2 = { pctLo: 100, pctHi: 110 }
-    const SN_PULL_B3 = { pctLo: 105, pctHi: 115 }
-    const CL_PULL_B1 = { pctLo: 90, pctHi: 105 }
-    const CL_PULL_B1_W4 = { pctLo: 90, pctHi: 100 }
-    const CL_PULL_B2 = { pctLo: 100, pctHi: 110 }
-    const CL_PULL_B2_W4 = { pctLo: 100, pctHi: 105 }
-    const CL_PULL_B3 = { pctLo: 105, pctHi: 115 }
-    const CL_PULL_B3_W3 = { pctLo: 105, pctHi: 110 }
-    const CL_PULL_B3_W4 = { pctLo: 100, pctHi: 105 }
+    // Bench uses top-set + AMRAP drop (needs matts perWeek for bench rendering)
+    const benchWeeks = (topReps, topPct) => {
+      const bw = { bench: { topReps, topPct } }
+      return { 1: bw, 2: bw, 3: bw, 4: bw }
+    }
 
     return {
       label: "Matt's Program",
@@ -1345,215 +1324,77 @@ const TEMPLATES = {
       blocks: {
         // ============================== BLOCK 1 ==============================
         1: {
-          pctLabel: 'Block 1 \u2014 Accumulation',
-          dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
-            mm(mkEx('A1','Jump',3,'3',null,null), {
-              1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
-              3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
-            }),
-            mm(mkEx('B1','Snatch',5,'3',null,'snatch'), {
-              1: { sets: '5', reps: '3', ...OLY_T },
-              2: { sets: '4', reps: '2', ...OLY_MOD_D },
-              3: { sets: '4', reps: '3', ...OLY_T },
-              4: { intent: '2RM' }
-            }),
-            mm(mkEx('C1','Back Squat',5,'3',null,'back_squat'), {
-              1: { intent: 'DESIGN', sets: '5', reps: '3', vFloor: BSQ_VF_DESIGN },
-              2: { intent: '3RM', vFloor: BSQ_VF_3 },
-              3: { intent: 'DESIGN', sets: '5', reps: '3', vFloor: BSQ_VF_DESIGN },
-              4: { intent: 'DESIGN', sets: '3', reps: '3', vFloor: BSQ_VF_DESIGN, note: 'lighter' }
-            }),
-            ...acc(),
+          pctLabel: 'Block 1 — Oly 65-75% / Squat 70-80%',
+          dayA: { header: 'Monday — Acceleration / Clean / Squat', exercises: [
+            mkEx('WU','Acceleration','','',null,null,'flys, resistance sprints'),
+            mkEx('A1','Power Clean + Power Jerk',4,'2+2',M_OLY_B1,'clean'),
+            mkEx('B1','Back Squat',4,'5',M_SQ_B1,'back_squat'),
+            mkEx('C1','Single Leg Squat',4,'5',M_SQ_B1,null,'S1 3s ecc, S2 iso, S3-4 normal'),
+            mkEx('D1','Calf Raises',3,'10',null,null),
+            mkEx('D2','Core',3,'10',null,null),
           ]},
-          dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
-            mm(mkEx('A1','Power Snatch',5,'3',null,'snatch'), {
-              1: { sets: '5', reps: '3', ...OLY_T, vFloor: PSN_VF_3 },
-              2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
-              3: { sets: '4', reps: '3', ...OLY_T, vFloor: PSN_VF_3 },
-              4: { intent: '2RM', vFloor: PSN_VF_2 }
-            }),
-            mm(mkEx('B1','Power Clean + Push Press',4,'5',null,['clean','push_press']), {
-              1: { sets: '4', reps: '5', ...OLY_T },
-              2: { intent: '3RM' },
-              3: { sets: '4', reps: '5', ...OLY_T },
-              4: { sets: '3', reps: '5', ...OLY_MOD_T }
-            }),
-            mm(mkEx('C1','Snatch Pull',4,'3',null,'snatch'), {
-              1: { sets: '4', reps: '3', ...SN_PULL_B1 },
-              2: { sets: '3', reps: '3', ...SN_PULL_B1 },
-              3: { sets: '4', reps: '3', ...SN_PULL_B1 },
-              4: { sets: '3', reps: '3', ...SN_PULL_B1 }
-            }),
-            mm(mkEx('D1','Bench Press',1,'8',null,'bench_press'), {
-              1: { bench: { topReps: 8, topPct: 75 } },
-              2: { bench: { topReps: 8, topPct: 75 } },
-              3: { bench: { topReps: 8, topPct: 75 } },
-              4: { bench: { topReps: 8, topPct: 75 } }
-            }),
-            ...acc(),
+          dayB: { header: 'Wednesday — Jumps / Snatch / Posterior', exercises: [
+            mkEx('WU','Approach Jumps','','',null,null),
+            mkEx('A1','Power Snatch from Box',4,'3',M_OLY_B1,'snatch'),
+            mkEx('B1','RDL',3,'8',M_RDL_B1,'deadlift'),
+            mkEx('C1','Nordic Curls',3,'8',null,null),
+            mkEx('C2','Pull Ups',3,'8',null,null),
           ]},
-          dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
-            mm(mkEx('A1','Clean + Jerk',5,'3+2',null,['clean','jerk']), {
-              1: { sets: '5', reps: '3+2', ...OLY_T },
-              2: { sets: '4', reps: '2+2', ...OLY_MOD_D },
-              3: { sets: '5', reps: '2+2', ...OLY_D },
-              4: { intent: '2RM', reps: '2+2' }
-            }),
-            mm(mkEx('B1','Front Squat',4,'5',null,'front_squat'), {
-              1: { sets: '4', reps: '5', ...OLY_T, vFloor: FSQ_VF_3 },
-              2: { intent: '3RM', vFloor: FSQ_VF_3 },
-              3: { sets: '4', reps: '5', ...OLY_T, vFloor: FSQ_VF_3 },
-              4: { sets: '3', reps: '5', ...OLY_MOD_T, vFloor: FSQ_VF_3 }
-            }),
-            mm(mkEx('C1','Clean Pull',4,'3',null,'clean'), {
-              1: { sets: '4', reps: '3', ...CL_PULL_B1 },
-              2: { intent: '3RM', altExercise: 'Deadlift', altPrKey: 'deadlift' },
-              3: { sets: '4', reps: '3', ...CL_PULL_B1 },
-              4: { sets: '3', reps: '3', ...CL_PULL_B1_W4 }
-            }),
-            ...acc(),
+          dayC: { header: 'Friday — Upper / Single Leg', exercises: [
+            mm(mkEx('A1','Bench Press',1,'5',null,'bench_press'), benchWeeks(5, 80)),
+            mkEx('B1','RFE Split Squat',3,'8',null,null),
+            mkEx('C1','Chest Supported Rows',3,'8',null,null),
+            mkEx('C2','Lateral Raises',3,'10',null,null),
           ]}
         },
         // ============================== BLOCK 2 ==============================
         2: {
-          pctLabel: 'Block 2 \u2014 Transmutation',
-          dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
-            mm(mkEx('A1','Jump',3,'3',null,null), {
-              1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
-              3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
-            }),
-            mm(mkEx('B1','Snatch',5,'2',null,'snatch'), {
-              1: { sets: '5', reps: '2', ...OLY_D },
-              2: { sets: '4', reps: '2', ...OLY_MOD_D },
-              3: { sets: '4', reps: '2', ...OLY_D },
-              4: { intent: 'HS' }
-            }),
-            mm(mkEx('C1','Back Squat',4,'3',null,'back_squat'), {
-              1: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
-              2: { intent: '2RM', vFloor: BSQ_VF_2 },
-              3: { sets: '4', reps: '3', vFloor: BSQ_VF_3 },
-              4: { sets: '3', reps: '3', vFloor: BSQ_VF_3, note: 'moderate' }
-            }),
-            ...acc(),
+          pctLabel: 'Block 2 — Oly 70-80% / Squat 75-85%',
+          dayA: { header: 'Monday — Acceleration / Clean / Squat', exercises: [
+            mkEx('WU','Acceleration','','',null,null,'flys, resistance sprints'),
+            mkEx('A1','Power Clean + Power Jerk',4,'2+2',M_OLY_B2,'clean'),
+            mkEx('B1','Back Squat',4,'5',M_SQ_B2,'back_squat'),
+            mkEx('C1','Single Leg Squat',4,'5',M_SQ_B2,null,'S1 3s ecc, S2 iso, S3-4 normal'),
+            mkEx('D1','Calf Raises',3,'10',null,null),
+            mkEx('D2','Core',3,'10',null,null),
           ]},
-          dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
-            mm(mkEx('A1','Power Snatch',4,'2',null,'snatch'), {
-              1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
-              2: { sets: '4', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
-              3: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
-              4: { intent: 'HS', vFloor: PSN_VF_1 }
-            }),
-            mm(mkEx('B1','Power Clean + Push Press',4,'3',null,['clean','push_press']), {
-              1: { sets: '4', reps: '3', ...OLY_T },
-              2: { intent: 'HS' },
-              3: { sets: '4', reps: '3', ...OLY_T },
-              4: { sets: '3', reps: '5', ...OLY_MOD_T }
-            }),
-            mm(mkEx('C1','Snatch Pull',4,'3',null,'snatch'), {
-              1: { sets: '4', reps: '3', ...SN_PULL_B2 },
-              2: { sets: '3', reps: '3', ...SN_PULL_B2 },
-              3: { sets: '3', reps: '3', ...SN_PULL_B2 },
-              4: { sets: '3', reps: '3', ...SN_PULL_B2 }
-            }),
-            mm(mkEx('D1','Bench Press',1,'5',null,'bench_press'), {
-              1: { bench: { topReps: 5, topPct: 85 } },
-              2: { bench: { topReps: 5, topPct: 85 } },
-              3: { bench: { topReps: 5, topPct: 85 } },
-              4: { bench: { topReps: 5, topPct: 85 } }
-            }),
-            ...acc(),
+          dayB: { header: 'Wednesday — Jumps / Snatch / Posterior', exercises: [
+            mkEx('WU','Approach Jumps','','',null,null),
+            mkEx('A1','Power Snatch from Box',4,'3',M_OLY_B2,'snatch'),
+            mkEx('B1','RDL',3,'8',M_RDL_B2,'deadlift'),
+            mkEx('C1','Nordic Curls',3,'8',null,null),
+            mkEx('C2','Pull Ups',3,'8',null,null),
           ]},
-          dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
-            mm(mkEx('A1','Clean + Jerk',4,'2+2',null,['clean','jerk']), {
-              1: { sets: '4', reps: '2+2', ...OLY_D },
-              2: { sets: '4', reps: '2+1', ...OLY_MOD_D },
-              3: { sets: '4', reps: '2+2', ...OLY_D },
-              4: { intent: 'HS' }
-            }),
-            mm(mkEx('B1','Front Squat',4,'3',null,'front_squat'), {
-              1: { sets: '4', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
-              2: { intent: '2RM', vFloor: FSQ_VF_2 },
-              3: { sets: '4', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
-              4: { sets: '3', reps: '3', ...OLY_MOD_T, vFloor: FSQ_VF_3, note: 'moderate' }
-            }),
-            mm(mkEx('C1','Clean Pull',3,'3',null,'clean'), {
-              1: { sets: '3', reps: '3', ...CL_PULL_B2 },
-              2: { intent: '2RM', altExercise: 'Deadlift', altPrKey: 'deadlift' },
-              3: { sets: '3', reps: '3', ...CL_PULL_B2 },
-              4: { sets: '3', reps: '2', ...CL_PULL_B2_W4 }
-            }),
-            ...acc(),
+          dayC: { header: 'Friday — Upper / Single Leg', exercises: [
+            mm(mkEx('A1','Bench Press',1,'5',null,'bench_press'), benchWeeks(5, 85)),
+            mkEx('B1','RFE Split Squat',3,'8',null,null),
+            mkEx('C1','Chest Supported Rows',3,'8',null,null),
+            mkEx('C2','Lateral Raises',3,'10',null,null),
           ]}
         },
         // ============================== BLOCK 3 ==============================
         3: {
-          pctLabel: 'Block 3 \u2014 Realization',
-          dayA: { header: 'Tuesday \u2014 Jump / Snatch / Back Squat', exercises: [
-            mm(mkEx('A1','Jump',3,'3',null,null), {
-              1: { sets: '3', reps: '3' }, 2: { sets: '3', reps: '3' },
-              3: { sets: '3', reps: '3' }, 4: { sets: '3', reps: '3' }
-            }),
-            mm(mkEx('B1','Snatch',4,'2',null,'snatch'), {
-              1: { sets: '4', reps: '2', ...OLY_D },
-              2: { sets: '3', reps: '2', ...OLY_MOD_D },
-              3: { sets: '4', reps: '1', ...OLY_D },
-              4: { intent: 'PR' }
-            }),
-            mm(mkEx('C1','Back Squat',4,'2',null,'back_squat'), {
-              1: { sets: '4', reps: '2', vFloor: BSQ_VF_2 },
-              2: { intent: '2RM', vFloor: BSQ_VF_2 },
-              3: { sets: '3', reps: '2', vFloor: BSQ_VF_2 },
-              4: { sets: '3', reps: '2', vFloor: BSQ_VF_2, note: 'moderate' }
-            }),
-            ...acc(),
+          pctLabel: 'Block 3 — Oly 75-85% / Squat 80-90%',
+          dayA: { header: 'Monday — Acceleration / Clean / Squat', exercises: [
+            mkEx('WU','Acceleration','','',null,null,'flys, resistance sprints'),
+            mkEx('A1','Power Clean + Power Jerk',4,'2+2',M_OLY_B3,'clean'),
+            mkEx('B1','Back Squat',4,'5',M_SQ_B3,'back_squat'),
+            mkEx('C1','Single Leg Squat',4,'5',M_SQ_B3,null,'S1 3s ecc, S2 iso, S3-4 normal'),
+            mkEx('D1','Calf Raises',3,'10',null,null),
+            mkEx('D2','Core',3,'10',null,null),
           ]},
-          dayB: { header: 'Friday \u2014 Powers / Pull / Bench', exercises: [
-            mm(mkEx('A1','Power Snatch',4,'2',null,'snatch'), {
-              1: { sets: '4', reps: '2', ...OLY_D, vFloor: PSN_VF_2 },
-              2: { sets: '3', reps: '2', ...OLY_MOD_D, vFloor: PSN_VF_2 },
-              3: { sets: '4', reps: '1', ...OLY_D, vFloor: PSN_VF_1 },
-              4: { intent: 'PR', vFloor: PSN_VF_1 }
-            }),
-            mm(mkEx('B1','Power Clean + Push Press',4,'2',null,['clean','push_press']), {
-              1: { sets: '4', reps: '2', ...OLY_D },
-              2: { intent: 'HS' },
-              3: { sets: '3', reps: '2', ...OLY_D },
-              4: { sets: '3', reps: '3', ...OLY_MOD_T }
-            }),
-            mm(mkEx('C1','Snatch Pull',3,'2',null,'snatch'), {
-              1: { sets: '3', reps: '2', ...SN_PULL_B3 },
-              2: { sets: '3', reps: '2', ...SN_PULL_B3 },
-              3: { sets: '3', reps: '2', ...SN_PULL_B3 },
-              4: { sets: '2', reps: '2', ...SN_PULL_B3 }
-            }),
-            mm(mkEx('D1','Bench Press',1,'3',null,'bench_press'), {
-              1: { bench: { topReps: 3, topPct: 90 } },
-              2: { bench: { topReps: 3, topPct: 90 } },
-              3: { bench: { topReps: 3, topPct: 90 } },
-              4: { bench: { topReps: 3, topPct: 90 } }
-            }),
-            ...acc(),
+          dayB: { header: 'Wednesday — Jumps / Snatch / Posterior', exercises: [
+            mkEx('WU','Approach Jumps','','',null,null),
+            mkEx('A1','Power Snatch from Box',4,'3',M_OLY_B3,'snatch'),
+            mkEx('B1','RDL',3,'8',M_RDL_B3,'deadlift'),
+            mkEx('C1','Nordic Curls',3,'8',null,null),
+            mkEx('C2','Pull Ups',3,'8',null,null),
           ]},
-          dayC: { header: 'Saturday \u2014 C&J / Front Squat / Pull', exercises: [
-            mm(mkEx('A1','Clean + Jerk',4,'2+1',null,['clean','jerk']), {
-              1: { sets: '4', reps: '2+1', ...OLY_D },
-              2: { sets: '3', reps: '1+1', ...OLY_MOD_D },
-              3: { sets: '4', reps: '1+1', ...OLY_D },
-              4: { intent: 'PR' }
-            }),
-            mm(mkEx('B1','Front Squat',3,'3',null,'front_squat'), {
-              1: { sets: '3', reps: '3', ...OLY_T, vFloor: FSQ_VF_3 },
-              2: { intent: '2RM', vFloor: FSQ_VF_2 },
-              3: { sets: '3', reps: '2', ...OLY_D, vFloor: FSQ_VF_2 },
-              4: { sets: '2', reps: '2', ...OLY_MOD_D, vFloor: FSQ_VF_2, note: 'moderate' }
-            }),
-            mm(mkEx('C1','Clean Pull',3,'2',null,'clean'), {
-              1: { sets: '3', reps: '2', ...CL_PULL_B3 },
-              2: { intent: '1RM', altExercise: 'Deadlift', altPrKey: 'deadlift' },
-              3: { sets: '3', reps: '2', ...CL_PULL_B3_W3 },
-              4: { sets: '2', reps: '2', ...CL_PULL_B3_W4 }
-            }),
-            ...acc(),
+          dayC: { header: 'Friday — Upper / Single Leg', exercises: [
+            mm(mkEx('A1','Bench Press',1,'5',null,'bench_press'), benchWeeks(5, 90)),
+            mkEx('B1','RFE Split Squat',3,'8',null,null),
+            mkEx('C1','Chest Supported Rows',3,'8',null,null),
+            mkEx('C2','Lateral Raises',3,'10',null,null),
           ]}
         }
       }
