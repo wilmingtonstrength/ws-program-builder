@@ -1398,7 +1398,7 @@ const TEMPLATES = {
     }
   })(),
   max_upper_lower: {
-    label: 'Max Upper Lower',
+    label: "Matt's Upper Lower",
     days: ['dayA','dayB','dayC','dayD'],
     blocks: {
       1: {
