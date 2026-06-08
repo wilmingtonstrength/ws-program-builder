@@ -1397,6 +1397,102 @@ const TEMPLATES = {
       }
     }
   })(),
+  max_upper_lower: {
+    label: 'Max Upper Lower',
+    days: ['dayA','dayB','dayC','dayD'],
+    blocks: {
+      1: {
+        pctLabel: 'Block 1 — Oly 65-75% / Str 60-70%',
+        dayA: { header: 'Monday — Lower', exercises: [
+          mkEx('A1','Clean',5,'3',OLY_B1,'clean'),
+          mkEx('B1','Front Squat',4,'5',STR_B1,'front_squat'),
+          mkEx('C1','Nordic Curls',3,'8',null,null),
+          mkEx('C2','Seated Calf Raise',3,'10',null,null),
+        ]},
+        dayB: { header: 'Tuesday — Upper', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B1,'bench_press'),
+          mkEx('B1','Row',3,'8',null,null),
+          mkEx('C1','Core (Anterior)',3,'10',null,null),
+          mkEx('C2','Biceps',3,'10',null,null),
+          mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]},
+        dayC: { header: 'Wednesday — Lower', exercises: [
+          mkEx('WU','Jump','','',null,null),
+          mkEx('A1','Snatch',5,'3',OLY_B1,'snatch'),
+          mkEx('B1','Single Leg Squat',3,'5ea',null,null),
+          mkEx('C1','Standing Calf Raise',3,'10',null,null),
+        ]},
+        dayD: { header: 'Thursday — Upper', exercises: [
+          mkEx('A1','Overhead Press',4,'5',STR_B1,'push_press'),
+          mkEx('B1','Vertical Pull',3,'8',null,null),
+          mkEx('C1','Lateral Core',3,'10',null,null),
+          mkEx('C2','Flywheel',3,'10',null,null),
+          mkEx('C3','Triceps',3,'10',null,null),
+          mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]}
+      },
+      2: {
+        pctLabel: 'Block 2 — Oly 70-80% / Str 70-80%',
+        dayA: { header: 'Monday — Lower', exercises: [
+          mkEx('A1','Clean',5,'3',OLY_B2,'clean'),
+          mkEx('B1','Front Squat',4,'5',STR_B2,'front_squat'),
+          mkEx('C1','Nordic Curls',3,'8',null,null),
+          mkEx('C2','Seated Calf Raise',3,'10',null,null),
+        ]},
+        dayB: { header: 'Tuesday — Upper', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B2,'bench_press'),
+          mkEx('B1','Row',3,'8',null,null),
+          mkEx('C1','Core (Anterior)',3,'10',null,null),
+          mkEx('C2','Biceps',3,'10',null,null),
+          mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]},
+        dayC: { header: 'Wednesday — Lower', exercises: [
+          mkEx('WU','Jump','','',null,null),
+          mkEx('A1','Snatch',5,'3',OLY_B2,'snatch'),
+          mkEx('B1','Single Leg Squat',3,'5ea',null,null),
+          mkEx('C1','Standing Calf Raise',3,'10',null,null),
+        ]},
+        dayD: { header: 'Thursday — Upper', exercises: [
+          mkEx('A1','Overhead Press',4,'5',STR_B2,'push_press'),
+          mkEx('B1','Vertical Pull',3,'8',null,null),
+          mkEx('C1','Lateral Core',3,'10',null,null),
+          mkEx('C2','Flywheel',3,'10',null,null),
+          mkEx('C3','Triceps',3,'10',null,null),
+          mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]}
+      },
+      3: {
+        pctLabel: 'Block 3 — Oly 75-85% / Str 75-80%',
+        dayA: { header: 'Monday — Lower', exercises: [
+          mkEx('A1','Clean',5,'3',OLY_B3,'clean'),
+          mkEx('B1','Front Squat',4,'5',STR_B3,'front_squat'),
+          mkEx('C1','Nordic Curls',3,'8',null,null),
+          mkEx('C2','Seated Calf Raise',3,'10',null,null),
+        ]},
+        dayB: { header: 'Tuesday — Upper', exercises: [
+          mkEx('A1','Bench Press',4,'5',STR_B3,'bench_press'),
+          mkEx('B1','Row',3,'8',null,null),
+          mkEx('C1','Core (Anterior)',3,'10',null,null),
+          mkEx('C2','Biceps',3,'10',null,null),
+          mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]},
+        dayC: { header: 'Wednesday — Lower', exercises: [
+          mkEx('WU','Jump','','',null,null),
+          mkEx('A1','Snatch',5,'3',OLY_B3,'snatch'),
+          mkEx('B1','Single Leg Squat',3,'5ea',null,null),
+          mkEx('C1','Standing Calf Raise',3,'10',null,null),
+        ]},
+        dayD: { header: 'Thursday — Upper', exercises: [
+          mkEx('A1','Overhead Press',4,'5',STR_B3,'push_press'),
+          mkEx('B1','Vertical Pull',3,'8',null,null),
+          mkEx('C1','Lateral Core',3,'10',null,null),
+          mkEx('C2','Flywheel',3,'10',null,null),
+          mkEx('C3','Triceps',3,'10',null,null),
+          mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]}
+      }
+    }
+  },
   oly_3day_undulating: (function() {
     // =========================================================
     // Olympic Lifting 3-Day Undulating — 3 blocks x 4 weeks
