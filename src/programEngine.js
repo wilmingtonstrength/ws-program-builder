@@ -89,9 +89,8 @@ export function syncTargetFor(exName) {
   if (n.includes('fly 10')) {
     return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
   }
-  if (n.includes('static jump')) {
-    return { test_id: 'static_jump', unit: 'inches', label: 'Static Jump', better: 'higher', prompt: 'Best height (in)' }
-  }
+  // Static Jump intentionally has no testing sync yet — it's earmarked for a
+  // future eccentric-utilization score (static jump vs CMJ), built later.
   if (n.includes('countermovement')) {
     return { test_id: 'vertical_jump', unit: 'inches', label: 'Vertical Jump', better: 'higher', prompt: 'Best height (in)' }
   }
