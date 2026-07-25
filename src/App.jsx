@@ -1397,6 +1397,148 @@ const TEMPLATES = {
       }
     }
   })(),
+  matts_online: {
+    label: "Matt's Online Program",
+    days: ['dayA','dayB','dayC','dayD','dayE'],
+    weeks: 3,
+    blocks: {
+      1: {
+        pctLabel: 'Block 1',
+        dayA: { header: 'Monday — Acceleration / Horizontal Jump / Squat', exercises: [
+          mkEx('A1','Spanish Squat ISO',2,'30s',null,null),
+          mkEx('A2','Run Specific ISO',2,'20s ea',null,null),
+          mkEx('B1','Fly 10 (5yd Lead In)',4,'1',null,null,'90, 95, 100, 100%'),
+          mkEx('C1','Resisted Sprint',3,'1',null,null,'max load'),
+          mkEx('D1','Broad Jump to Box',8,'1',null,null),
+          mkEx('E1','Box Squat',3,'3',null,'back_squat','5010 · 0.45–0.55 m/s'),
+          mkEx('F1','Single Leg Calf ISO',3,'30s ea',null,null),
+        ]},
+        dayB: { header: 'Tuesday — Upper / Intervals', exercises: [
+          mkEx('A1','Explosive Push Up to Box',3,'5',null,null),
+          mkEx('B1','Bench Press',4,'3',null,'bench_press','50X1 · 0.3–0.4 m/s'),
+          mkEx('C1','Chainsaw Row',3,'6 ea',null,null,'3010'),
+          mkEx('C2','Dragon Flag',3,'5',null,null),
+          mkEx('C3','Triceps',3,'10',null,null),
+          mkEx('D1','Bike Intervals',14,'1',null,null,'20s on, 40s off'),
+        ]},
+        dayC: { header: 'Wednesday — Vertical Power / Posterior Chain', exercises: [
+          mkEx('A1','Run Specific ISO',2,'30s ea',null,null),
+          mkEx('WU','Plyo Warm Up','','',null,null),
+          mkEx('C1','Static Jump',3,'1',null,null,'log height'),
+          mkEx('D1','Countermovement Jump',3,'1',null,null,'log height'),
+          mkEx('E1','Barbell Hip Thrust',3,'6',null,null),
+          mkEx('F1','Loaded Split Squat ISO',3,'30s ea',null,null),
+          mkEx('G1','45° Back Extension',3,'12',null,null),
+        ]},
+        dayD: { header: 'Thursday — Upper / Easy Aerobic', exercises: [
+          mkEx('A1','Push Press',4,'3',[0.75,0.75,0.85],'push_press'),
+          mkEx('A2','Chin Up Eccentric',4,'4',null,null,'5s lowering'),
+          mkEx('B1','Curls',3,'10',null,null),
+          mkEx('B2','Landmine Anti Rotation',3,'8 ea',null,null),
+          mkEx('C1','Bike',1,'30 min',null,null,'steady state'),
+        ]},
+        dayE: { header: 'Saturday — Max Velocity', exercises: [
+          mkEx('WU','Warm Up','','',null,null,'15 min'),
+          mkEx('B1','Fly 10 (15–20yd Lead In)',4,'25 yds',null,null),
+          mkEx('C1','Accel Float',1,'40 yds',null,null),
+          mkEx('D1','Hurdle Jump + Reactive',2,'4',null,null),
+          mkEx('E1','Split Squat ISO',2,'60s ea',null,null),
+          mkEx('F1','SL Hip Thrust ISO',2,'60s ea',null,null),
+          mkEx('G1','Copenhagen',2,'30s ea',null,null),
+        ]}
+      },
+      2: {
+        pctLabel: 'Block 2',
+        dayA: { header: 'Monday — Acceleration / Horizontal Jump / Squat', exercises: [
+          mkEx('A1','Spanish Squat ISO',2,'30s',null,null),
+          mkEx('A2','Run Specific ISO',2,'20s ea',null,null),
+          mkEx('B1','Fly 10 (5yd Lead In)',4,'1',null,null,'90, 95, 100, 100%'),
+          mkEx('C1','Resisted Sprint',3,'1',null,null,'max load'),
+          mkEx('D1','Broad Jump to Box',8,'1',null,null),
+          mkEx('E1','Box Squat',3,'3',null,'back_squat','5010 · 0.45–0.55 m/s'),
+          mkEx('F1','Single Leg Calf ISO',3,'30s ea',null,null),
+        ]},
+        dayB: { header: 'Tuesday — Upper / Intervals', exercises: [
+          mkEx('A1','Explosive Push Up to Box',3,'5',null,null),
+          mkEx('B1','Bench Press',4,'3',null,'bench_press','50X1 · 0.3–0.4 m/s'),
+          mkEx('C1','Chainsaw Row',3,'6 ea',null,null,'3010'),
+          mkEx('C2','Dragon Flag',3,'5',null,null),
+          mkEx('C3','Triceps',3,'10',null,null),
+          mkEx('D1','Bike Intervals',14,'1',null,null,'20s on, 40s off'),
+        ]},
+        dayC: { header: 'Wednesday — Vertical Power / Posterior Chain', exercises: [
+          mkEx('A1','Run Specific ISO',2,'30s ea',null,null),
+          mkEx('WU','Plyo Warm Up','','',null,null),
+          mkEx('C1','Static Jump',3,'1',null,null,'log height'),
+          mkEx('D1','Countermovement Jump',3,'1',null,null,'log height'),
+          mkEx('E1','Barbell Hip Thrust',3,'6',null,null),
+          mkEx('F1','Loaded Split Squat ISO',3,'30s ea',null,null),
+          mkEx('G1','45° Back Extension',3,'12',null,null),
+        ]},
+        dayD: { header: 'Thursday — Upper / Easy Aerobic', exercises: [
+          mkEx('A1','Push Press',4,'3',[0.80,0.80,0.90],'push_press'),
+          mkEx('A2','Chin Up Eccentric',4,'4',null,null,'5s lowering'),
+          mkEx('B1','Curls',3,'10',null,null),
+          mkEx('B2','Landmine Anti Rotation',3,'8 ea',null,null),
+          mkEx('C1','Bike',1,'30 min',null,null,'steady state'),
+        ]},
+        dayE: { header: 'Saturday — Max Velocity', exercises: [
+          mkEx('WU','Warm Up','','',null,null,'15 min'),
+          mkEx('B1','Fly 10 (15–20yd Lead In)',4,'25 yds',null,null),
+          mkEx('C1','Accel Float',1,'40 yds',null,null),
+          mkEx('D1','Hurdle Jump + Reactive',2,'4',null,null),
+          mkEx('E1','Split Squat ISO',2,'60s ea',null,null),
+          mkEx('F1','SL Hip Thrust ISO',2,'60s ea',null,null),
+          mkEx('G1','Copenhagen',2,'30s ea',null,null),
+        ]}
+      },
+      3: {
+        pctLabel: 'Block 3',
+        dayA: { header: 'Monday — Acceleration / Horizontal Jump / Squat', exercises: [
+          mkEx('A1','Spanish Squat ISO',2,'30s',null,null),
+          mkEx('A2','Run Specific ISO',2,'20s ea',null,null),
+          mkEx('B1','Fly 10 (5yd Lead In)',4,'1',null,null,'90, 95, 100, 100%'),
+          mkEx('C1','Resisted Sprint',3,'1',null,null,'max load'),
+          mkEx('D1','Broad Jump to Box',8,'1',null,null),
+          mkEx('E1','Box Squat',3,'3',null,'back_squat','5010 · 0.45–0.55 m/s'),
+          mkEx('F1','Single Leg Calf ISO',3,'30s ea',null,null),
+        ]},
+        dayB: { header: 'Tuesday — Upper / Intervals', exercises: [
+          mkEx('A1','Explosive Push Up to Box',3,'5',null,null),
+          mkEx('B1','Bench Press',4,'3',null,'bench_press','50X1 · 0.3–0.4 m/s'),
+          mkEx('C1','Chainsaw Row',3,'6 ea',null,null,'3010'),
+          mkEx('C2','Dragon Flag',3,'5',null,null),
+          mkEx('C3','Triceps',3,'10',null,null),
+          mkEx('D1','Bike Intervals',14,'1',null,null,'20s on, 40s off'),
+        ]},
+        dayC: { header: 'Wednesday — Vertical Power / Posterior Chain', exercises: [
+          mkEx('A1','Run Specific ISO',2,'30s ea',null,null),
+          mkEx('WU','Plyo Warm Up','','',null,null),
+          mkEx('C1','Static Jump',3,'1',null,null,'log height'),
+          mkEx('D1','Countermovement Jump',3,'1',null,null,'log height'),
+          mkEx('E1','Barbell Hip Thrust',3,'6',null,null),
+          mkEx('F1','Loaded Split Squat ISO',3,'30s ea',null,null),
+          mkEx('G1','45° Back Extension',3,'12',null,null),
+        ]},
+        dayD: { header: 'Thursday — Upper / Easy Aerobic', exercises: [
+          mkEx('A1','Push Press',4,'3',[0.85,0.85,0.95],'push_press'),
+          mkEx('A2','Chin Up Eccentric',4,'4',null,null,'5s lowering'),
+          mkEx('B1','Curls',3,'10',null,null),
+          mkEx('B2','Landmine Anti Rotation',3,'8 ea',null,null),
+          mkEx('C1','Bike',1,'30 min',null,null,'steady state'),
+        ]},
+        dayE: { header: 'Saturday — Max Velocity', exercises: [
+          mkEx('WU','Warm Up','','',null,null,'15 min'),
+          mkEx('B1','Fly 10 (15–20yd Lead In)',4,'25 yds',null,null),
+          mkEx('C1','Accel Float',1,'40 yds',null,null),
+          mkEx('D1','Hurdle Jump + Reactive',2,'4',null,null),
+          mkEx('E1','Split Squat ISO',2,'60s ea',null,null),
+          mkEx('F1','SL Hip Thrust ISO',2,'60s ea',null,null),
+          mkEx('G1','Copenhagen',2,'30s ea',null,null),
+        ]}
+      }
+    }
+  },
   max_upper_lower: {
     label: "Matt's Upper Lower",
     days: ['dayA','dayB','dayC','dayD'],
@@ -2065,6 +2207,7 @@ export default function App() {
   const ath = athletes.find(a => a.id === athleteId)
   const filteredAth = athletes.filter(a => (a.first_name + ' ' + a.last_name).toLowerCase().includes(search.toLowerCase()))
   const days = tD.days
+  const numWeeks = tD.weeks || 4
 
   const getExs = (day) => bD[day].exercises.map((ex, i) => {
     const k = `${tier}-${block}-${day}-${i}`
@@ -2360,7 +2503,7 @@ export default function App() {
                 {page1Days.map(dk => (
                   <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
                     setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
-                    library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+                    library={library} kgExercises={kgExercises} toggleKg={toggleKg} numWeeks={numWeeks} />
                 ))}
               </div>
 
@@ -2370,7 +2513,7 @@ export default function App() {
                   {page2Days.map(dk => (
                     <DayTable key={dk} dk={dk} day={bD[dk]} exs={getExs(dk)} isOly={isOly} ath={ath} getPR={getPR}
                       setEdit={setEdit} cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block}
-                      library={library} kgExercises={kgExercises} toggleKg={toggleKg} />
+                      library={library} kgExercises={kgExercises} toggleKg={toggleKg} numWeeks={numWeeks} />
                   ))}
                 </div>
               )}
@@ -3652,16 +3795,18 @@ function SetsRepsEdit({ sets, reps, isOverridden, onChange, onChangeIntent, disp
   )
 }
 
-function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library, kgExercises, toggleKg }) {
+function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCellNote, tier, block, library, kgExercises, toggleKg, numWeeks = 4 }) {
+  const weekHeaders = Array.from({ length: numWeeks }, (_, i) => 'Week ' + (i + 1))
+  const weekCols = Array.from({ length: numWeeks }, (_, i) => <col key={i} />)
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', borderLeft: '4px solid #111', padding: '3px 8px', background: '#efefef', borderBottom: '1px solid #bbb' }}>{day.header}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-        <colgroup><col style={{ width: 26 }} /><col style={{ width: 140 }} /><col /><col /><col /><col /></colgroup>
+        <colgroup><col style={{ width: 26 }} /><col style={{ width: 140 }} />{weekCols}</colgroup>
         <thead>
           <tr>
-            {['#','Exercise','Week 1','Week 2','Week 3','Week 4'].map((h,i) => (
-              <th key={i} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', borderRight: i < 5 ? '1px solid #777' : 'none', padding: '3px 4px', textAlign: i <= 1 ? 'left' : 'center', color: '#444', background: '#fff' }}>{h}</th>
+            {['#','Exercise',...weekHeaders].map((h,i) => (
+              <th key={i} style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', borderRight: i < 1 + numWeeks ? '1px solid #777' : 'none', padding: '3px 4px', textAlign: i <= 1 ? 'left' : 'center', color: '#444', background: '#fff' }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -3670,7 +3815,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
             <ExRow key={i} ex={ex} i={i} dk={dk} isOly={isOly} ath={ath} getPR={getPR} setEdit={setEdit}
               isLast={i === exs.length-1} isWU={ex.series === 'WU'}
               cellNotes={cellNotes} setCellNote={setCellNote} tier={tier} block={block} library={library}
-              useKg={kgExercises.has(ex.exercise)} toggleKg={toggleKg} />
+              useKg={kgExercises.has(ex.exercise)} toggleKg={toggleKg} numWeeks={numWeeks} />
           ))}
         </tbody>
       </table>
@@ -3678,7 +3823,7 @@ function DayTable({ dk, day, exs, isOly, ath, getPR, setEdit, cellNotes, setCell
   )
 }
 
-function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library, useKg, toggleKg }) {
+function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes, setCellNote, tier, block, library, useKg, toggleKg, numWeeks = 4 }) {
   // Prefer the explicit PR key on the exercise; fall back to the global map;
   // fall back to name-based detection (handles custom templates whose saved
   // prKey might not match anything).
@@ -3787,7 +3932,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   }
 
   const wkCell = (wk) => {
-    if (isWU) return <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none' }}><div className="cell-spacer" style={{ height: 46 }}></div></td>
+    if (isWU) return <td key={wk} style={{ ...tdBase, borderRight: wk < numWeeks ? cellBorder : 'none' }}><div className="cell-spacer" style={{ height: 46 }}></div></td>
     const noteKey = `${tier}-${block}-${dk}-${i}-${wk}`
     const noteVal = cellNotes[noteKey] !== undefined ? cellNotes[noteKey] : ''
 
@@ -3841,7 +3986,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
       }
 
       return (
-        <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
+        <td key={wk} style={{ ...tdBase, borderRight: wk < numWeeks ? cellBorder : 'none', position: 'relative' }}>
           {/* Editable sets x reps at top (always) */}
           <SetsRepsEdit
             sets={displaySets} reps={displayReps} isOverridden={srIsOverridden}
@@ -3946,7 +4091,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
     const overrideVal = ov == null ? null : (typeof ov === 'object' ? { lo: Math.round(ov.lo*100), hi: Math.round(ov.hi*100) } : Math.round(ov*100))
     const wsr = getWeekSR(wk)
     return (
-      <td key={wk} style={{ ...tdBase, borderRight: wk < 4 ? cellBorder : 'none', position: 'relative' }}>
+      <td key={wk} style={{ ...tdBase, borderRight: wk < numWeeks ? cellBorder : 'none', position: 'relative' }}>
         <SetsRepsEdit
           sets={wsr.sets} reps={wsr.reps} isOverridden={wsr.isOverridden}
           onChange={(s, r) => {
@@ -4092,7 +4237,7 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
           ))}
         </div>}
       </td>
-      {[1,2,3,4].map(wk => wkCell(wk))}
+      {Array.from({ length: numWeeks }, (_, i) => i + 1).map(wk => wkCell(wk))}
     </tr>
   )
 }
