@@ -19,6 +19,15 @@ const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); r
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 const today = () => new Date().toISOString().slice(0, 10)
 const logKey = (b, w, d, ei, si) => `${b}-${w}-${d}-${ei}-${si}`
+const hasVal = (v) => v != null && v !== ''
+
+// number of loggable set inputs to show (cap busy interval work)
+function setInputCount(ex) {
+  const n = parseInt(ex.sets)
+  if (!n || isNaN(n)) return 0
+  return Math.min(n, 8)
+}
+const isLoggable = (ex) => ex.series !== 'WU' && setInputCount(ex) > 0
 
 export default function AthletePortal({ athlete, onLogout }) {
   const tmpl = getTemplate()
@@ -27,7 +36,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   const days = tmpl?.days || []
 
   const [prs, setPrs] = useState({})
-  const [logs, setLogs] = useState({})          // logKey -> { value, note }
+  const [logs, setLogs] = useState({})          // logKey -> { value }
   const [block, setBlock] = useState(() => lsGet('ws_ap_block', blocks[0] || 1))
   const [week, setWeek] = useState(() => lsGet('ws_ap_week', 1))
   const [dayKey, setDayKey] = useState(() => lsGet('ws_ap_day', days[0] || 'dayA'))
@@ -58,7 +67,7 @@ export default function AthletePortal({ athlete, onLogout }) {
       .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
     if (error) { setNeedsSetup(true); return }
     const m = {}
-    data.forEach(r => { m[logKey(r.block, r.week, r.day, r.ex_index, r.set_index)] = { value: r.value, note: r.note } })
+    data.forEach(r => { m[logKey(r.block, r.week, r.day, r.ex_index, r.set_index)] = { value: r.value } })
     setLogs(m)
   }
 
@@ -82,16 +91,40 @@ export default function AthletePortal({ athlete, onLogout }) {
     }, 700)
   }
 
+  // ---- derived helpers for polish ----
+  // chronological index of a (block, week) so we can find the "last time"
+  const chron = (b, w) => (b - 1) * weeks + w
+
+  // values logged for one exercise at a specific block/week
+  const setValsAt = (b, w, d, exIdx, count) =>
+    Array.from({ length: count }, (_, s) => logs[logKey(b, w, d, exIdx, s)]?.value ?? '')
+
+  // does a given day (in the current block/week) have any logged set?
+  const dayLogged = (b, w, d) => {
+    const pref = `${b}-${w}-${d}-`
+    return Object.entries(logs).some(([k, v]) => k.startsWith(pref) && hasVal(v?.value))
+  }
+
+  // most recent prior session's values for the same exercise slot
+  const lastTimeFor = (d, exIdx, count) => {
+    const cur = chron(block, week)
+    let best = null, bestChron = -1
+    for (const b of blocks) {
+      for (let w = 1; w <= weeks; w++) {
+        const c = chron(b, w)
+        if (c >= cur) continue
+        const vals = setValsAt(b, w, d, exIdx, count)
+        if (vals.some(hasVal) && c > bestChron) { best = vals; bestChron = c }
+      }
+    }
+    return best ? best.filter(hasVal) : null
+  }
+
   async function logToTesting(exIdx, ex) {
     const target = syncTargetFor(ex.exercise)
     if (!target) return
-    const setCount = setInputCount(ex)
-    const vals = []
-    for (let s = 0; s < setCount; s++) {
-      const v = logs[logKey(block, week, dayKey, exIdx, s)]?.value
-      const n = parseFloat(v)
-      if (!isNaN(n)) vals.push(n)
-    }
+    const count = setInputCount(ex)
+    const vals = setValsAt(block, week, dayKey, exIdx, count).map(parseFloat).filter(n => !isNaN(n))
     let best
     if (vals.length) best = target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)
     else {
@@ -130,6 +163,14 @@ export default function AthletePortal({ athlete, onLogout }) {
   const exercises = bd[dayKey]?.exercises || []
   const { dow, focus } = dayLabel(tmpl, block, dayKey)
 
+  // day progress: exercises with >=1 logged set / total loggable exercises
+  const loggables = exercises.filter(isLoggable)
+  const doneCount = loggables.filter((ex, idx) => {
+    const exIdx = exercises.indexOf(ex)
+    return setValsAt(block, week, dayKey, exIdx, setInputCount(ex)).some(hasVal)
+  }).length
+  const pct = loggables.length ? Math.round((doneCount / loggables.length) * 100) : 0
+
   return (
     <Shell onLogout={onLogout} athlete={athlete}>
       {toast && (
@@ -148,32 +189,50 @@ export default function AthletePortal({ athlete, onLogout }) {
         <Segment label="Week" value={week} setValue={setWeek} options={Array.from({ length: weeks }, (_, i) => i + 1)} />
       </div>
 
-      {/* Day tabs */}
+      {/* Day tabs with completion dots */}
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 6 }}>
         {days.map(d => {
           const { dow } = dayLabel(tmpl, block, d)
           const active = d === dayKey
+          const done = dayLogged(block, week, d)
           return (
             <button key={d} onClick={() => setDayKey(d)} style={{
-              flex: '0 0 auto', padding: '8px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
+              position: 'relative', flex: '0 0 auto', padding: '8px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
               fontFamily: 'inherit', fontWeight: 800, fontSize: 13, letterSpacing: .3,
               background: active ? ACCENT : CARD2, color: active ? NAVY : MUTED,
-            }}>{(dow || d).slice(0, 3)}</button>
+            }}>
+              {(dow || d).slice(0, 3)}
+              {done && <span style={{ position: 'absolute', top: 5, right: 7, width: 6, height: 6, borderRadius: 6, background: active ? NAVY : OK }} />}
+            </button>
           )
         })}
       </div>
 
       <div style={{ color: TEXT, fontWeight: 900, fontSize: 20, marginTop: 4 }}>{dow}</div>
-      {focus && <div style={{ color: ACCENT, fontSize: 12, fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{focus}</div>}
+      {focus && <div style={{ color: ACCENT, fontSize: 12, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{focus}</div>}
+
+      {/* Day progress bar */}
+      {loggables.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: MUTED, fontSize: 11, fontWeight: 800, marginBottom: 4 }}>
+            <span>{doneCount} / {loggables.length} LOGGED</span>
+            {pct === 100 && <span style={{ color: OK }}>DAY COMPLETE ✓</span>}
+          </div>
+          <div style={{ height: 6, background: CARD2, borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? OK : ACCENT, transition: 'width .3s' }} />
+          </div>
+        </div>
+      )}
 
       {!ready && <p style={{ color: MUTED }}>Loading your numbers…</p>}
 
       {ready && exercises.map((ex, i) => (
         <ExerciseCard
-          key={i} ex={ex} exIdx={i} week={week}
+          key={i} ex={ex} exIdx={i} week={week} block={block} dayKey={dayKey}
           target={weightText(ex, week, prs)}
           sync={syncTargetFor(ex.exercise)}
-          logs={logs} block={block} dayKey={dayKey}
+          vals={setValsAt(block, week, dayKey, i, setInputCount(ex))}
+          lastTime={isLoggable(ex) ? lastTimeFor(dayKey, i, setInputCount(ex)) : null}
           onSet={(si, v) => saveSet(i, ex, si, v)}
           onLogTesting={() => logToTesting(i, ex)}
         />
@@ -183,40 +242,49 @@ export default function AthletePortal({ athlete, onLogout }) {
   )
 }
 
-// number of loggable set inputs to show (cap busy interval work)
-function setInputCount(ex) {
-  const n = parseInt(ex.sets)
-  if (!n || isNaN(n)) return 0
-  return Math.min(n, 8)
-}
-
-function ExerciseCard({ ex, exIdx, week, target, sync, logs, block, dayKey, onSet, onLogTesting }) {
+function ExerciseCard({ ex, exIdx, target, sync, vals, lastTime, onSet, onLogTesting }) {
   const isWU = ex.series === 'WU'
   const count = setInputCount(ex)
+  const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
+  const allDone = loggable && vals.length === count && vals.every(hasVal)
+
   return (
-    <div style={{ background: CARD, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${BORDER}` }}>
+    <div style={{ background: CARD, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${allDone ? OK : BORDER}` }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
         {ex.series && <span style={{ color: NAVY, background: MUTED, borderRadius: 6, padding: '2px 6px', fontSize: 10, fontWeight: 900 }}>{ex.series}</span>}
         <span style={{ color: TEXT, fontWeight: 800, fontSize: 16, flex: 1 }}>{ex.exercise}</span>
+        {allDone && <span style={{ color: OK, fontWeight: 900, fontSize: 16 }}>✓</span>}
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>
         {setsReps && <span style={{ color: ACCENT, fontWeight: 800, fontSize: 14 }}>{setsReps}</span>}
         {target && <span style={{ color: OK, fontWeight: 800, fontSize: 14 }}>{target}</span>}
       </div>
       {ex.note && <div style={{ color: MUTED, fontSize: 12, marginTop: 6, fontStyle: 'italic' }}>{ex.note}</div>}
+      {loggable && lastTime && lastTime.length > 0 && (
+        <div style={{ color: MUTED, fontSize: 11, marginTop: 8 }}>
+          <span style={{ opacity: .7 }}>Last time: </span>
+          <span style={{ color: TEXT, fontWeight: 700 }}>{lastTime.join(' · ')}</span>
+        </div>
+      )}
 
-      {count > 0 && !isWU && (
+      {loggable && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
           {Array.from({ length: count }, (_, s) => {
-            const v = logs[logKey(block, week, dayKey, exIdx, s)]?.value ?? ''
+            const v = vals[s] ?? ''
+            const filled = hasVal(v)
             return (
               <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <span style={{ color: MUTED, fontSize: 9, marginBottom: 3 }}>SET {s + 1}</span>
                 <input
                   value={v} onChange={e => onSet(s, e.target.value)}
                   inputMode="decimal" placeholder="—"
-                  style={{ width: 52, textAlign: 'center', padding: '8px 4px', borderRadius: 8, border: `1px solid ${BORDER}`, background: CARD2, color: TEXT, fontFamily: 'inherit', fontWeight: 800, fontSize: 15 }}
+                  style={{
+                    width: 52, textAlign: 'center', padding: '8px 4px', borderRadius: 8,
+                    border: `1px solid ${filled ? OK : BORDER}`,
+                    background: filled ? 'rgba(0,255,136,.10)' : CARD2,
+                    color: filled ? OK : TEXT, fontFamily: 'inherit', fontWeight: 800, fontSize: 15,
+                  }}
                 />
               </div>
             )
