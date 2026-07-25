@@ -78,21 +78,43 @@ export function weightText(ex, week, prs, useKg = false) {
   return lo === hi ? lo + unit : lo + '–' + hi + unit
 }
 
+// ---- tests table (drives which exercises can log a max) ----
+export async function loadTests() {
+  const { data, error } = await sb.from('tests').select('id,name,unit,direction')
+  const map = {}
+  if (!error && data) data.forEach(t => { map[t.id] = t })
+  return map
+}
+
 // ---- "Log to Testing" mapping ----
-// Only these exercises can push a result into the performance-tracking
-// `results` table. Everything else is training-log only.
-export function syncTargetFor(exName) {
-  const n = (exName || '').toLowerCase()
+// Which exercises can push a result into the performance-tracking `results`
+// table. Two sources:
+//  1) Name-based max-effort tests (Fly / jumps) where best-of-sets = the score.
+//  2) Strength lifts whose prKey is a real test id (back_squat, bench_press,
+//     push_press, …) — these log a MAX (prompted), consistent with testing.
+export function syncTargetFor(ex, tests = {}) {
+  const n = (ex?.exercise || '').toLowerCase()
   if (n.includes('fly 10') && n.includes('5yd')) {
     return { test_id: '5_10_fly', unit: 'sec', label: '5-10 Fly', better: 'lower', prompt: 'Best fly time (sec)' }
   }
   if (n.includes('fly 10')) {
     return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
   }
-  // Static Jump intentionally has no testing sync yet — it's earmarked for a
-  // future eccentric-utilization score (static jump vs CMJ), built later.
   if (n.includes('countermovement')) {
     return { test_id: 'vertical_jump', unit: 'inches', label: 'Vertical Jump', better: 'higher', prompt: 'Best height (in)' }
+  }
+  // Static Jump: no sync yet — deferred until the eccentric-utilization score.
+  if (n.includes('static jump')) return null
+  // Strength lifts: prKey points at a real test id -> log a max.
+  const key = typeof ex?.prKey === 'string' ? ex.prKey : null
+  if (key && tests[key]) {
+    const t = tests[key]
+    const unit = t.unit || 'lbs'
+    return {
+      test_id: key, unit, label: t.name || key,
+      better: t.direction === 'lower' ? 'lower' : 'higher',
+      prompt: `${t.name || key} max (${unit})`, isMax: true,
+    }
   }
   return null
 }

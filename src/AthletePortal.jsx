@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { sb } from './supabaseClient'
 import {
-  getTemplate, TEMPLATE_ID, loadAthletePRs,
+  getTemplate, TEMPLATE_ID, loadAthletePRs, loadTests,
   weightText, syncTargetFor, dayLabel,
 } from './programEngine'
 
@@ -19,9 +19,9 @@ const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); r
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 const today = () => new Date().toISOString().slice(0, 10)
 const logKey = (b, w, d, ei, si) => `${b}-${w}-${d}-${ei}-${si}`
+const editKey = (b, d, ei, field) => `${b}-${d}-${ei}-${field}`
 const hasVal = (v) => v != null && String(v).trim() !== ''
 
-// number of set inputs defined by the template
 function templateSetCount(ex) {
   const n = parseInt(ex.sets)
   if (!n || isNaN(n)) return 0
@@ -37,7 +37,9 @@ export default function AthletePortal({ athlete, onLogout }) {
   const days = tmpl?.days || []
 
   const [prs, setPrs] = useState({})
-  const [logs, setLogs] = useState({})          // logKey -> { value }  (key present => set exists)
+  const [tests, setTests] = useState({})
+  const [logs, setLogs] = useState({})     // logKey -> { value }  (key present => set exists)
+  const [aEdits, setAEdits] = useState({}) // editKey -> value  (athlete overrides, e.g. swapped exercise)
   const [block, setBlock] = useState(() => lsGet('ws_ap_block', blocks[0] || 1))
   const [week, setWeek] = useState(() => lsGet('ws_ap_week', 1))
   const [dayKey, setDayKey] = useState(() => lsGet('ws_ap_day', days[0] || 'dayA'))
@@ -53,18 +55,17 @@ export default function AthletePortal({ athlete, onLogout }) {
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const p = await loadAthletePRs(athlete.id)
+      const [p, t] = await Promise.all([loadAthletePRs(athlete.id), loadTests()])
       if (!alive) return
-      setPrs(p)
-      await refreshLogs()
+      setPrs(p); setTests(t)
+      await Promise.all([refreshLogs(), refreshEdits()])
       if (alive) setReady(true)
     })()
     return () => { alive = false }
   }, [athlete.id])
 
   async function refreshLogs() {
-    const { data, error } = await sb
-      .from('workout_logs').select('*')
+    const { data, error } = await sb.from('workout_logs').select('*')
       .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
     if (error) { setNeedsSetup(true); return }
     const m = {}
@@ -72,19 +73,30 @@ export default function AthletePortal({ athlete, onLogout }) {
     setLogs(m)
   }
 
+  async function refreshEdits() {
+    const { data, error } = await sb.from('athlete_program_edits').select('*')
+      .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+    if (error) return
+    const m = {}
+    data.forEach(r => { m[editKey(r.block, r.day, r.ex_index, r.field)] = r.value })
+    setAEdits(m)
+  }
+
   const flash = (msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 2600) }
+
+  // effective exercise name (athlete swap wins over template)
+  const effName = (exIdx, ex) => aEdits[editKey(block, dayKey, exIdx, 'exercise')] ?? ex.exercise
 
   function upsertRow(exIdx, ex, setIdx, value) {
     const row = {
       athlete_id: athlete.id, template: TEMPLATE_ID,
-      block, week, day: dayKey, ex_index: exIdx, ex_name: ex.exercise,
+      block, week, day: dayKey, ex_index: exIdx, ex_name: effName(exIdx, ex),
       set_index: setIdx, value: hasVal(value) ? String(value) : null,
       logged_at: new Date().toISOString(),
     }
     return sb.from('workout_logs').upsert(row, { onConflict: 'athlete_id,template,block,week,day,ex_index,set_index' })
   }
 
-  // debounced text save for a set value
   function saveSet(exIdx, ex, setIdx, raw) {
     const k = logKey(block, week, dayKey, exIdx, setIdx)
     setLogs(prev => ({ ...prev, [k]: { value: raw } }))
@@ -99,14 +111,14 @@ export default function AthletePortal({ athlete, onLogout }) {
     const next = displayCount(exIdx, ex)
     if (next >= MAX_SETS) return
     const k = logKey(block, week, dayKey, exIdx, next)
-    setLogs(prev => ({ ...prev, [k]: { value: '' } }))   // key present => set exists
+    setLogs(prev => ({ ...prev, [k]: { value: '' } }))
     const { error } = await upsertRow(exIdx, ex, next, '')
     if (error) setNeedsSetup(true)
   }
 
   async function removeSet(exIdx, ex) {
     const cur = displayCount(exIdx, ex)
-    if (cur <= Math.max(1, templateSetCount(ex))) return  // keep template sets as the floor
+    if (cur <= Math.max(1, templateSetCount(ex))) return
     const s = cur - 1
     const k = logKey(block, week, dayKey, exIdx, s)
     setLogs(prev => { const n = { ...prev }; delete n[k]; return n })
@@ -117,10 +129,27 @@ export default function AthletePortal({ athlete, onLogout }) {
       .eq('ex_index', exIdx).eq('set_index', s)
   }
 
+  async function swapExercise(exIdx, ex, newName) {
+    const k = editKey(block, dayKey, exIdx, 'exercise')
+    const trimmed = (newName || '').trim()
+    if (!trimmed || trimmed === ex.exercise) {   // revert to template
+      setAEdits(prev => { const n = { ...prev }; delete n[k]; return n })
+      await sb.from('athlete_program_edits').delete()
+        .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+        .eq('block', block).eq('day', dayKey).eq('ex_index', exIdx).eq('field', 'exercise')
+      return
+    }
+    setAEdits(prev => ({ ...prev, [k]: trimmed }))
+    const { error } = await sb.from('athlete_program_edits').upsert({
+      athlete_id: athlete.id, template: TEMPLATE_ID, block, day: dayKey,
+      ex_index: exIdx, field: 'exercise', value: trimmed, updated_at: new Date().toISOString(),
+    }, { onConflict: 'athlete_id,template,block,day,ex_index,field' })
+    if (error) flash('Swap didn’t save: ' + error.message, 'err')
+  }
+
   // ---- derived helpers ----
   const chron = (b, w) => (b - 1) * weeks + w
 
-  // how many set inputs to show = max(template, highest set index present + 1)
   const displayCount = (exIdx, ex) => {
     let maxIdx = -1
     const pref = `${block}-${week}-${dayKey}-${exIdx}-`
@@ -141,7 +170,6 @@ export default function AthletePortal({ athlete, onLogout }) {
     return Object.entries(logs).some(([k, v]) => k.startsWith(pref) && hasVal(v?.value))
   }
 
-  // most recent prior session's values for the same exercise slot
   const lastTimeFor = (d, exIdx) => {
     const cur = chron(block, week)
     let best = null, bestChron = -1
@@ -161,14 +189,23 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   async function logToTesting(exIdx, ex) {
-    const target = syncTargetFor(ex.exercise)
+    const target = syncTargetFor({ ...ex, exercise: effName(exIdx, ex) }, tests)
     if (!target) return
     const count = displayCount(exIdx, ex)
     const vals = valsAt(block, week, dayKey, exIdx, count).map(v => parseFloat(v)).filter(n => !isNaN(n))
+    const bestOfSets = vals.length ? (target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)) : null
+
     let best
-    if (vals.length) best = target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)
-    else {
-      const typed = window.prompt(`${target.label} — ${target.prompt}:`)
+    if (target.isMax) {
+      // Working sets are usually submaximal — prompt (prefilled with best set) so
+      // Matt confirms the actual max before it hits the testing record.
+      const typed = window.prompt(target.prompt + ':', bestOfSets != null ? String(bestOfSets) : '')
+      if (typed == null) return
+      best = parseFloat(typed)
+    } else if (bestOfSets != null) {
+      best = bestOfSets
+    } else {
+      const typed = window.prompt(target.prompt + ':')
       if (typed == null) return
       best = parseFloat(typed)
     }
@@ -184,7 +221,8 @@ export default function AthletePortal({ athlete, onLogout }) {
     else isPr = converted < cur
 
     const label = target.test_id === 'max_velocity' ? `${best}s → ${converted} MPH` : `${best} ${target.unit}`
-    if (!window.confirm(`Log to Testing:\n${target.label} = ${label}${isPr ? '  (NEW PR!)' : ''}\n\nWrite to your performance record?`)) return
+    const verb = target.isMax ? 'max' : 'result'
+    if (!window.confirm(`Log ${target.label} ${verb}:\n${label}${isPr ? '  (NEW PR!)' : ''}\n\nWrite to your performance record?`)) return
 
     const { error } = await sb.from('results').insert({
       athlete_id: athlete.id, test_id: target.test_id, test_date: today(),
@@ -262,17 +300,20 @@ export default function AthletePortal({ athlete, onLogout }) {
 
       {ready && exercises.map((ex, i) => {
         const count = displayCount(i, ex)
+        const name = effName(i, ex)
+        const swapped = name !== ex.exercise
         return (
           <ExerciseCard
-            key={i} ex={ex} count={count}
+            key={i} ex={ex} name={name} swapped={swapped} count={count}
             target={weightText(ex, week, prs)}
-            sync={syncTargetFor(ex.exercise)}
+            sync={syncTargetFor({ ...ex, exercise: name }, tests)}
             vals={valsAt(block, week, dayKey, i, count)}
             lastTime={isLoggable(ex) ? lastTimeFor(dayKey, i) : null}
             canRemove={count > Math.max(1, templateSetCount(ex))}
             onSet={(si, v) => saveSet(i, ex, si, v)}
             onAddSet={() => addSet(i, ex)}
             onRemoveSet={() => removeSet(i, ex)}
+            onSwap={(newName) => swapExercise(i, ex, newName)}
             onLogTesting={() => logToTesting(i, ex)}
           />
         )
@@ -282,19 +323,41 @@ export default function AthletePortal({ athlete, onLogout }) {
   )
 }
 
-function ExerciseCard({ ex, count, target, sync, vals, lastTime, canRemove, onSet, onAddSet, onRemoveSet, onLogTesting }) {
+function ExerciseCard({ ex, name, swapped, count, target, sync, vals, lastTime, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onLogTesting }) {
   const isWU = ex.series === 'WU'
   const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
   const allDone = loggable && vals.length === count && vals.every(hasVal)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(name)
+
+  const startEdit = () => { setDraft(name); setEditing(true) }
+  const commit = () => { setEditing(false); if (draft !== name) onSwap(draft) }
 
   return (
     <div style={{ background: CARD, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${allDone ? OK : BORDER}` }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {ex.series && <span style={{ color: NAVY, background: MUTED, borderRadius: 6, padding: '2px 6px', fontSize: 10, fontWeight: 900 }}>{ex.series}</span>}
-        <span style={{ color: TEXT, fontWeight: 800, fontSize: 16, flex: 1 }}>{ex.exercise}</span>
+        {editing ? (
+          <input
+            autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+            onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') commit() }}
+            style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${ACCENT}`, background: CARD2, color: TEXT, fontFamily: 'inherit', fontWeight: 800, fontSize: 15 }}
+          />
+        ) : (
+          <span onClick={startEdit} style={{ color: TEXT, fontWeight: 800, fontSize: 16, flex: 1, cursor: 'pointer' }}>
+            {name}
+            {swapped && <span style={{ color: ACCENT, fontSize: 10, fontWeight: 800, marginLeft: 6, verticalAlign: 'middle' }}>SWAPPED</span>}
+          </span>
+        )}
+        {!editing && <button onClick={startEdit} title="Swap exercise" style={{ background: 'transparent', border: 'none', color: MUTED, fontSize: 15, cursor: 'pointer', padding: 2 }}>✎</button>}
         {allDone && <span style={{ color: OK, fontWeight: 900, fontSize: 16 }}>✓</span>}
       </div>
+      {swapped && !editing && (
+        <div style={{ marginTop: 3 }}>
+          <button onClick={() => onSwap(ex.exercise)} style={{ background: 'transparent', border: 'none', color: MUTED, fontSize: 10, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>revert to {ex.exercise}</button>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>
         {setsReps && <span style={{ color: ACCENT, fontWeight: 800, fontSize: 14 }}>{setsReps}</span>}
         {target && <span style={{ color: OK, fontWeight: 800, fontSize: 14 }}>{target}</span>}
@@ -316,8 +379,7 @@ function ExerciseCard({ ex, count, target, sync, vals, lastTime, canRemove, onSe
               <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <span style={{ color: MUTED, fontSize: 9, marginBottom: 3 }}>SET {s + 1}</span>
                 <input
-                  value={v} onChange={e => onSet(s, e.target.value)}
-                  placeholder="—"
+                  value={v} onChange={e => onSet(s, e.target.value)} placeholder="—"
                   style={{
                     width: 60, textAlign: 'center', padding: '8px 4px', borderRadius: 8,
                     border: `1px solid ${filled ? OK : BORDER}`,
@@ -329,9 +391,7 @@ function ExerciseCard({ ex, count, target, sync, vals, lastTime, canRemove, onSe
             )
           })}
           <div style={{ display: 'flex', gap: 4, marginBottom: 1 }}>
-            {canRemove && (
-              <button onClick={onRemoveSet} title="Remove last set" style={setBtn}>−</button>
-            )}
+            {canRemove && <button onClick={onRemoveSet} title="Remove last set" style={setBtn}>−</button>}
             <button onClick={onAddSet} title="Add a set" style={setBtn}>＋</button>
           </div>
         </div>
@@ -341,7 +401,7 @@ function ExerciseCard({ ex, count, target, sync, vals, lastTime, canRemove, onSe
         <button onClick={onLogTesting} style={{
           marginTop: 12, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${ACCENT}`,
           background: 'transparent', color: ACCENT, fontFamily: 'inherit', fontWeight: 800, fontSize: 13, cursor: 'pointer',
-        }}>📊 Log to Testing → {sync.label}</button>
+        }}>📊 {sync.isMax ? 'Log max' : 'Log to Testing'} → {sync.label}</button>
       )}
     </div>
   )
