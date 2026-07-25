@@ -19,15 +19,16 @@ const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); r
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 const today = () => new Date().toISOString().slice(0, 10)
 const logKey = (b, w, d, ei, si) => `${b}-${w}-${d}-${ei}-${si}`
-const hasVal = (v) => v != null && v !== ''
+const hasVal = (v) => v != null && String(v).trim() !== ''
 
-// number of loggable set inputs to show (cap busy interval work)
-function setInputCount(ex) {
+// number of set inputs defined by the template
+function templateSetCount(ex) {
   const n = parseInt(ex.sets)
   if (!n || isNaN(n)) return 0
-  return Math.min(n, 8)
+  return Math.min(n, 12)
 }
-const isLoggable = (ex) => ex.series !== 'WU' && setInputCount(ex) > 0
+const isLoggable = (ex) => ex.series !== 'WU' && templateSetCount(ex) > 0
+const MAX_SETS = 15
 
 export default function AthletePortal({ athlete, onLogout }) {
   const tmpl = getTemplate()
@@ -36,12 +37,12 @@ export default function AthletePortal({ athlete, onLogout }) {
   const days = tmpl?.days || []
 
   const [prs, setPrs] = useState({})
-  const [logs, setLogs] = useState({})          // logKey -> { value }
+  const [logs, setLogs] = useState({})          // logKey -> { value }  (key present => set exists)
   const [block, setBlock] = useState(() => lsGet('ws_ap_block', blocks[0] || 1))
   const [week, setWeek] = useState(() => lsGet('ws_ap_week', 1))
   const [dayKey, setDayKey] = useState(() => lsGet('ws_ap_day', days[0] || 'dayA'))
   const [ready, setReady] = useState(false)
-  const [needsSetup, setNeedsSetup] = useState(false)  // workout_logs table missing
+  const [needsSetup, setNeedsSetup] = useState(false)
   const [toast, setToast] = useState(null)
   const timers = useRef({})
 
@@ -73,58 +74,97 @@ export default function AthletePortal({ athlete, onLogout }) {
 
   const flash = (msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 2600) }
 
+  function upsertRow(exIdx, ex, setIdx, value) {
+    const row = {
+      athlete_id: athlete.id, template: TEMPLATE_ID,
+      block, week, day: dayKey, ex_index: exIdx, ex_name: ex.exercise,
+      set_index: setIdx, value: hasVal(value) ? String(value) : null,
+      logged_at: new Date().toISOString(),
+    }
+    return sb.from('workout_logs').upsert(row, { onConflict: 'athlete_id,template,block,week,day,ex_index,set_index' })
+  }
+
+  // debounced text save for a set value
   function saveSet(exIdx, ex, setIdx, raw) {
     const k = logKey(block, week, dayKey, exIdx, setIdx)
-    setLogs(prev => ({ ...prev, [k]: { ...(prev[k] || {}), value: raw } }))
-    const val = raw === '' || raw == null ? null : parseFloat(raw)
+    setLogs(prev => ({ ...prev, [k]: { value: raw } }))
     clearTimeout(timers.current[k])
     timers.current[k] = setTimeout(async () => {
-      const row = {
-        athlete_id: athlete.id, template: TEMPLATE_ID,
-        block, week, day: dayKey, ex_index: exIdx, ex_name: ex.exercise,
-        set_index: setIdx, value: isNaN(val) ? null : val,
-        logged_at: new Date().toISOString(),
-      }
-      const { error } = await sb.from('workout_logs')
-        .upsert(row, { onConflict: 'athlete_id,template,block,week,day,ex_index,set_index' })
+      const { error } = await upsertRow(exIdx, ex, setIdx, raw)
       if (error) setNeedsSetup(true)
     }, 700)
   }
 
-  // ---- derived helpers for polish ----
-  // chronological index of a (block, week) so we can find the "last time"
+  async function addSet(exIdx, ex) {
+    const next = displayCount(exIdx, ex)
+    if (next >= MAX_SETS) return
+    const k = logKey(block, week, dayKey, exIdx, next)
+    setLogs(prev => ({ ...prev, [k]: { value: '' } }))   // key present => set exists
+    const { error } = await upsertRow(exIdx, ex, next, '')
+    if (error) setNeedsSetup(true)
+  }
+
+  async function removeSet(exIdx, ex) {
+    const cur = displayCount(exIdx, ex)
+    if (cur <= Math.max(1, templateSetCount(ex))) return  // keep template sets as the floor
+    const s = cur - 1
+    const k = logKey(block, week, dayKey, exIdx, s)
+    setLogs(prev => { const n = { ...prev }; delete n[k]; return n })
+    clearTimeout(timers.current[k])
+    await sb.from('workout_logs').delete()
+      .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+      .eq('block', block).eq('week', week).eq('day', dayKey)
+      .eq('ex_index', exIdx).eq('set_index', s)
+  }
+
+  // ---- derived helpers ----
   const chron = (b, w) => (b - 1) * weeks + w
 
-  // values logged for one exercise at a specific block/week
-  const setValsAt = (b, w, d, exIdx, count) =>
+  // how many set inputs to show = max(template, highest set index present + 1)
+  const displayCount = (exIdx, ex) => {
+    let maxIdx = -1
+    const pref = `${block}-${week}-${dayKey}-${exIdx}-`
+    for (const key of Object.keys(logs)) {
+      if (key.startsWith(pref)) {
+        const s = parseInt(key.slice(pref.length))
+        if (!isNaN(s) && s > maxIdx) maxIdx = s
+      }
+    }
+    return Math.max(templateSetCount(ex), maxIdx + 1)
+  }
+
+  const valsAt = (b, w, d, exIdx, count) =>
     Array.from({ length: count }, (_, s) => logs[logKey(b, w, d, exIdx, s)]?.value ?? '')
 
-  // does a given day (in the current block/week) have any logged set?
   const dayLogged = (b, w, d) => {
     const pref = `${b}-${w}-${d}-`
     return Object.entries(logs).some(([k, v]) => k.startsWith(pref) && hasVal(v?.value))
   }
 
   // most recent prior session's values for the same exercise slot
-  const lastTimeFor = (d, exIdx, count) => {
+  const lastTimeFor = (d, exIdx) => {
     const cur = chron(block, week)
     let best = null, bestChron = -1
     for (const b of blocks) {
       for (let w = 1; w <= weeks; w++) {
         const c = chron(b, w)
         if (c >= cur) continue
-        const vals = setValsAt(b, w, d, exIdx, count)
-        if (vals.some(hasVal) && c > bestChron) { best = vals; bestChron = c }
+        const pref = `${b}-${w}-${d}-${exIdx}-`
+        const entries = Object.entries(logs)
+          .filter(([k]) => k.startsWith(pref))
+          .sort((a, z) => parseInt(a[0].slice(pref.length)) - parseInt(z[0].slice(pref.length)))
+          .map(([, v]) => v?.value ?? '').filter(hasVal)
+        if (entries.length && c > bestChron) { best = entries; bestChron = c }
       }
     }
-    return best ? best.filter(hasVal) : null
+    return best
   }
 
   async function logToTesting(exIdx, ex) {
     const target = syncTargetFor(ex.exercise)
     if (!target) return
-    const count = setInputCount(ex)
-    const vals = setValsAt(block, week, dayKey, exIdx, count).map(parseFloat).filter(n => !isNaN(n))
+    const count = displayCount(exIdx, ex)
+    const vals = valsAt(block, week, dayKey, exIdx, count).map(v => parseFloat(v)).filter(n => !isNaN(n))
     let best
     if (vals.length) best = target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)
     else {
@@ -134,7 +174,6 @@ export default function AthletePortal({ athlete, onLogout }) {
     }
     if (isNaN(best)) { flash('Enter a number first', 'err'); return }
 
-    // converted_value: max_velocity uses the tests-table formula 20.45 / v (MPH).
     let converted = best
     if (target.test_id === 'max_velocity') converted = Math.round((20.45 / best) * 100) / 100
 
@@ -144,8 +183,7 @@ export default function AthletePortal({ athlete, onLogout }) {
     else if (target.better === 'higher') isPr = converted > cur
     else isPr = converted < cur
 
-    const label = target.test_id === 'max_velocity'
-      ? `${best}s → ${converted} MPH` : `${best} ${target.unit}`
+    const label = target.test_id === 'max_velocity' ? `${best}s → ${converted} MPH` : `${best} ${target.unit}`
     if (!window.confirm(`Log to Testing:\n${target.label} = ${label}${isPr ? '  (NEW PR!)' : ''}\n\nWrite to your performance record?`)) return
 
     const { error } = await sb.from('results').insert({
@@ -163,11 +201,10 @@ export default function AthletePortal({ athlete, onLogout }) {
   const exercises = bd[dayKey]?.exercises || []
   const { dow, focus } = dayLabel(tmpl, block, dayKey)
 
-  // day progress: exercises with >=1 logged set / total loggable exercises
   const loggables = exercises.filter(isLoggable)
-  const doneCount = loggables.filter((ex, idx) => {
+  const doneCount = loggables.filter(ex => {
     const exIdx = exercises.indexOf(ex)
-    return setValsAt(block, week, dayKey, exIdx, setInputCount(ex)).some(hasVal)
+    return valsAt(block, week, dayKey, exIdx, displayCount(exIdx, ex)).some(hasVal)
   }).length
   const pct = loggables.length ? Math.round((doneCount / loggables.length) * 100) : 0
 
@@ -179,17 +216,15 @@ export default function AthletePortal({ athlete, onLogout }) {
 
       {needsSetup && (
         <div style={{ background: '#3a2a12', border: '1px solid #a76', color: '#ffd9a0', padding: 12, borderRadius: 10, margin: '0 0 14px', fontSize: 13 }}>
-          Logging isn’t saving yet — the <b>workout_logs</b> table needs to be created in Supabase. You can still browse the program.
+          Logging isn’t saving — check your connection.
         </div>
       )}
 
-      {/* Block + Week selectors */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
         <Segment label="Block" value={block} setValue={setBlock} options={blocks} />
         <Segment label="Week" value={week} setValue={setWeek} options={Array.from({ length: weeks }, (_, i) => i + 1)} />
       </div>
 
-      {/* Day tabs with completion dots */}
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 6 }}>
         {days.map(d => {
           const { dow } = dayLabel(tmpl, block, d)
@@ -211,7 +246,6 @@ export default function AthletePortal({ athlete, onLogout }) {
       <div style={{ color: TEXT, fontWeight: 900, fontSize: 20, marginTop: 4 }}>{dow}</div>
       {focus && <div style={{ color: ACCENT, fontSize: 12, fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{focus}</div>}
 
-      {/* Day progress bar */}
       {loggables.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: MUTED, fontSize: 11, fontWeight: 800, marginBottom: 4 }}>
@@ -226,25 +260,30 @@ export default function AthletePortal({ athlete, onLogout }) {
 
       {!ready && <p style={{ color: MUTED }}>Loading your numbers…</p>}
 
-      {ready && exercises.map((ex, i) => (
-        <ExerciseCard
-          key={i} ex={ex} exIdx={i} week={week} block={block} dayKey={dayKey}
-          target={weightText(ex, week, prs)}
-          sync={syncTargetFor(ex.exercise)}
-          vals={setValsAt(block, week, dayKey, i, setInputCount(ex))}
-          lastTime={isLoggable(ex) ? lastTimeFor(dayKey, i, setInputCount(ex)) : null}
-          onSet={(si, v) => saveSet(i, ex, si, v)}
-          onLogTesting={() => logToTesting(i, ex)}
-        />
-      ))}
+      {ready && exercises.map((ex, i) => {
+        const count = displayCount(i, ex)
+        return (
+          <ExerciseCard
+            key={i} ex={ex} count={count}
+            target={weightText(ex, week, prs)}
+            sync={syncTargetFor(ex.exercise)}
+            vals={valsAt(block, week, dayKey, i, count)}
+            lastTime={isLoggable(ex) ? lastTimeFor(dayKey, i) : null}
+            canRemove={count > Math.max(1, templateSetCount(ex))}
+            onSet={(si, v) => saveSet(i, ex, si, v)}
+            onAddSet={() => addSet(i, ex)}
+            onRemoveSet={() => removeSet(i, ex)}
+            onLogTesting={() => logToTesting(i, ex)}
+          />
+        )
+      })}
       <div style={{ height: 40 }} />
     </Shell>
   )
 }
 
-function ExerciseCard({ ex, exIdx, target, sync, vals, lastTime, onSet, onLogTesting }) {
+function ExerciseCard({ ex, count, target, sync, vals, lastTime, canRemove, onSet, onAddSet, onRemoveSet, onLogTesting }) {
   const isWU = ex.series === 'WU'
-  const count = setInputCount(ex)
   const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
   const allDone = loggable && vals.length === count && vals.every(hasVal)
@@ -269,7 +308,7 @@ function ExerciseCard({ ex, exIdx, target, sync, vals, lastTime, onSet, onLogTes
       )}
 
       {loggable && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 12 }}>
           {Array.from({ length: count }, (_, s) => {
             const v = vals[s] ?? ''
             const filled = hasVal(v)
@@ -278,17 +317,23 @@ function ExerciseCard({ ex, exIdx, target, sync, vals, lastTime, onSet, onLogTes
                 <span style={{ color: MUTED, fontSize: 9, marginBottom: 3 }}>SET {s + 1}</span>
                 <input
                   value={v} onChange={e => onSet(s, e.target.value)}
-                  inputMode="decimal" placeholder="—"
+                  placeholder="—"
                   style={{
-                    width: 52, textAlign: 'center', padding: '8px 4px', borderRadius: 8,
+                    width: 60, textAlign: 'center', padding: '8px 4px', borderRadius: 8,
                     border: `1px solid ${filled ? OK : BORDER}`,
                     background: filled ? 'rgba(0,255,136,.10)' : CARD2,
-                    color: filled ? OK : TEXT, fontFamily: 'inherit', fontWeight: 800, fontSize: 15,
+                    color: filled ? OK : TEXT, fontFamily: 'inherit', fontWeight: 800, fontSize: 14,
                   }}
                 />
               </div>
             )
           })}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 1 }}>
+            {canRemove && (
+              <button onClick={onRemoveSet} title="Remove last set" style={setBtn}>−</button>
+            )}
+            <button onClick={onAddSet} title="Add a set" style={setBtn}>＋</button>
+          </div>
         </div>
       )}
 
@@ -300,6 +345,11 @@ function ExerciseCard({ ex, exIdx, target, sync, vals, lastTime, onSet, onLogTes
       )}
     </div>
   )
+}
+
+const setBtn = {
+  width: 38, height: 38, borderRadius: 8, border: `1px solid ${BORDER}`, background: CARD2,
+  color: ACCENT, fontFamily: 'inherit', fontWeight: 900, fontSize: 18, cursor: 'pointer', lineHeight: 1,
 }
 
 function Segment({ label, value, setValue, options }) {
