@@ -6,9 +6,9 @@ const sb = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4dG9tbmJ2aW54dXZucnJxbnFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyMTk5MTksImV4cCI6MjA4NTc5NTkxOX0.Ty-KRgr9JsYr7ZEZtvm7lB2TxcdWeW1CCsJQdWyFND8'
 )
 
-function r5(v) { return Math.round(v / 5) * 5 }
-function rKg(lbs) { return Math.round(lbs / 2.2046 * 2) / 2 }
-function mkEx(s, e, st, r, p, pk, n) {
+export function r5(v) { return Math.round(v / 5) * 5 }
+export function rKg(lbs) { return Math.round(lbs / 2.2046 * 2) / 2 }
+export function mkEx(s, e, st, r, p, pk, n) {
   return { series: s, exercise: e, sets: String(st), reps: String(r), pct: p || null, prKey: pk || null, note: n || '' }
 }
 
@@ -328,7 +328,7 @@ const DEFAULT_CELL_NOTES = {
   'oly_4day_undulating-3-dayA-1-4':'MAX','oly_4day_undulating-3-dayD-2-4':'MAX',
 }
 
-const TEMPLATES = {
+export const TEMPLATES = {
   beginner: {
     label: 'Athlete Beginner', days: ['dayA','dayB'], blocks: {
       1: {
