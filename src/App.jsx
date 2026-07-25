@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import CoachOnline from './CoachOnline'
 
 const sb = createClient(
   'https://xxtomnbvinxuvnrrqnqb.supabase.co',
@@ -2443,11 +2444,13 @@ export default function App() {
         <div className="no-print" style={{ background: '#fffbe6', borderBottom: '1px solid #ddb', padding: '5px 16px', fontSize: 11, color: '#665500' }}>{status}</div>
       )}
       <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', display: 'flex' }}>
-        {[['builder','Program Builder'],['templates','Create Template'],['library','Manage Library']].map(([t,label]) => (
+        {[['builder','Program Builder'],['templates','Create Template'],['library','Manage Library'],['online','Online Programs']].map(([t,label]) => (
           <button key={t} onClick={() => setTab(t)} style={{ padding: '10px 20px', border: 'none', borderBottom: t === tab ? '3px solid #111' : '3px solid transparent', background: 'transparent', fontWeight: t === tab ? 800 : 400, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</button>
         ))}
       </div>
-      {tab === 'library' ? (
+      {tab === 'online' ? (
+        <CoachOnline athletes={athletes} allTemplates={allTemplates} sb={sb} />
+      ) : tab === 'library' ? (
         <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
       ) : tab === 'templates' ? (
         <TemplateCreator allTemplates={allTemplates} customTemplates={customTemplates} setCustomTemplates={setCustomTemplates} library={library} saving={saving} setSaving={setSaving} sb={sb} setTier={setTier} setBlock={setBlock} setTab={setTab} />

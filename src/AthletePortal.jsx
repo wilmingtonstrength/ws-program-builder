@@ -31,7 +31,8 @@ const isLoggable = (ex) => ex.series !== 'WU' && templateSetCount(ex) > 0
 const MAX_SETS = 15
 
 export default function AthletePortal({ athlete, onLogout }) {
-  const tmpl = getTemplate()
+  const [templateId, setTemplateId] = useState(TEMPLATE_ID)
+  const tmpl = getTemplate(templateId)
   const blocks = tmpl ? Object.keys(tmpl.blocks).map(Number).sort((a, b) => a - b) : []
   const weeks = tmpl?.weeks || 3
   const days = tmpl?.days || []
@@ -55,27 +56,35 @@ export default function AthletePortal({ athlete, onLogout }) {
   useEffect(() => {
     let alive = true
     ;(async () => {
+      // resolve the athlete's active assignment -> which program to show
+      let tid = TEMPLATE_ID
+      const { data: asn } = await sb.from('assignments').select('template')
+        .eq('athlete_id', athlete.id).eq('active', true)
+        .order('created_at', { ascending: false }).limit(1)
+      if (asn && asn[0] && getTemplate(asn[0].template)) tid = asn[0].template
+      if (!alive) return
+      setTemplateId(tid)
       const [p, t] = await Promise.all([loadAthletePRs(athlete.id), loadTests()])
       if (!alive) return
       setPrs(p); setTests(t)
-      await Promise.all([refreshLogs(), refreshEdits()])
+      await Promise.all([refreshLogs(tid), refreshEdits(tid)])
       if (alive) setReady(true)
     })()
     return () => { alive = false }
   }, [athlete.id])
 
-  async function refreshLogs() {
+  async function refreshLogs(tid = templateId) {
     const { data, error } = await sb.from('workout_logs').select('*')
-      .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+      .eq('athlete_id', athlete.id).eq('template', tid)
     if (error) { setNeedsSetup(true); return }
     const m = {}
     data.forEach(r => { m[logKey(r.block, r.week, r.day, r.ex_index, r.set_index)] = { value: r.value } })
     setLogs(m)
   }
 
-  async function refreshEdits() {
+  async function refreshEdits(tid = templateId) {
     const { data, error } = await sb.from('athlete_program_edits').select('*')
-      .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+      .eq('athlete_id', athlete.id).eq('template', tid)
     if (error) return
     const m = {}
     data.forEach(r => { m[editKey(r.block, r.day, r.ex_index, r.field)] = r.value })
@@ -89,7 +98,7 @@ export default function AthletePortal({ athlete, onLogout }) {
 
   function upsertRow(exIdx, ex, setIdx, value) {
     const row = {
-      athlete_id: athlete.id, template: TEMPLATE_ID,
+      athlete_id: athlete.id, template: templateId,
       block, week, day: dayKey, ex_index: exIdx, ex_name: effName(exIdx, ex),
       set_index: setIdx, value: hasVal(value) ? String(value) : null,
       logged_at: new Date().toISOString(),
@@ -135,13 +144,13 @@ export default function AthletePortal({ athlete, onLogout }) {
     if (!trimmed || trimmed === ex.exercise) {   // revert to template
       setAEdits(prev => { const n = { ...prev }; delete n[k]; return n })
       await sb.from('athlete_program_edits').delete()
-        .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+        .eq('athlete_id', athlete.id).eq('template', templateId)
         .eq('block', block).eq('day', dayKey).eq('ex_index', exIdx).eq('field', 'exercise')
       return
     }
     setAEdits(prev => ({ ...prev, [k]: trimmed }))
     const { error } = await sb.from('athlete_program_edits').upsert({
-      athlete_id: athlete.id, template: TEMPLATE_ID, block, day: dayKey,
+      athlete_id: athlete.id, template: templateId, block, day: dayKey,
       ex_index: exIdx, field: 'exercise', value: trimmed, updated_at: new Date().toISOString(),
     }, { onConflict: 'athlete_id,template,block,day,ex_index,field' })
     if (error) flash('Swap didn’t save: ' + error.message, 'err')
@@ -247,7 +256,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   const pct = loggables.length ? Math.round((doneCount / loggables.length) * 100) : 0
 
   return (
-    <Shell onLogout={onLogout} athlete={athlete}>
+    <Shell onLogout={onLogout} athlete={athlete} title={tmpl?.label}>
       {toast && (
         <div style={{ position: 'fixed', top: 12, left: 12, right: 12, zIndex: 50, background: toast.kind === 'err' ? '#3a1220' : '#0c3', color: '#fff', padding: '12px 14px', borderRadius: 10, fontWeight: 700, textAlign: 'center', boxShadow: '0 6px 24px rgba(0,0,0,.4)' }}>{toast.msg}</div>
       )}
@@ -432,13 +441,13 @@ function Segment({ label, value, setValue, options }) {
   )
 }
 
-function Shell({ children, onLogout, athlete }) {
+function Shell({ children, onLogout, athlete, title }) {
   return (
     <div style={{ minHeight: '100vh', background: NAVY, fontFamily: "'Archivo', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '16px 14px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <div style={{ color: ACCENT, fontWeight: 900, fontSize: 18, letterSpacing: .5 }}>Matt’s Online Program</div>
+            <div style={{ color: ACCENT, fontWeight: 900, fontSize: 18, letterSpacing: .5 }}>{title || 'Online Program'}</div>
             <div style={{ color: MUTED, fontSize: 12 }}>{athlete.first_name} {athlete.last_name}</div>
           </div>
           <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${MUTED}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>Log out</button>
