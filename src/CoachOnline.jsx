@@ -17,7 +17,7 @@ function totalSessions(prog) {
   return blocks * weeks * days
 }
 
-export default function CoachOnline({ athletes = [], allTemplates = {}, sb }) {
+export default function CoachOnline({ athletes = [], allTemplates = {}, removedTemplates = new Set(), sb }) {
   const [assignments, setAssignments] = useState([])
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -26,7 +26,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, sb }) {
   const [msg, setMsg] = useState('')
   const [editing, setEditing] = useState(null)   // the assignment being edited
 
-  const programList = Object.entries(allTemplates).map(([id, t]) => ({ id, label: t.label || id }))
+  const programList = Object.entries(allTemplates).filter(([id]) => !removedTemplates.has(id)).map(([id, t]) => ({ id, label: t.label || id }))
   const nameOf = (id) => { const a = athletes.find(x => x.id === id); return a ? `${a.first_name} ${a.last_name}`.trim() : `Athlete ${id}` }
 
   async function loadAll() {

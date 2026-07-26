@@ -2050,6 +2050,7 @@ export default function App() {
     return copy
   })
   const [customTemplates, setCustomTemplates] = useState({})
+  const [removedTemplates, setRemovedTemplates] = useState(() => new Set())
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
@@ -2132,6 +2133,8 @@ export default function App() {
         ctData.forEach(r => { try { ctMap[r.id] = JSON.parse(r.template_json) } catch(e) {} })
         setCustomTemplates(ctMap)
       }
+      const { data: rmData } = await sb.from('removed_templates').select('id')
+      if (rmData) setRemovedTemplates(new Set(rmData.map(r => r.id)))
       // FIX: load custom library exercises persisted in Supabase
       const { data: libData } = await sb.from('library_exercises').select('category,exercise')
       if (libData && libData.length > 0) {
@@ -2202,7 +2205,23 @@ export default function App() {
   ]
 
   const allTemplates = { ...TEMPLATES, ...customTemplates }
+  const visibleTemplates = Object.entries(allTemplates).filter(([k]) => !removedTemplates.has(k))
   const tD = allTemplates[tier] || TEMPLATES.beginner
+
+  const deleteTemplate = async (id) => {
+    const label = allTemplates[id]?.label || id
+    if (!window.confirm(`Delete "${label}" permanently? It will be removed from your template list.`)) return
+    await sb.from('removed_templates').upsert({ id }, { onConflict: 'id' })
+    if (customTemplates[id]) {
+      await sb.from('custom_templates').delete().eq('id', id)
+      setCustomTemplates(prev => { const n = { ...prev }; delete n[id]; return n })
+    }
+    setRemovedTemplates(prev => new Set(prev).add(id))
+    if (tier === id) {
+      const next = Object.keys(allTemplates).find(k => k !== id && !removedTemplates.has(k)) || 'beginner'
+      setTier(next); setBlock(1)
+    }
+  }
 
   const bD = tD.blocks[block] || tD.blocks[1]
   const isOly = !['gpp_2day','gpp_3day','upper_lower'].includes(tier)
@@ -2450,7 +2469,7 @@ export default function App() {
         ))}
       </div>
       {tab === 'online' ? (
-        <CoachOnline athletes={athletes} allTemplates={allTemplates} sb={sb} />
+        <CoachOnline athletes={athletes} allTemplates={allTemplates} removedTemplates={removedTemplates} sb={sb} />
       ) : tab === 'library' ? (
         <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
       ) : tab === 'templates' ? (
@@ -2464,8 +2483,9 @@ export default function App() {
             <div>
               <div style={lbl}>Template</div>
               <select value={tier} onChange={e => { setTier(e.target.value); setBlock(1) }} style={{ border: '1px solid #bbb', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit' }}>
-                {Object.entries(allTemplates).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
+                {visibleTemplates.map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
               </select>
+              <button onClick={() => deleteTemplate(tier)} title="Delete this template permanently" style={{ marginLeft: 6, border: '1px solid #c00', background: '#fff', color: '#c00', fontSize: 10, fontWeight: 700, padding: '6px 9px', cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Delete</button>
             </div>
             <div>
               <div style={lbl}>Block</div>
@@ -3842,29 +3862,43 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
   const tdBase = { borderBottom: isLast ? '2px solid #111' : '1px solid #999', borderRight: cellBorder, padding: 0, verticalAlign: 'top', background: isWU ? '#fafafa' : 'transparent' }
 
   const [showPctSetup, setShowPctSetup] = useState(false)
-  const [setupW1, setSetupW1] = useState('65')
-  const [setupRange, setSetupRange] = useState('65-75')
+  const [setupLo, setSetupLo] = useState('')
+  const [setupHi, setSetupHi] = useState('')
   const [setupPrKey, setSetupPrKey] = useState('')
 
   const openPctSetup = () => {
     const autoKey = Array.isArray(effectivePrKey) ? effectivePrKey[0] : (effectivePrKey || '')
     setSetupPrKey(autoKey)
-    setSetupW1('65'); setSetupRange('65-75')
+    // Prefill from the exercise's current effective % (override wins, else template pct)
+    let lo = '', hi = ''
+    const ov = ex.pctOverrides?.[1]
+    if (ov != null) {
+      if (typeof ov === 'object') { lo = Math.round(ov.lo * 100); hi = Math.round(ov.hi * 100) }
+      else lo = Math.round(ov * 100)
+    } else if (ex.pct) {
+      lo = Math.round(ex.pct[0] * 100); hi = Math.round((ex.pct[2] ?? ex.pct[0]) * 100)
+    }
+    setSetupLo(lo ? String(lo) : ''); setSetupHi(lo && hi && hi !== lo ? String(hi) : '')
     setShowPctSetup(true)
   }
+  // Set the % for the WHOLE block (every week) in one shot — writes a per-week
+  // override for all weeks, so it works on any exercise (with or without a
+  // template %). No more typing week by week.
   const confirmPct = () => {
-    const w1 = parseInt(setupW1) / 100
-    if (isNaN(w1) || w1 <= 0) return
-    const parts = setupRange.split('-').map(p => parseInt(p.trim()))
-    const lo = (!isNaN(parts[0]) && parts[0] > 0 ? parts[0] : parseInt(setupW1)) / 100
-    const hi = (parts.length === 2 && !isNaN(parts[1]) && parts[1] > 0 ? parts[1] : parts[0]) / 100
-    setEdit(dk, i, 'pct_base_w1', String(w1))
-    setEdit(dk, i, 'pct_base_lo', String(lo))
-    setEdit(dk, i, 'pct_base_hi', String(hi))
+    const lo = parseInt(setupLo)
+    if (isNaN(lo) || lo <= 0) return
+    const hiN = parseInt(setupHi)
+    const hi = (!isNaN(hiN) && hiN > 0) ? hiN : lo
+    for (let w = 1; w <= numWeeks; w++) {
+      setEdit(dk, i, 'pct_w' + w, String(lo / 100))
+      setEdit(dk, i, 'pct_w' + w + '_hi', hi === lo ? '' : String(hi / 100))
+    }
     if (setupPrKey) setEdit(dk, i, 'pct_base_prkey', setupPrKey)
     setShowPctSetup(false)
   }
+  // Clear % from every week (for accessories you don't load by percentage)
   const removePct = () => {
+    for (let w = 1; w <= numWeeks; w++) { setEdit(dk, i, 'pct_w' + w, ''); setEdit(dk, i, 'pct_w' + w + '_hi', '') }
     ;['pct_base_w1','pct_base_lo','pct_base_hi','pct_base_prkey'].forEach(f => setEdit(dk, i, f, ''))
     setShowPctSetup(false)
   }
@@ -4191,33 +4225,32 @@ function ExRow({ ex, i, dk, isOly, ath, getPR, setEdit, isLast, isWU, cellNotes,
                 KG
               </button>
             )}
-            {!ex.pct && !ex.matts && !isWU && (
-              <button onClick={() => showPctSetup ? setShowPctSetup(false) : openPctSetup()} title="Add percentage loading"
-                style={{ padding: '1px 3px', fontSize: 7, fontWeight: 800, border: '1px solid', borderColor: showPctSetup ? '#888' : '#ddd', background: showPctSetup ? '#f0f0f0' : 'transparent', color: showPctSetup ? '#555' : '#ccc', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
+            {!isWU && (
+              <button onClick={() => showPctSetup ? setShowPctSetup(false) : openPctSetup()} title="Set % for the whole block"
+                style={{ padding: '1px 4px', fontSize: 8, fontWeight: 800, border: '1px solid', borderColor: showPctSetup ? '#0055bb' : '#bbb', background: showPctSetup ? '#e8f0ff' : 'transparent', color: showPctSetup ? '#0055bb' : '#888', cursor: 'pointer', borderRadius: 2, lineHeight: 1.4, fontFamily: 'inherit' }}>
                 %
               </button>
             )}
           </div>
         </div>
         {showPctSetup && !isWU && (
-          <div className="no-print" style={{ marginTop: 4, padding: '5px 6px', background: '#f8f8f8', border: '1px solid #ccc', borderRadius: 2, fontSize: 9 }}>
+          <div className="no-print" style={{ marginTop: 4, padding: '6px', background: '#f0f6ff', border: '1px solid #9bf', borderRadius: 3, fontSize: 9 }}>
+            <div style={{ fontWeight: 800, color: '#0055bb', fontSize: 8, textTransform: 'uppercase', letterSpacing: .5, marginBottom: 4 }}>% for whole block · all weeks</div>
             <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase' }}>PR:</span>
+              <input value={setupLo} onChange={e => setSetupLo(e.target.value)} placeholder="75"
+                style={{ width: 32, border: '1px solid #bbb', borderRadius: 2, fontSize: 11, fontWeight: 700, textAlign: 'center', padding: '2px', fontFamily: 'inherit', outline: 'none' }} />
+              <span style={{ color: '#999', fontSize: 10 }}>–</span>
+              <input value={setupHi} onChange={e => setSetupHi(e.target.value)} placeholder="opt"
+                style={{ width: 32, border: '1px solid #bbb', borderRadius: 2, fontSize: 11, fontWeight: 700, textAlign: 'center', padding: '2px', fontFamily: 'inherit', outline: 'none' }} />
+              <span style={{ color: '#999', fontSize: 9 }}>%</span>
+              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase', marginLeft: 4 }}>PR:</span>
               <select value={setupPrKey} onChange={e => setSetupPrKey(e.target.value)}
-                style={{ fontSize: 9, border: '1px solid #ccc', padding: '1px 3px', fontFamily: 'inherit', background: '#fff', maxWidth: 90 }}>
+                style={{ fontSize: 9, border: '1px solid #bbb', padding: '1px 3px', fontFamily: 'inherit', background: '#fff', maxWidth: 84 }}>
                 <option value="">auto</option>
                 {[['snatch','Snatch'],['clean','Clean'],['jerk','Jerk'],['deadlift','Deadlift'],['front_squat','Front Sq'],['back_squat','Back Sq'],['bench_press','Bench'],['press','Press'],['push_press','Push Press'],['chin_up','Chin Up']].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
               </select>
-              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase' }}>W1:</span>
-              <input value={setupW1} onChange={e => setSetupW1(e.target.value)} placeholder="65"
-                style={{ width: 28, border: '1px solid #ccc', borderRadius: 2, fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '1px 2px', fontFamily: 'inherit', outline: 'none' }} />
-              <span style={{ color: '#999', fontSize: 8 }}>%</span>
-              <span style={{ fontWeight: 700, color: '#666', fontSize: 8, textTransform: 'uppercase' }}>Rng:</span>
-              <input value={setupRange} onChange={e => setSetupRange(e.target.value)} placeholder="65-75"
-                style={{ width: 44, border: '1px solid #ccc', borderRadius: 2, fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '1px 2px', fontFamily: 'inherit', outline: 'none' }} />
-              <span style={{ color: '#999', fontSize: 8 }}>%</span>
-              <button onClick={confirmPct} style={{ background: '#111', color: '#fff', border: 'none', padding: '2px 7px', fontSize: 9, fontWeight: 700, cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>✓</button>
-              <button onClick={removePct} style={{ background: 'none', color: '#c00', border: '1px solid #c00', padding: '1px 5px', fontSize: 9, cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>×</button>
+              <button onClick={confirmPct} style={{ background: '#0055bb', color: '#fff', border: 'none', padding: '3px 9px', fontSize: 9, fontWeight: 800, cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>Apply</button>
+              <button onClick={removePct} title="Clear % from all weeks" style={{ background: 'none', color: '#c00', border: '1px solid #c00', padding: '2px 6px', fontSize: 9, cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>Clear</button>
             </div>
           </div>
         )}
