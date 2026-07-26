@@ -32,7 +32,8 @@ const MAX_SETS = 15
 
 export default function AthletePortal({ athlete, onLogout }) {
   const [templateId, setTemplateId] = useState(TEMPLATE_ID)
-  const tmpl = getTemplate(templateId)
+  const [programObj, setProgramObj] = useState(null)   // coach-edited per-athlete program
+  const tmpl = programObj || getTemplate(templateId)
   const blocks = tmpl ? Object.keys(tmpl.blocks).map(Number).sort((a, b) => a - b) : []
   const weeks = tmpl?.weeks || 3
   const days = tmpl?.days || []
@@ -58,10 +59,13 @@ export default function AthletePortal({ athlete, onLogout }) {
     ;(async () => {
       // resolve the athlete's active assignment -> which program to show
       let tid = TEMPLATE_ID
-      const { data: asn } = await sb.from('assignments').select('template')
+      const { data: asn } = await sb.from('assignments').select('template,program_json')
         .eq('athlete_id', athlete.id).eq('active', true)
         .order('created_at', { ascending: false }).limit(1)
-      if (asn && asn[0] && getTemplate(asn[0].template)) tid = asn[0].template
+      if (asn && asn[0]) {
+        if (asn[0].template) tid = asn[0].template
+        if (asn[0].program_json && asn[0].program_json.blocks) setProgramObj(asn[0].program_json)
+      }
       if (!alive) return
       setTemplateId(tid)
       const [p, t] = await Promise.all([loadAthletePRs(athlete.id), loadTests()])
