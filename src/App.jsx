@@ -2526,7 +2526,7 @@ export default function App() {
               )}
             </div>
 
-            {isOly && <OlyAnalytics days={days} getExs={getExs} ath={ath} getPR={getPR} edits={edits} block={block} tier={tier} setEdit={setEdit} bD={bD} setCellNote={setCellNote} saveAsCustomTemplate={saveAsCustomTemplate} />}
+            {/* Block Analytics panel (Reroll/Reset, Save as Custom Template, volume/intensity) removed per coach request. OlyAnalytics component kept in the file if we ever want it back. */}
           </div>
 
           <style>{`
