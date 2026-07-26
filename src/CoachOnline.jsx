@@ -146,7 +146,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
 
   if (editing) {
     return <ProgramEditor
-      assignment={editing} allTemplates={allTemplates} sb={sb} athleteName={nameOf(editing.athlete_id)}
+      assignment={editing} allTemplates={allTemplates} sb={sb} athleteName={nameOf(editing.athlete_id)} logs={logs}
       onBack={() => { setEditing(null); loadAll() }}
     />
   }
@@ -214,7 +214,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
 }
 
 // ---------------- Week-based program editor ----------------
-function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
+function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], onBack }) {
   const raw = assignment.program_json?.blocks
     ? assignment.program_json
     : (allTemplates[assignment.template] ? clone(allTemplates[assignment.template]) : { label: assignment.template, days: [], weeks: 1, blocks: {} })
@@ -230,6 +230,7 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
   const [drag, setDrag] = useState(null)
   const [addN, setAddN] = useState(3)
   const [saveState, setSaveState] = useState('saved')
+  const [view, setView] = useState('calendar')   // 'calendar' overview | 'day' editor
   const timer = useRef(null)
 
   const weeks = Object.keys(prog.blocks || {}).map(Number).sort((a, b) => a - b)
@@ -292,31 +293,115 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
     })
     setTimeout(() => setWk(1), 0)
   }
+  const duplicateWeek = (w) => mutate(p => {
+    const keys = Object.keys(p.blocks).map(Number).sort((a, b) => a - b)
+    const last = keys[keys.length - 1] || 0
+    const nw = last + 1
+    p.blocks[nw] = clone(p.blocks[w]); p.blocks[nw].pctLabel = `Week ${nw}`
+  })
+  const deleteWeekAt = (w) => {
+    if (weeks.length <= 1) { window.alert('Keep at least one week.'); return }
+    if (!window.confirm(`Delete Week ${w} entirely?`)) return
+    mutate(p => {
+      delete p.blocks[w]
+      const rest = Object.keys(p.blocks).map(Number).sort((a, b) => a - b)
+      const nb = {}
+      rest.forEach((old, idx) => { const nwk = idx + 1; nb[nwk] = p.blocks[old]; nb[nwk].pctLabel = `Week ${nwk}` })
+      p.blocks = nb
+    })
+    setTimeout(() => setWk(1), 0)
+  }
+  const openDay = (w, d) => { setWk(w); setDayKey(d); setView('day') }
 
+  // athlete completion, from logs (block == week index in the week-based model)
+  const loggedSet = new Set(
+    logs.filter(l => l.athlete_id === assignment.athlete_id && l.template === assignment.template && l.value != null && String(l.value).trim() !== '')
+      .map(l => `${l.block}-${l.day}`)
+  )
+  const dayLogged = (w, d) => loggedSet.has(`${w}-${d}`)
+  const weekDone = (w) => { const ds = days.filter(d => prog.blocks[w]?.[d]); return ds.length > 0 && ds.every(d => dayLogged(w, d)) }
+  const currentWeek = weeks.find(w => !weekDone(w)) || weeks[weeks.length - 1]
+
+  const Header = () => (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <button onClick={onBack} style={linkBtn}>← Back to athletes</button>
+        <span style={{ fontSize: 12, color: saveState === 'error' ? '#c00' : '#0a7', fontWeight: 700 }}>
+          {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'All changes saved'}
+        </span>
+      </div>
+      <h2 style={{ margin: '0 0 2px', fontSize: 20, color: '#0a2540' }}>{prog.label}</h2>
+      <div style={{ color: '#5a6b7b', fontSize: 13, marginBottom: 14 }}>{athleteName} · {weeks.length} week{weeks.length === 1 ? '' : 's'} · on Week {currentWeek}</div>
+    </>
+  )
+
+  // -------- Calendar overview --------
+  if (view === 'calendar') {
+    return (
+      <div style={{ fontFamily: 'Arial, sans-serif', background: '#f0f4f8', minHeight: '80vh', padding: 16 }}>
+        <div style={{ maxWidth: 980, margin: '0 auto' }}>
+          <Header />
+          <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'auto' }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...calTh, width: 90, textAlign: 'left', paddingLeft: 12 }}>Week</th>
+                  {days.map(d => <th key={d} style={calTh}>{(dowFromHeader(prog.blocks[weeks[0]]?.[d]?.header) || d).slice(0, 3)}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {weeks.map(w => {
+                  const isNow = w === currentWeek
+                  return (
+                    <tr key={w} style={{ background: isNow ? '#eef7ff' : '#fff' }}>
+                      <td style={{ ...calTd, textAlign: 'left', paddingLeft: 12, borderLeft: isNow ? '3px solid #0a7' : '3px solid transparent' }}>
+                        <div style={{ fontWeight: 900, color: '#0a2540' }}>Week {w} {isNow && <span style={{ background: '#0a7', color: '#fff', fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 8, marginLeft: 2 }}>NOW</span>}</div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
+                          <button onClick={() => duplicateWeek(w)} title="Duplicate this week to the end" style={miniLink}>duplicate</button>
+                          <button onClick={() => deleteWeekAt(w)} style={{ ...miniLink, color: '#c00' }}>delete</button>
+                        </div>
+                      </td>
+                      {days.map(d => {
+                        const dObj = prog.blocks[w]?.[d]
+                        const n = dObj?.exercises?.length || 0
+                        const done = dayLogged(w, d)
+                        return (
+                          <td key={d} onClick={() => openDay(w, d)} style={{ ...calTd, cursor: 'pointer', background: dObj ? (done ? '#eafaf1' : '#fff') : '#fafcfe' }}>
+                            {dObj ? (
+                              <div>
+                                <div style={{ fontSize: 11, color: '#33465a', fontWeight: 700, lineHeight: 1.2, marginBottom: 2 }}>{(dObj.header || '').split('—').slice(1).join('—').trim() || 'session'}</div>
+                                <div style={{ fontSize: 11, color: '#5a6b7b' }}>{n} ex {done && <span style={{ color: '#0a7', fontWeight: 800 }}>✓</span>}</div>
+                              </div>
+                            ) : <div style={{ color: '#c3cfda', fontSize: 16 }}>+</div>}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
+            <button onClick={addWeeks} style={btn}>+ Add</button>
+            <input type="number" min="1" max="12" value={addN} onChange={e => setAddN(e.target.value)} style={{ width: 46, border: '1px solid #bbccdb', borderRadius: 4, padding: '7px 4px', fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }} />
+            <span style={{ fontSize: 13, color: '#5a6b7b' }}>more week(s) — copies the last week forward to tweak.</span>
+          </div>
+          <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Click any day to edit it. Add as many weeks as you need — a program can run as long as the client trains. Green ✓ = the athlete has logged that day.</div>
+        </div>
+      </div>
+    )
+  }
+
+  // -------- Day editor (drill-down) --------
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', background: '#f0f4f8', minHeight: '80vh', padding: 16 }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <button onClick={onBack} style={linkBtn}>← Back to athletes</button>
-          <span style={{ fontSize: 12, color: saveState === 'error' ? '#c00' : '#0a7', fontWeight: 700 }}>
-            {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'All changes saved'}
-          </span>
-        </div>
-        <h2 style={{ margin: '0 0 2px', fontSize: 20, color: '#0a2540' }}>{prog.label}</h2>
-        <div style={{ color: '#5a6b7b', fontSize: 13, marginBottom: 14 }}>{athleteName}</div>
-
-        {/* Week tabs + add / delete */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-          <span style={lbl}>Week</span>
-          {weeks.map(w => (
-            <button key={w} onClick={() => setWk(w)} style={{ ...pill, background: w === wk ? '#0a2540' : '#fff', color: w === wk ? '#fff' : '#0a2540' }}>{w}</button>
-          ))}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 6 }}>
-            <button onClick={addWeeks} style={{ ...pill, background: '#0a7', color: '#fff', border: 'none' }}>+ Add</button>
-            <input type="number" min="1" max="12" value={addN} onChange={e => setAddN(e.target.value)} style={{ width: 40, border: '1px solid #bbccdb', borderRadius: 4, padding: '5px 4px', fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }} />
-            <span style={{ fontSize: 12, color: '#5a6b7b' }}>wk</span>
-          </span>
-          <button onClick={deleteWeek} style={{ ...pill, background: '#fff', color: '#c00', border: '1px solid #e2b6b6', marginLeft: 4 }}>Delete week {wk}</button>
+        <Header />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+          <button onClick={() => setView('calendar')} style={linkBtn}>← Calendar</button>
+          <span style={{ fontWeight: 900, color: '#0a2540', fontSize: 15 }}>Week {wk}</span>
+          <button onClick={deleteWeek} style={{ ...miniLink, color: '#c00' }}>delete week {wk}</button>
         </div>
 
         {/* Day tabs */}
@@ -392,3 +477,6 @@ const btnLight = { padding: '7px 12px', background: '#fff', color: '#0a2540', bo
 const linkBtn = { background: 'transparent', border: 'none', color: '#0a7', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }
 const pill = { padding: '6px 14px', borderRadius: 16, border: '1px solid #bbccdb', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }
 const arrow = { border: 'none', background: 'transparent', color: '#8a99a8', cursor: 'pointer', fontSize: 9, lineHeight: 1, padding: '1px 2px' }
+const calTh = { fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#5a6b7b', padding: '8px 6px', textAlign: 'center', background: '#eef3f8', borderBottom: '1px solid #cdd8e3' }
+const calTd = { padding: '8px 6px', textAlign: 'center', borderBottom: '1px solid #eef3f8', borderRight: '1px solid #f2f6fa', verticalAlign: 'top', minWidth: 96 }
+const miniLink = { background: 'transparent', border: 'none', color: '#5a6b7b', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }
