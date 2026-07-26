@@ -1,20 +1,67 @@
 import { useState, useEffect, useRef } from 'react'
 
-// Coach-side "Online Programs" tab. Assign a program to an athlete (which
-// snapshots an editable copy), then edit that athlete's program as a calendar:
-// add/edit/remove exercises, copy/paste days, and add blocks ("next 3 weeks").
-// Fully self-contained — never touches the paper template builder.
+// Coach-side "Online Programs" tab. Assign a program (snapshots an editable,
+// WEEK-BASED copy) then edit it like a calendar: each week is independent —
+// edit/add/remove/reorder/link exercises, delete or copy/paste days, delete
+// weeks, add however many weeks you want. Self-contained; never touches paper.
 
 const today = () => new Date().toISOString().slice(0, 10)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const dowFromHeader = (h) => (h || '').split('—')[0].trim()
 
+// --- superset-aware exercise numbering ---
+// ex.linked = "grouped with the previous exercise" (same letter). ex.wu = warmup.
+function deriveLinked(exs) {
+  let prevLetter = null
+  return (exs || []).map((ex, i) => {
+    const s = String(ex.series || '')
+    const wu = s.toUpperCase() === 'WU'
+    const letter = (s.match(/^[A-Za-z]+/) || [''])[0].toUpperCase()
+    const linked = !wu && i > 0 && !!letter && letter === prevLetter
+    prevLetter = wu ? prevLetter : (letter || prevLetter)
+    return { ...ex, wu, linked }
+  })
+}
+function renumber(exs) {
+  let letterIdx = -1, num = 0
+  return (exs || []).map((ex, i) => {
+    if (ex.wu) return { ...ex, series: 'WU' }
+    if (ex.linked && i > 0 && !exs[i - 1].wu) { num++ } else { letterIdx++; num = 1 }
+    const letter = String.fromCharCode(65 + Math.min(letterIdx, 25))
+    return { ...ex, series: letter + num }
+  })
+}
+
+// Flatten a block-based template (blocks × weeks) into an independent week list.
+function flattenToWeeks(t) {
+  if (!t?.blocks) return t
+  const srcBlocks = Object.keys(t.blocks).map(Number).sort((a, b) => a - b)
+  const perBlockWeeks = t.weeks || 1
+  const days = t.days || []
+  const weeks = {}
+  let n = 0
+  srcBlocks.forEach(b => {
+    for (let w = 1; w <= perBlockWeeks; w++) {
+      n++
+      const wk = { pctLabel: `Week ${n}` }
+      days.forEach(d => {
+        if (t.blocks[b][d]) {
+          const src = clone(t.blocks[b][d])
+          src.exercises = renumber(deriveLinked(src.exercises || []))
+          wk[d] = src
+        }
+      })
+      weeks[n] = wk
+    }
+  })
+  return { label: t.label, days, weeks: 1, blocks: weeks }
+}
+
 function totalSessions(prog) {
   if (!prog?.blocks) return 0
-  const blocks = Object.keys(prog.blocks).length
-  const weeks = prog.weeks || 3
+  const weeks = Object.keys(prog.blocks).length
   const days = (prog.days || []).length
-  return blocks * weeks * days
+  return weeks * days
 }
 
 export default function CoachOnline({ athletes = [], allTemplates = {}, removedTemplates = new Set(), sb }) {
@@ -24,7 +71,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
   const [athleteId, setAthleteId] = useState('')
   const [programId, setProgramId] = useState('matts_online')
   const [msg, setMsg] = useState('')
-  const [editing, setEditing] = useState(null)   // the assignment being edited
+  const [editing, setEditing] = useState(null)
 
   const programList = Object.entries(allTemplates).filter(([id]) => !removedTemplates.has(id)).map(([id, t]) => ({ id, label: t.label || id }))
   const nameOf = (id) => { const a = athletes.find(x => x.id === id); return a ? `${a.first_name} ${a.last_name}`.trim() : `Athlete ${id}` }
@@ -51,7 +98,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
     if (!athleteId || !programId) { setMsg('Pick an athlete and a program.'); return }
     const aId = parseInt(athleteId)
     setMsg('Assigning…')
-    const snap = allTemplates[programId] ? clone(allTemplates[programId]) : null
+    const snap = allTemplates[programId] ? flattenToWeeks(clone(allTemplates[programId])) : null
     await sb.from('assignments').update({ active: false }).eq('athlete_id', aId).eq('active', true)
     const { error } = await sb.from('assignments').insert({
       athlete_id: aId, template: programId, active: true, start_date: today(), program_json: snap,
@@ -63,7 +110,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
   }
 
   function progressFor(a) {
-    const prog = a.program_json || allTemplates[a.template]
+    const prog = a.program_json || (allTemplates[a.template] ? flattenToWeeks(allTemplates[a.template]) : null)
     const total = totalSessions(prog)
     const mine = logs.filter(l => l.athlete_id === a.athlete_id && l.template === a.template && l.value != null && String(l.value).trim() !== '')
     const done = new Set(mine.map(l => `${l.block}-${l.week}-${l.day}`)).size
@@ -80,12 +127,12 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', background: '#f0f4f8', minHeight: '80vh', padding: 16 }}>
-      <div style={{ maxWidth: 820, margin: '0 auto' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <h2 style={{ margin: 0, fontSize: 20, color: '#0a2540' }}>Online Programming</h2>
           <span style={{ background: '#0a7', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 10, letterSpacing: 1 }}>SEPARATE FROM PAPER</span>
         </div>
-        <p style={{ color: '#5a6b7b', fontSize: 12, marginTop: 2 }}>Assign a program to an athlete, then open it to edit their calendar — add exercises, copy days, add the next 3 weeks. Athletes see it live at <b>/athlete</b>.</p>
+        <p style={{ color: '#5a6b7b', fontSize: 12, marginTop: 2 }}>Assign a program, then open it to edit the calendar — each week is independent. Athletes see it live at <b>/athlete</b>.</p>
 
         <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, padding: 14, marginBottom: 18 }}>
           <div style={{ fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: '#0a2540', marginBottom: 10 }}>Assign a program</div>
@@ -140,20 +187,28 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
   )
 }
 
-// ---------------- Program editor (calendar) ----------------
+// ---------------- Week-based program editor ----------------
 function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
-  const seed = assignment.program_json || (allTemplates[assignment.template] ? clone(allTemplates[assignment.template]) : { label: assignment.template, days: [], weeks: 3, blocks: {} })
+  const raw = assignment.program_json?.blocks
+    ? assignment.program_json
+    : (allTemplates[assignment.template] ? clone(allTemplates[assignment.template]) : { label: assignment.template, days: [], weeks: 1, blocks: {} })
+  // Flatten anything still block-based (a template, or an older block-based
+  // program_json) into independent weeks. Already-week-based (weeks:1) is left as-is.
+  const seed = (raw.weeks && raw.weeks > 1) ? flattenToWeeks(raw) : raw
+
   const [prog, setProg] = useState(seed)
-  const [block, setBlock] = useState(Object.keys(seed.blocks || {}).map(Number).sort((a, b) => a - b)[0] || 1)
+  const weekKeys0 = Object.keys(seed.blocks || {}).map(Number).sort((a, b) => a - b)
+  const [wk, setWk] = useState(weekKeys0[0] || 1)
   const [dayKey, setDayKey] = useState((seed.days || [])[0] || 'dayA')
-  const [clip, setClip] = useState(null)          // copied day
+  const [clip, setClip] = useState(null)
+  const [addN, setAddN] = useState(3)
   const [saveState, setSaveState] = useState('saved')
   const timer = useRef(null)
 
-  const blocks = Object.keys(prog.blocks || {}).map(Number).sort((a, b) => a - b)
+  const weeks = Object.keys(prog.blocks || {}).map(Number).sort((a, b) => a - b)
   const days = prog.days || []
-  const bd = prog.blocks?.[block] || {}
-  const day = bd[dayKey] || { header: '', exercises: [] }
+  const wd = prog.blocks?.[wk] || {}
+  const day = wd[dayKey] || { header: '', exercises: [] }
 
   function save(next) {
     setSaveState('saving')
@@ -161,33 +216,63 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
     timer.current = setTimeout(async () => {
       const { error } = await sb.from('assignments').update({ program_json: next }).eq('id', assignment.id)
       setSaveState(error ? 'error' : 'saved')
-    }, 600)
+    }, 500)
   }
-  function mutate(fn) {
-    setProg(prev => { const next = clone(prev); fn(next); save(next); return next })
+  function mutate(fn) { setProg(prev => { const next = clone(prev); fn(next); save(next); return next }) }
+  // rewrite the current day's exercises through a transform, then renumber
+  function mutExs(fn) {
+    mutate(p => {
+      if (!p.blocks[wk][dayKey]) p.blocks[wk][dayKey] = { header: '', exercises: [] }
+      const exs = p.blocks[wk][dayKey].exercises || []
+      p.blocks[wk][dayKey].exercises = renumber(fn(exs.slice()))
+    })
   }
 
-  const setExField = (i, field, val) => mutate(p => { p.blocks[block][dayKey].exercises[i][field] = val })
-  const addExercise = () => mutate(p => {
-    if (!p.blocks[block][dayKey]) p.blocks[block][dayKey] = { header: '', exercises: [] }
-    p.blocks[block][dayKey].exercises.push({ series: '', exercise: '', sets: '3', reps: '5', pct: null, prKey: null, note: '' })
+  const setExField = (idx, field, val) => mutate(p => { p.blocks[wk][dayKey].exercises[idx][field] = val })
+  const addExercise = () => mutExs(exs => { exs.push({ series: '', exercise: '', sets: '3', reps: '5', pct: null, prKey: null, note: '', linked: false, wu: false }); return exs })
+  const removeExercise = (idx) => mutExs(exs => { exs.splice(idx, 1); return exs })
+  const moveExercise = (idx, dir) => mutExs(exs => {
+    const j = idx + dir
+    if (j < 0 || j >= exs.length) return exs
+    const t = exs[idx]; exs[idx] = exs[j]; exs[j] = t
+    return exs
   })
-  const removeExercise = (i) => mutate(p => { p.blocks[block][dayKey].exercises.splice(i, 1) })
-  const setHeader = (val) => mutate(p => { if (!p.blocks[block][dayKey]) p.blocks[block][dayKey] = { header: '', exercises: [] }; p.blocks[block][dayKey].header = val })
+  const toggleLink = (idx) => mutExs(exs => { if (idx > 0) exs[idx] = { ...exs[idx], linked: !exs[idx].linked, wu: false }; return exs })
+
+  const setHeader = (val) => mutate(p => { if (!p.blocks[wk][dayKey]) p.blocks[wk][dayKey] = { header: '', exercises: [] }; p.blocks[wk][dayKey].header = val })
   const copyDay = () => setClip(clone(day))
-  const pasteDay = () => { if (clip) mutate(p => { p.blocks[block][dayKey] = clone(clip) }) }
-  const addBlock = () => mutate(p => {
+  const pasteDay = () => { if (clip) mutate(p => { p.blocks[wk][dayKey] = clone(clip) }) }
+  const deleteDay = () => { if (window.confirm(`Delete ${dowFromHeader(day.header) || dayKey} from Week ${wk}? (this week only)`)) mutate(p => { delete p.blocks[wk][dayKey] }) }
+
+  const addWeeks = () => mutate(p => {
     const keys = Object.keys(p.blocks).map(Number).sort((a, b) => a - b)
-    const last = keys[keys.length - 1]
-    const n = last + 1
-    p.blocks[n] = clone(p.blocks[last])
-    if (p.blocks[n].pctLabel) p.blocks[n].pctLabel = `Block ${n}`
-    setTimeout(() => setBlock(n), 0)
+    let last = keys[keys.length - 1] || 0
+    const source = p.blocks[last]
+    const n = Math.max(1, Math.min(12, parseInt(addN) || 1))
+    for (let k = 0; k < n; k++) {
+      last++
+      p.blocks[last] = source ? clone(source) : {}
+      p.blocks[last].pctLabel = `Week ${last}`
+    }
+    setTimeout(() => setWk(last), 0)
   })
+  const deleteWeek = () => {
+    if (weeks.length <= 1) { window.alert('Keep at least one week.'); return }
+    if (!window.confirm(`Delete Week ${wk} entirely?`)) return
+    mutate(p => {
+      delete p.blocks[wk]
+      // re-index remaining weeks to 1..N
+      const rest = Object.keys(p.blocks).map(Number).sort((a, b) => a - b)
+      const nb = {}
+      rest.forEach((old, idx) => { const nw = idx + 1; nb[nw] = p.blocks[old]; nb[nw].pctLabel = `Week ${nw}` })
+      p.blocks = nb
+    })
+    setTimeout(() => setWk(1), 0)
+  }
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', background: '#f0f4f8', minHeight: '80vh', padding: 16 }}>
-      <div style={{ maxWidth: 820, margin: '0 auto' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <button onClick={onBack} style={linkBtn}>← Back to athletes</button>
           <span style={{ fontSize: 12, color: saveState === 'error' ? '#c00' : '#0a7', fontWeight: 700 }}>
@@ -197,60 +282,69 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
         <h2 style={{ margin: '0 0 2px', fontSize: 20, color: '#0a2540' }}>{prog.label}</h2>
         <div style={{ color: '#5a6b7b', fontSize: 13, marginBottom: 14 }}>{athleteName}</div>
 
-        {/* Block tabs + add block */}
+        {/* Week tabs + add / delete */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-          <span style={lbl}>Block</span>
-          {blocks.map(b => (
-            <button key={b} onClick={() => setBlock(b)} style={{ ...pill, background: b === block ? '#0a2540' : '#fff', color: b === block ? '#fff' : '#0a2540' }}>{b}</button>
+          <span style={lbl}>Week</span>
+          {weeks.map(w => (
+            <button key={w} onClick={() => setWk(w)} style={{ ...pill, background: w === wk ? '#0a2540' : '#fff', color: w === wk ? '#fff' : '#0a2540' }}>{w}</button>
           ))}
-          <button onClick={addBlock} style={{ ...pill, background: '#0a7', color: '#fff', border: 'none' }}>+ Next 3 weeks</button>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 6 }}>
+            <button onClick={addWeeks} style={{ ...pill, background: '#0a7', color: '#fff', border: 'none' }}>+ Add</button>
+            <input type="number" min="1" max="12" value={addN} onChange={e => setAddN(e.target.value)} style={{ width: 40, border: '1px solid #bbccdb', borderRadius: 4, padding: '5px 4px', fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }} />
+            <span style={{ fontSize: 12, color: '#5a6b7b' }}>wk</span>
+          </span>
+          <button onClick={deleteWeek} style={{ ...pill, background: '#fff', color: '#c00', border: '1px solid #e2b6b6', marginLeft: 4 }}>Delete week {wk}</button>
         </div>
 
         {/* Day tabs */}
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {days.map(d => {
             const active = d === dayKey
+            const exists = !!wd[d]
             return (
-              <button key={d} onClick={() => setDayKey(d)} style={{ ...pill, padding: '6px 12px', background: active ? '#00a3cc' : '#fff', color: active ? '#fff' : '#0a2540' }}>
-                {(dowFromHeader(bd[d]?.header) || d).slice(0, 3)}
+              <button key={d} onClick={() => setDayKey(d)} style={{ ...pill, padding: '6px 12px', opacity: exists ? 1 : .45, background: active ? '#00a3cc' : '#fff', color: active ? '#fff' : '#0a2540' }}>
+                {(dowFromHeader(wd[d]?.header) || d).slice(0, 3)}
               </button>
             )
           })}
         </div>
 
-        {/* Day header + copy/paste */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+        {/* Day header + day actions */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
           <input value={day.header || ''} onChange={e => setHeader(e.target.value)} placeholder="Day header (e.g. Monday — Lower / Speed)"
-            style={{ flex: 1, padding: '8px 10px', border: '1px solid #bbccdb', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: '#0a2540' }} />
+            style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: '1px solid #bbccdb', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: '#0a2540' }} />
           <button onClick={copyDay} style={btnLight}>Copy day</button>
           <button onClick={pasteDay} disabled={!clip} style={{ ...btnLight, opacity: clip ? 1 : .4 }}>Paste day</button>
+          <button onClick={deleteDay} style={{ ...btnLight, color: '#c00', borderColor: '#e2b6b6' }}>Delete day</button>
         </div>
 
-        {/* Exercise rows */}
+        {/* Exercises */}
         <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', gap: 6, padding: '8px 10px', background: '#eef3f8', fontSize: 10, fontWeight: 800, letterSpacing: 1, color: '#5a6b7b', textTransform: 'uppercase' }}>
-            <span style={{ width: 44 }}>Ord</span>
-            <span style={{ flex: 1 }}>Exercise</span>
-            <span style={{ width: 44 }}>Sets</span>
-            <span style={{ width: 52 }}>Reps</span>
-            <span style={{ flex: 1 }}>Note / tempo / %</span>
-            <span style={{ width: 24 }} />
-          </div>
           {(day.exercises || []).map((ex, i) => (
-            <div key={i} style={{ display: 'flex', gap: 6, padding: '6px 10px', borderTop: '1px solid #eef3f8', alignItems: 'center' }}>
-              <input value={ex.series || ''} onChange={e => setExField(i, 'series', e.target.value)} style={{ ...cell, width: 44 }} />
-              <input value={ex.exercise || ''} onChange={e => setExField(i, 'exercise', e.target.value)} style={{ ...cell, flex: 1, fontWeight: 700 }} />
-              <input value={ex.sets || ''} onChange={e => setExField(i, 'sets', e.target.value)} style={{ ...cell, width: 44 }} />
-              <input value={ex.reps || ''} onChange={e => setExField(i, 'reps', e.target.value)} style={{ ...cell, width: 52 }} />
-              <input value={ex.note || ''} onChange={e => setExField(i, 'note', e.target.value)} style={{ ...cell, flex: 1 }} />
+            <div key={i} style={{ display: 'flex', gap: 6, padding: '6px 8px', borderTop: i ? '1px solid #eef3f8' : 'none', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <button onClick={() => moveExercise(i, -1)} disabled={i === 0} title="Move up" style={arrow}>▲</button>
+                <button onClick={() => moveExercise(i, 1)} disabled={i === (day.exercises.length - 1)} title="Move down" style={arrow}>▼</button>
+              </div>
+              <span style={{ width: 30, textAlign: 'center', fontWeight: 900, fontSize: 12, color: ex.linked ? '#0a7' : '#0a2540' }}>{ex.series}</span>
+              <input value={ex.exercise || ''} onChange={e => setExField(i, 'exercise', e.target.value)} placeholder="exercise" style={{ ...cell, flex: 1, fontWeight: 700 }} />
+              <input value={ex.sets || ''} onChange={e => setExField(i, 'sets', e.target.value)} title="sets" style={{ ...cell, width: 40 }} />
+              <span style={{ color: '#999', fontSize: 12 }}>×</span>
+              <input value={ex.reps || ''} onChange={e => setExField(i, 'reps', e.target.value)} title="reps" style={{ ...cell, width: 52 }} />
+              <input value={ex.note || ''} onChange={e => setExField(i, 'note', e.target.value)} placeholder="note / tempo / %" style={{ ...cell, flex: 1 }} />
+              <button onClick={() => toggleLink(i)} disabled={i === 0} title={ex.linked ? 'Unlink from superset above' : 'Link as superset with above'}
+                style={{ ...btnLight, padding: '5px 7px', fontSize: 11, color: ex.linked ? '#0a7' : '#5a6b7b', borderColor: ex.linked ? '#0a7' : '#bbccdb', opacity: i === 0 ? .35 : 1 }}>
+                {ex.linked ? '🔗 linked' : '🔗 link'}
+              </button>
               <button onClick={() => removeExercise(i)} title="Remove" style={{ width: 24, height: 24, border: 'none', background: 'transparent', color: '#c55', cursor: 'pointer', fontSize: 16, fontWeight: 800 }}>×</button>
             </div>
           ))}
-          {(day.exercises || []).length === 0 && <div style={{ padding: 14, color: '#98a7b5', fontSize: 13 }}>No exercises on this day yet.</div>}
+          {(day.exercises || []).length === 0 && <div style={{ padding: 14, color: '#98a7b5', fontSize: 13 }}>No exercises on this day. Add one, or paste a day.</div>}
           <div style={{ padding: 10, borderTop: '1px solid #eef3f8' }}>
             <button onClick={addExercise} style={btn}>+ Add exercise</button>
           </div>
         </div>
+        <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Tip: <b>Link</b> an exercise to the one above to make a superset (A1 · A2). Order + numbering update automatically.</div>
       </div>
     </div>
   )
@@ -264,3 +358,4 @@ const btnDark = { padding: '7px 14px', background: '#0a2540', color: '#fff', bor
 const btnLight = { padding: '7px 12px', background: '#fff', color: '#0a2540', border: '1px solid #bbccdb', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 4 }
 const linkBtn = { background: 'transparent', border: 'none', color: '#0a7', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }
 const pill = { padding: '6px 14px', borderRadius: 16, border: '1px solid #bbccdb', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }
+const arrow = { border: 'none', background: 'transparent', color: '#8a99a8', cursor: 'pointer', fontSize: 9, lineHeight: 1, padding: '1px 2px' }
