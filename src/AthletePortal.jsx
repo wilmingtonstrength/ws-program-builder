@@ -273,7 +273,6 @@ export default function AthletePortal({ athlete, onLogout }) {
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
         <Segment label="Week" value={block} setValue={setBlock} options={blocks} />
-        {weeks > 1 && <Segment label="Sub-week" value={week} setValue={setWeek} options={Array.from({ length: weeks }, (_, i) => i + 1)} />}
       </div>
 
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 6 }}>

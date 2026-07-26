@@ -31,6 +31,32 @@ function renumber(exs) {
     return { ...ex, series: letter + num }
   })
 }
+// group = a superset (a run of consecutive linked exercises)
+function toGroups(exs) {
+  const groups = []; let cur = null
+  ;(exs || []).forEach(ex => { if (ex.linked && cur) cur.push(ex); else { cur = [ex]; groups.push(cur) } })
+  return groups
+}
+function groupIndexOf(exs, idx) {
+  const groups = toGroups(exs); let count = 0
+  for (let k = 0; k < groups.length; k++) { if (idx < count + groups[k].length) return k; count += groups[k].length }
+  return groups.length - 1
+}
+// move the whole group containing idx one slot up (-1) or down (+1)
+function moveGroup(exs, idx, dir) {
+  const groups = toGroups(exs); const gi = groupIndexOf(exs, idx); const tj = gi + dir
+  if (tj < 0 || tj >= groups.length) return exs
+  const t = groups[gi]; groups[gi] = groups[tj]; groups[tj] = t
+  return groups.flat()
+}
+// drag the group containing fromIdx to where the group containing toIdx is
+function dropGroup(exs, fromIdx, toIdx) {
+  const groups = toGroups(exs); const gi = groupIndexOf(exs, fromIdx); const gj = groupIndexOf(exs, toIdx)
+  if (gi === gj) return exs
+  const [moved] = groups.splice(gi, 1)
+  groups.splice(gj > gi ? gj - 1 : gj, 0, moved)
+  return groups.flat()
+}
 
 // Flatten a block-based template (blocks × weeks) into an independent week list.
 function flattenToWeeks(t) {
@@ -201,6 +227,7 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
   const [wk, setWk] = useState(weekKeys0[0] || 1)
   const [dayKey, setDayKey] = useState((seed.days || [])[0] || 'dayA')
   const [clip, setClip] = useState(null)
+  const [drag, setDrag] = useState(null)
   const [addN, setAddN] = useState(3)
   const [saveState, setSaveState] = useState('saved')
   const timer = useRef(null)
@@ -231,12 +258,8 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
   const setExField = (idx, field, val) => mutate(p => { p.blocks[wk][dayKey].exercises[idx][field] = val })
   const addExercise = () => mutExs(exs => { exs.push({ series: '', exercise: '', sets: '3', reps: '5', pct: null, prKey: null, note: '', linked: false, wu: false }); return exs })
   const removeExercise = (idx) => mutExs(exs => { exs.splice(idx, 1); return exs })
-  const moveExercise = (idx, dir) => mutExs(exs => {
-    const j = idx + dir
-    if (j < 0 || j >= exs.length) return exs
-    const t = exs[idx]; exs[idx] = exs[j]; exs[j] = t
-    return exs
-  })
+  const moveExercise = (idx, dir) => mutExs(exs => moveGroup(exs, idx, dir))
+  const dropOn = (target) => { if (drag != null && drag !== target) mutExs(exs => dropGroup(exs, drag, target)); setDrag(null) }
   const toggleLink = (idx) => mutExs(exs => { if (idx > 0) exs[idx] = { ...exs[idx], linked: !exs[idx].linked, wu: false }; return exs })
 
   const setHeader = (val) => mutate(p => { if (!p.blocks[wk][dayKey]) p.blocks[wk][dayKey] = { header: '', exercises: [] }; p.blocks[wk][dayKey].header = val })
@@ -321,20 +344,30 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
         {/* Exercises */}
         <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'hidden' }}>
           {(day.exercises || []).map((ex, i) => (
-            <div key={i} style={{ display: 'flex', gap: 6, padding: '6px 8px', borderTop: i ? '1px solid #eef3f8' : 'none', alignItems: 'center' }}>
+            <div key={i}
+              draggable onDragStart={() => setDrag(i)} onDragEnd={() => setDrag(null)}
+              onDragOver={e => e.preventDefault()} onDrop={() => dropOn(i)}
+              style={{
+                display: 'flex', gap: 6, padding: '6px 8px', alignItems: 'center',
+                borderTop: i ? '1px solid #eef3f8' : 'none',
+                borderLeft: ex.linked ? '3px solid #0a7' : '3px solid transparent',
+                marginLeft: ex.linked ? 14 : 0,
+                background: drag === i ? '#eef7f2' : 'transparent',
+              }}>
+              <span title="Drag to reorder — moves the whole superset" style={{ cursor: 'grab', color: '#b7c3d0', fontSize: 14, userSelect: 'none' }}>⠿</span>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <button onClick={() => moveExercise(i, -1)} disabled={i === 0} title="Move up" style={arrow}>▲</button>
-                <button onClick={() => moveExercise(i, 1)} disabled={i === (day.exercises.length - 1)} title="Move down" style={arrow}>▼</button>
+                <button onClick={() => moveExercise(i, -1)} title="Move up" style={arrow}>▲</button>
+                <button onClick={() => moveExercise(i, 1)} title="Move down" style={arrow}>▼</button>
               </div>
-              <span style={{ width: 30, textAlign: 'center', fontWeight: 900, fontSize: 12, color: ex.linked ? '#0a7' : '#0a2540' }}>{ex.series}</span>
+              <span style={{ width: 28, textAlign: 'center', fontWeight: 900, fontSize: 12, color: ex.linked ? '#0a7' : '#0a2540' }}>{ex.series}</span>
               <input value={ex.exercise || ''} onChange={e => setExField(i, 'exercise', e.target.value)} placeholder="exercise" style={{ ...cell, flex: 1, fontWeight: 700 }} />
               <input value={ex.sets || ''} onChange={e => setExField(i, 'sets', e.target.value)} title="sets" style={{ ...cell, width: 40 }} />
               <span style={{ color: '#999', fontSize: 12 }}>×</span>
               <input value={ex.reps || ''} onChange={e => setExField(i, 'reps', e.target.value)} title="reps" style={{ ...cell, width: 52 }} />
               <input value={ex.note || ''} onChange={e => setExField(i, 'note', e.target.value)} placeholder="note / tempo / %" style={{ ...cell, flex: 1 }} />
-              <button onClick={() => toggleLink(i)} disabled={i === 0} title={ex.linked ? 'Unlink from superset above' : 'Link as superset with above'}
-                style={{ ...btnLight, padding: '5px 7px', fontSize: 11, color: ex.linked ? '#0a7' : '#5a6b7b', borderColor: ex.linked ? '#0a7' : '#bbccdb', opacity: i === 0 ? .35 : 1 }}>
-                {ex.linked ? '🔗 linked' : '🔗 link'}
+              <button onClick={() => toggleLink(i)} disabled={i === 0} title={ex.linked ? 'Unlink from the exercise above' : 'Superset with the exercise above'}
+                style={{ ...btnLight, padding: '5px 8px', fontSize: 11, color: ex.linked ? '#fff' : '#5a6b7b', background: ex.linked ? '#0a7' : '#fff', borderColor: ex.linked ? '#0a7' : '#bbccdb', opacity: i === 0 ? .3 : 1 }}>
+                {ex.linked ? 'linked ✕' : '＋ link'}
               </button>
               <button onClick={() => removeExercise(i)} title="Remove" style={{ width: 24, height: 24, border: 'none', background: 'transparent', color: '#c55', cursor: 'pointer', fontSize: 16, fontWeight: 800 }}>×</button>
             </div>
@@ -344,7 +377,7 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, onBack }) {
             <button onClick={addExercise} style={btn}>+ Add exercise</button>
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Tip: <b>Link</b> an exercise to the one above to make a superset (A1 · A2). Order + numbering update automatically.</div>
+        <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Tip: drag <b>⠿</b> (or ▲▼) to reorder — a linked superset moves as one unit. <b>＋ link</b> joins an exercise to the one above (A1 · A2 · A3); numbering updates automatically.</div>
       </div>
     </div>
   )
