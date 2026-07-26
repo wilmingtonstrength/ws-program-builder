@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 
 // Coach-side "Online Programs" tab. Assign a program (snapshots an editable,
 // WEEK-BASED copy) then edit it like a calendar: each week is independent —
@@ -247,6 +247,7 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
   const [wk, setWk] = useState(weekKeys0[0] || 1)
   const [dayKey, setDayKey] = useState((seed.days || [])[0] || 'dayA')
   const [clip, setClip] = useState(null)
+  const [weekClip, setWeekClip] = useState(null)   // a copied week (for calendar paste)
   const [drag, setDrag] = useState(null)
   const [addN, setAddN] = useState(3)
   const [saveState, setSaveState] = useState('saved')
@@ -355,6 +356,17 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
     let last = keys[keys.length - 1] || 0; const n = Math.max(1, Math.min(12, parseInt(addN) || 1))
     for (let k = 0; k < n; k++) { last++; p.blocks[last] = clone(src); p.blocks[last].pctLabel = `Week ${last}` }
   })
+  // which program-week a calendar date belongs to (1-based; can exceed current length)
+  const weekIndexForDate = (dt) => Math.floor((mondayOf(dt).getTime() - week1Monday.getTime()) / (7 * 86400000)) + 1
+  const copyWeekAt = (W) => { if (prog.blocks[W]) setWeekClip({ w: W, block: clone(prog.blocks[W]) }) }
+  const pasteWeekAt = (W) => {
+    if (!weekClip || W < 1) return
+    mutate(p => {
+      const maxW = Math.max(0, ...Object.keys(p.blocks).map(Number))
+      for (let k = maxW + 1; k < W; k++) p.blocks[k] = {}   // fill any gap with empty weeks
+      p.blocks[W] = clone(weekClip.block); p.blocks[W].pctLabel = `Week ${W}`
+    })
+  }
 
   const Header = () => (
     <>
@@ -388,29 +400,49 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
             <button onClick={() => setMonthCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))} style={btnLight}>Today</button>
             <span style={{ marginLeft: 'auto', fontSize: 12, color: '#5a6b7b', display: 'inline-flex', alignItems: 'center', gap: 6 }}>Program starts <input type="date" value={startDate} onChange={e => saveStartDate(e.target.value)} style={{ border: '1px solid #bbccdb', borderRadius: 4, padding: '5px 6px', fontFamily: 'inherit', fontSize: 12 }} /></span>
           </div>
+          {weekClip && (
+            <div style={{ marginBottom: 8, background: '#e6f8ef', border: '1px solid #9fdcc0', borderRadius: 6, padding: '7px 10px', fontSize: 12, color: '#0a6', display: 'flex', alignItems: 'center', gap: 8 }}>
+              Week {weekClip.w} copied — click <b>paste</b> on any week to drop it in.
+              <button onClick={() => setWeekClip(null)} style={{ ...miniLink, color: '#0a6', marginLeft: 'auto' }}>clear</button>
+            </div>
+          )}
           <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '58px repeat(7,1fr)' }}>
+              <div style={{ background: '#eef3f8', borderBottom: '1px solid #cdd8e3' }} />
               {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(h => (
                 <div key={h} style={{ padding: '7px 6px', textAlign: 'center', fontSize: 10, fontWeight: 800, letterSpacing: 1, color: '#5a6b7b', background: '#eef3f8', borderBottom: '1px solid #cdd8e3' }}>{h}</div>
               ))}
-              {visibleRows.flat().map((dt, i) => {
-                const y = ymd(dt)
-                const inMonth = dt.getMonth() === monthCursor.getMonth()
-                const info = cellMap[y]
-                const s = info ? prog.blocks[info.w][info.d] : null
-                const done = info ? dayLogged(info.w, info.d) : false
-                const isToday = y === todayY
+              {visibleRows.map((row, ri) => {
+                const W = weekIndexForDate(row[1])
+                const hasWeek = W >= 1 && !!prog.blocks[W]
                 return (
-                  <div key={i} onClick={() => info && openDay(info.w, info.d)}
-                    style={{ minHeight: 92, borderRight: '1px solid #f0f4f8', borderBottom: '1px solid #f0f4f8', padding: 6, background: inMonth ? '#fff' : '#f7fafc', cursor: info ? 'pointer' : 'default' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? '#fff' : (inMonth ? '#5a6b7b' : '#c3cfda'), background: isToday ? '#0a7' : 'transparent', borderRadius: 10, width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{dt.getDate()}</div>
-                    {s && (
-                      <div style={{ marginTop: 4, background: done ? '#e6f8ef' : '#eef3f8', borderLeft: `3px solid ${done ? '#0a7' : '#00a3cc'}`, borderRadius: 4, padding: '4px 6px' }}>
-                        <div style={{ fontSize: 10, fontWeight: 800, color: '#0a2540', lineHeight: 1.15 }}>{(s.header || '').split('—').slice(1).join('—').trim() || (s.header || 'Session')}</div>
-                        <div style={{ fontSize: 9, color: '#5a6b7b', marginTop: 1 }}>{s.exercises?.length || 0} ex · Wk {info.w} {done && <span style={{ color: '#0a7', fontWeight: 800 }}>✓</span>}</div>
-                      </div>
-                    )}
-                  </div>
+                  <Fragment key={ri}>
+                    <div style={{ borderRight: '1px solid #f0f4f8', borderBottom: '1px solid #f0f4f8', padding: 6, background: '#fafcfe', fontSize: 10 }}>
+                      {W >= 1 && <div style={{ fontWeight: 800, color: '#0a2540', marginBottom: 3 }}>Wk {W}</div>}
+                      {hasWeek && <button onClick={() => copyWeekAt(W)} style={{ ...miniLink, display: 'block' }}>copy</button>}
+                      {W >= 1 && weekClip && <button onClick={() => pasteWeekAt(W)} style={{ ...miniLink, color: '#0a7', display: 'block', marginTop: 2 }}>paste</button>}
+                    </div>
+                    {row.map((dt, ci) => {
+                      const y = ymd(dt)
+                      const inMonth = dt.getMonth() === monthCursor.getMonth()
+                      const info = cellMap[y]
+                      const s = info ? prog.blocks[info.w][info.d] : null
+                      const done = info ? dayLogged(info.w, info.d) : false
+                      const isToday = y === todayY
+                      return (
+                        <div key={ci} onClick={() => info && openDay(info.w, info.d)}
+                          style={{ minHeight: 88, borderRight: '1px solid #f0f4f8', borderBottom: '1px solid #f0f4f8', padding: 6, background: inMonth ? '#fff' : '#f7fafc', cursor: info ? 'pointer' : 'default' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? '#fff' : (inMonth ? '#5a6b7b' : '#c3cfda'), background: isToday ? '#0a7' : 'transparent', borderRadius: 10, width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{dt.getDate()}</div>
+                          {s && (
+                            <div style={{ marginTop: 4, background: done ? '#e6f8ef' : '#eef3f8', borderLeft: `3px solid ${done ? '#0a7' : '#00a3cc'}`, borderRadius: 4, padding: '4px 6px' }}>
+                              <div style={{ fontSize: 10, fontWeight: 800, color: '#0a2540', lineHeight: 1.15 }}>{(s.header || '').split('—').slice(1).join('—').trim() || (s.header || 'Session')}</div>
+                              <div style={{ fontSize: 9, color: '#5a6b7b', marginTop: 1 }}>{s.exercises?.length || 0} ex {done && <span style={{ color: '#0a7', fontWeight: 800 }}>✓</span>}</div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </Fragment>
                 )
               })}
             </div>
@@ -420,7 +452,7 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
             <input type="number" min="1" max="12" value={addN} onChange={e => setAddN(e.target.value)} style={{ width: 46, border: '1px solid #bbccdb', borderRadius: 4, padding: '7px 4px', fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }} />
             <span style={{ fontSize: 13, color: '#5a6b7b' }}>week(s) at the end. Click a session to edit; copy a week from inside a day.</span>
           </div>
-          <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Sessions land on real dates from the start date. Today is circled; green = the athlete logged it.</div>
+          <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Use <b>copy</b> / <b>paste</b> (left of each week) to copy a week and drop it onto a future week — the fast way to write the next month. Today is circled; green = the athlete logged it.</div>
         </div>
       </div>
     )
