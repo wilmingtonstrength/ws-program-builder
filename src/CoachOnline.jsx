@@ -83,6 +83,21 @@ function flattenToWeeks(t) {
   return { label: t.label, days, weeks: 1, blocks: weeks }
 }
 
+// --- date helpers (dated calendar) ---
+const WEEKDAYS = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x }
+function sundayOf(d) { const x = new Date(d); return addDays(x, -x.getDay()) }
+function mondayOf(d) { const x = new Date(d); return addDays(x, -((x.getDay() + 6) % 7)) }
+function parseYmd(s) { return s ? new Date(s + 'T00:00:00') : new Date() }
+// Monday=0 … Sunday=6 offset of a session within its training week (from the day header, else its position)
+function weekdayOffset(header, fallbackIdx) {
+  const m = String(header || '').toLowerCase().match(/sunday|monday|tuesday|wednesday|thursday|friday|saturday/)
+  if (m) return (WEEKDAYS[m[0]] + 6) % 7
+  return Math.min(Math.max(fallbackIdx, 0), 6)
+}
+
 function totalSessions(prog) {
   if (!prog?.blocks) return 0
   const weeks = Object.keys(prog.blocks).length
@@ -96,6 +111,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
   const [loading, setLoading] = useState(true)
   const [athleteId, setAthleteId] = useState('')
   const [programId, setProgramId] = useState('matts_online')
+  const [startDate, setStartDate] = useState(() => ymd(mondayOf(new Date())))
   const [msg, setMsg] = useState('')
   const [editing, setEditing] = useState(null)
 
@@ -127,7 +143,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
     const snap = allTemplates[programId] ? flattenToWeeks(clone(allTemplates[programId])) : null
     await sb.from('assignments').update({ active: false }).eq('athlete_id', aId).eq('active', true)
     const { error } = await sb.from('assignments').insert({
-      athlete_id: aId, template: programId, active: true, start_date: today(), program_json: snap,
+      athlete_id: aId, template: programId, active: true, start_date: startDate || today(), program_json: snap,
     })
     if (error) { setMsg('Error: ' + error.message); return }
     setMsg(`Assigned ${allTemplates[programId]?.label || programId} to ${nameOf(aId)}.`)
@@ -175,6 +191,10 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
               <select value={programId} onChange={e => setProgramId(e.target.value)} style={sel}>
                 {programList.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
+            </div>
+            <div>
+              <div style={lbl}>Start date</div>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ ...sel, minWidth: 140 }} />
             </div>
             <button onClick={assign} style={btn}>Assign</button>
           </div>
@@ -231,6 +251,8 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
   const [addN, setAddN] = useState(3)
   const [saveState, setSaveState] = useState('saved')
   const [view, setView] = useState('calendar')   // 'calendar' overview | 'day' editor
+  const [startDate, setStartDate] = useState(assignment.start_date || ymd(mondayOf(new Date())))
+  const [monthCursor, setMonthCursor] = useState(() => { const s = assignment.start_date ? parseYmd(assignment.start_date) : new Date(); return new Date(s.getFullYear(), s.getMonth(), 1) })
   const timer = useRef(null)
 
   const weeks = Object.keys(prog.blocks || {}).map(Number).sort((a, b) => a - b)
@@ -322,6 +344,18 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
   const weekDone = (w) => { const ds = days.filter(d => prog.blocks[w]?.[d]); return ds.length > 0 && ds.every(d => dayLogged(w, d)) }
   const currentWeek = weeks.find(w => !weekDone(w)) || weeks[weeks.length - 1]
 
+  // dated-calendar mapping: each session lands on a real date from the start date
+  const saveStartDate = async (v) => { setStartDate(v); await sb.from('assignments').update({ start_date: v }).eq('id', assignment.id) }
+  const week1Monday = mondayOf(parseYmd(startDate))
+  const dateOfSession = (w, d) => addDays(week1Monday, (w - 1) * 7 + weekdayOffset(prog.blocks[w]?.[d]?.header, days.indexOf(d)))
+  const cellMap = {}
+  weeks.forEach(w => days.forEach(d => { if (prog.blocks[w]?.[d]) cellMap[ymd(dateOfSession(w, d))] = { w, d } }))
+  const repeatWeek = () => mutate(p => {
+    const src = clone(p.blocks[wk]); const keys = Object.keys(p.blocks).map(Number).sort((a, b) => a - b)
+    let last = keys[keys.length - 1] || 0; const n = Math.max(1, Math.min(12, parseInt(addN) || 1))
+    for (let k = 0; k < n; k++) { last++; p.blocks[last] = clone(src); p.blocks[last].pctLabel = `Week ${last}` }
+  })
+
   const Header = () => (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -335,59 +369,58 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
     </>
   )
 
-  // -------- Calendar overview --------
+  // -------- Dated month calendar --------
   if (view === 'calendar') {
+    const monthStart = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1)
+    const gridStart = sundayOf(monthStart)
+    const todayY = ymd(new Date())
+    const rows = Array.from({ length: 6 }, (_, r) => Array.from({ length: 7 }, (_, c) => addDays(gridStart, r * 7 + c)))
+    const visibleRows = rows.filter(row => row.some(d => d.getMonth() === monthCursor.getMonth()))
+    const gotoMonth = (delta) => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + delta, 1))
     return (
       <div style={{ fontFamily: 'Arial, sans-serif', background: '#f0f4f8', minHeight: '80vh', padding: 16 }}>
-        <div style={{ maxWidth: 980, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto' }}>
           <Header />
-          <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...calTh, width: 90, textAlign: 'left', paddingLeft: 12 }}>Week</th>
-                  {days.map(d => <th key={d} style={calTh}>{(dowFromHeader(prog.blocks[weeks[0]]?.[d]?.header) || d).slice(0, 3)}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {weeks.map(w => {
-                  const isNow = w === currentWeek
-                  return (
-                    <tr key={w} style={{ background: isNow ? '#eef7ff' : '#fff' }}>
-                      <td style={{ ...calTd, textAlign: 'left', paddingLeft: 12, borderLeft: isNow ? '3px solid #0a7' : '3px solid transparent' }}>
-                        <div style={{ fontWeight: 900, color: '#0a2540' }}>Week {w} {isNow && <span style={{ background: '#0a7', color: '#fff', fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 8, marginLeft: 2 }}>NOW</span>}</div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
-                          <button onClick={() => duplicateWeek(w)} title="Duplicate this week to the end" style={miniLink}>duplicate</button>
-                          <button onClick={() => deleteWeekAt(w)} style={{ ...miniLink, color: '#c00' }}>delete</button>
-                        </div>
-                      </td>
-                      {days.map(d => {
-                        const dObj = prog.blocks[w]?.[d]
-                        const n = dObj?.exercises?.length || 0
-                        const done = dayLogged(w, d)
-                        return (
-                          <td key={d} onClick={() => openDay(w, d)} style={{ ...calTd, cursor: 'pointer', background: dObj ? (done ? '#eafaf1' : '#fff') : '#fafcfe' }}>
-                            {dObj ? (
-                              <div>
-                                <div style={{ fontSize: 11, color: '#33465a', fontWeight: 700, lineHeight: 1.2, marginBottom: 2 }}>{(dObj.header || '').split('—').slice(1).join('—').trim() || 'session'}</div>
-                                <div style={{ fontSize: 11, color: '#5a6b7b' }}>{n} ex {done && <span style={{ color: '#0a7', fontWeight: 800 }}>✓</span>}</div>
-                              </div>
-                            ) : <div style={{ color: '#c3cfda', fontSize: 16 }}>+</div>}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => gotoMonth(-1)} style={navBtn}>‹</button>
+            <span style={{ fontWeight: 900, fontSize: 17, color: '#0a2540', minWidth: 150, textAlign: 'center' }}>{MONTHS[monthCursor.getMonth()]} {monthCursor.getFullYear()}</span>
+            <button onClick={() => gotoMonth(1)} style={navBtn}>›</button>
+            <button onClick={() => setMonthCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))} style={btnLight}>Today</button>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: '#5a6b7b', display: 'inline-flex', alignItems: 'center', gap: 6 }}>Program starts <input type="date" value={startDate} onChange={e => saveStartDate(e.target.value)} style={{ border: '1px solid #bbccdb', borderRadius: 4, padding: '5px 6px', fontFamily: 'inherit', fontSize: 12 }} /></span>
+          </div>
+          <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)' }}>
+              {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(h => (
+                <div key={h} style={{ padding: '7px 6px', textAlign: 'center', fontSize: 10, fontWeight: 800, letterSpacing: 1, color: '#5a6b7b', background: '#eef3f8', borderBottom: '1px solid #cdd8e3' }}>{h}</div>
+              ))}
+              {visibleRows.flat().map((dt, i) => {
+                const y = ymd(dt)
+                const inMonth = dt.getMonth() === monthCursor.getMonth()
+                const info = cellMap[y]
+                const s = info ? prog.blocks[info.w][info.d] : null
+                const done = info ? dayLogged(info.w, info.d) : false
+                const isToday = y === todayY
+                return (
+                  <div key={i} onClick={() => info && openDay(info.w, info.d)}
+                    style={{ minHeight: 92, borderRight: '1px solid #f0f4f8', borderBottom: '1px solid #f0f4f8', padding: 6, background: inMonth ? '#fff' : '#f7fafc', cursor: info ? 'pointer' : 'default' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? '#fff' : (inMonth ? '#5a6b7b' : '#c3cfda'), background: isToday ? '#0a7' : 'transparent', borderRadius: 10, width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{dt.getDate()}</div>
+                    {s && (
+                      <div style={{ marginTop: 4, background: done ? '#e6f8ef' : '#eef3f8', borderLeft: `3px solid ${done ? '#0a7' : '#00a3cc'}`, borderRadius: 4, padding: '4px 6px' }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: '#0a2540', lineHeight: 1.15 }}>{(s.header || '').split('—').slice(1).join('—').trim() || (s.header || 'Session')}</div>
+                        <div style={{ fontSize: 9, color: '#5a6b7b', marginTop: 1 }}>{s.exercises?.length || 0} ex · Wk {info.w} {done && <span style={{ color: '#0a7', fontWeight: 800 }}>✓</span>}</div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
             <button onClick={addWeeks} style={btn}>+ Add</button>
             <input type="number" min="1" max="12" value={addN} onChange={e => setAddN(e.target.value)} style={{ width: 46, border: '1px solid #bbccdb', borderRadius: 4, padding: '7px 4px', fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }} />
-            <span style={{ fontSize: 13, color: '#5a6b7b' }}>more week(s) — copies the last week forward to tweak.</span>
+            <span style={{ fontSize: 13, color: '#5a6b7b' }}>week(s) at the end. Click a session to edit; copy a week from inside a day.</span>
           </div>
-          <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Click any day to edit it. Add as many weeks as you need — a program can run as long as the client trains. Green ✓ = the athlete has logged that day.</div>
+          <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Sessions land on real dates from the start date. Today is circled; green = the athlete logged it.</div>
         </div>
       </div>
     )
@@ -398,10 +431,16 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
     <div style={{ fontFamily: 'Arial, sans-serif', background: '#f0f4f8', minHeight: '80vh', padding: 16 }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
         <Header />
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
           <button onClick={() => setView('calendar')} style={linkBtn}>← Calendar</button>
           <span style={{ fontWeight: 900, color: '#0a2540', fontSize: 15 }}>Week {wk}</span>
-          <button onClick={deleteWeek} style={{ ...miniLink, color: '#c00' }}>delete week {wk}</button>
+          <span style={{ fontSize: 12, color: '#5a6b7b' }}>{(() => { const dt = dateOfSession(wk, dayKey); return `${MONTHS[dt.getMonth()].slice(0, 3)} ${dt.getDate()}, ${dt.getFullYear()}` })()}</span>
+          <button onClick={deleteWeek} style={{ ...miniLink, color: '#c00' }}>delete week</button>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 'auto' }}>
+            <button onClick={repeatWeek} title="Copy this whole week to the end, N times" style={btnLight}>Copy week →</button>
+            <input type="number" min="1" max="12" value={addN} onChange={e => setAddN(e.target.value)} style={{ width: 40, border: '1px solid #bbccdb', borderRadius: 4, padding: '5px 4px', fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }} />
+            <span style={{ fontSize: 12, color: '#5a6b7b' }}>× more</span>
+          </span>
         </div>
 
         {/* Day tabs */}
@@ -480,3 +519,4 @@ const arrow = { border: 'none', background: 'transparent', color: '#8a99a8', cur
 const calTh = { fontSize: 10, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#5a6b7b', padding: '8px 6px', textAlign: 'center', background: '#eef3f8', borderBottom: '1px solid #cdd8e3' }
 const calTd = { padding: '8px 6px', textAlign: 'center', borderBottom: '1px solid #eef3f8', borderRight: '1px solid #f2f6fa', verticalAlign: 'top', minWidth: 96 }
 const miniLink = { background: 'transparent', border: 'none', color: '#5a6b7b', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }
+const navBtn = { width: 30, height: 30, borderRadius: 6, border: '1px solid #bbccdb', background: '#fff', color: '#0a2540', fontSize: 16, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1 }
