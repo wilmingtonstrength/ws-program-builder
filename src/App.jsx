@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import CoachOnline from './CoachOnline'
+import AiImport from './AiImport'
 
 const sb = createClient(
   'https://xxtomnbvinxuvnrrqnqb.supabase.co',
@@ -2453,7 +2454,10 @@ export default function App() {
       ) : tab === 'library' ? (
         <LibraryManager library={library} setLibrary={setLibrary} saving={saving} setSaving={setSaving} sb={sb} />
       ) : tab === 'templates' ? (
-        <TemplateCreator allTemplates={allTemplates} customTemplates={customTemplates} setCustomTemplates={setCustomTemplates} library={library} saving={saving} setSaving={setSaving} sb={sb} setTier={setTier} setBlock={setBlock} setTab={setTab} />
+        <>
+          <AiImport sb={sb} allTemplates={allTemplates} setCustomTemplates={setCustomTemplates} setTier={setTier} setBlock={setBlock} setTab={setTab} />
+          <TemplateCreator allTemplates={allTemplates} customTemplates={customTemplates} setCustomTemplates={setCustomTemplates} library={library} saving={saving} setSaving={setSaving} sb={sb} setTier={setTier} setBlock={setBlock} setTab={setTab} />
+        </>
       ) : (
         <div>
           <div className="no-print" style={{ background: '#fff', borderBottom: '2px solid #111', padding: '8px 16px', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
