@@ -19,6 +19,7 @@ const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); r
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 const today = () => new Date().toISOString().slice(0, 10)
 const logKey = (b, w, d, ei, si) => `${b}-${w}-${d}-${ei}-${si}`
+const noteKey = (b, w, d, ei) => `${b}-${w}-${d}-${ei}`
 const editKey = (b, d, ei, field) => `${b}-${d}-${ei}-${field}`
 const hasVal = (v) => v != null && String(v).trim() !== ''
 
@@ -41,6 +42,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   const [prs, setPrs] = useState({})
   const [tests, setTests] = useState({})
   const [logs, setLogs] = useState({})     // logKey -> { value }  (key present => set exists)
+  const [notes, setNotes] = useState({})   // noteKey -> text  (per-exercise free-text note)
   const [aEdits, setAEdits] = useState({}) // editKey -> value  (athlete overrides, e.g. swapped exercise)
   const [block, setBlock] = useState(() => lsGet('ws_ap_block', blocks[0] || 1))
   const [week, setWeek] = useState(() => lsGet('ws_ap_week', 1))
@@ -71,7 +73,7 @@ export default function AthletePortal({ athlete, onLogout }) {
       const [p, t] = await Promise.all([loadAthletePRs(athlete.id), loadTests()])
       if (!alive) return
       setPrs(p); setTests(t)
-      await Promise.all([refreshLogs(tid), refreshEdits(tid)])
+      await Promise.all([refreshLogs(tid), refreshEdits(tid), refreshNotes(tid)])
       if (alive) setReady(true)
     })()
     return () => { alive = false }
@@ -93,6 +95,35 @@ export default function AthletePortal({ athlete, onLogout }) {
     const m = {}
     data.forEach(r => { m[editKey(r.block, r.day, r.ex_index, r.field)] = r.value })
     setAEdits(m)
+  }
+
+  async function refreshNotes(tid = templateId) {
+    const { data, error } = await sb.from('workout_notes').select('*')
+      .eq('athlete_id', athlete.id).eq('template', tid)
+    if (error) return
+    const m = {}
+    data.forEach(r => { m[noteKey(r.block, r.week, r.day, r.ex_index)] = r.note ?? '' })
+    setNotes(m)
+  }
+
+  function saveNote(exIdx, ex, text) {
+    const k = noteKey(block, week, dayKey, exIdx)
+    setNotes(prev => ({ ...prev, [k]: text }))
+    clearTimeout(timers.current['n' + k])
+    timers.current['n' + k] = setTimeout(async () => {
+      if (hasVal(text)) {
+        const { error } = await sb.from('workout_notes').upsert({
+          athlete_id: athlete.id, template: templateId,
+          block, week, day: dayKey, ex_index: exIdx, ex_name: effName(exIdx, ex),
+          note: text, updated_at: new Date().toISOString(),
+        }, { onConflict: 'athlete_id,template,block,week,day,ex_index' })
+        if (error) setNeedsSetup(true)
+      } else {
+        await sb.from('workout_notes').delete()
+          .eq('athlete_id', athlete.id).eq('template', templateId)
+          .eq('block', block).eq('week', week).eq('day', dayKey).eq('ex_index', exIdx)
+      }
+    }, 700)
   }
 
   const flash = (msg, kind = 'ok') => { setToast({ msg, kind }); setTimeout(() => setToast(null), 2600) }
@@ -320,12 +351,14 @@ export default function AthletePortal({ athlete, onLogout }) {
             target={weightText(ex, week, prs)}
             sync={syncTargetFor({ ...ex, exercise: name }, tests)}
             vals={valsAt(block, week, dayKey, i, count)}
+            note={notes[noteKey(block, week, dayKey, i)] ?? ''}
             lastTime={isLoggable(ex) ? lastTimeFor(dayKey, i) : null}
             canRemove={count > Math.max(1, templateSetCount(ex))}
             onSet={(si, v) => saveSet(i, ex, si, v)}
             onAddSet={() => addSet(i, ex)}
             onRemoveSet={() => removeSet(i, ex)}
             onSwap={(newName) => swapExercise(i, ex, newName)}
+            onNote={(text) => saveNote(i, ex, text)}
             onLogTesting={() => logToTesting(i, ex)}
           />
         )
@@ -335,13 +368,15 @@ export default function AthletePortal({ athlete, onLogout }) {
   )
 }
 
-function ExerciseCard({ ex, name, swapped, count, target, sync, vals, lastTime, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onLogTesting }) {
+function ExerciseCard({ ex, name, swapped, count, target, sync, vals, note, lastTime, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
   const isWU = ex.series === 'WU'
   const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
   const allDone = loggable && vals.length === count && vals.every(hasVal)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(name)
+  const [noteOpen, setNoteOpen] = useState(hasVal(note))
+  useEffect(() => { if (hasVal(note)) setNoteOpen(true) }, [note])
 
   const startEdit = () => { setDraft(name); setEditing(true) }
   const commit = () => { setEditing(false); if (draft !== name) onSwap(draft) }
@@ -414,6 +449,28 @@ function ExerciseCard({ ex, name, swapped, count, target, sync, vals, lastTime, 
           marginTop: 12, width: '100%', padding: '10px', borderRadius: 10, border: `1px solid ${ACCENT}`,
           background: 'transparent', color: ACCENT, fontFamily: 'inherit', fontWeight: 800, fontSize: 13, cursor: 'pointer',
         }}>📊 {sync.isMax ? 'Log max' : 'Log to Testing'} → {sync.label}</button>
+      )}
+
+      {noteOpen ? (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ color: MUTED, fontSize: 9, fontWeight: 800, letterSpacing: 1, marginBottom: 4 }}>NOTES</div>
+          <textarea
+            value={note}
+            onChange={e => onNote(e.target.value)}
+            placeholder="e.g. last set @ 255 = 0.5 m/s · used 12in box"
+            rows={2}
+            style={{
+              width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
+              border: `1px solid ${hasVal(note) ? ACCENT : BORDER}`, background: CARD2, color: TEXT,
+              fontFamily: 'inherit', fontSize: 13, lineHeight: 1.4, resize: 'vertical',
+            }}
+          />
+        </div>
+      ) : (
+        <button onClick={() => setNoteOpen(true)} style={{
+          marginTop: 10, background: 'transparent', border: 'none', color: MUTED,
+          fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0,
+        }}>＋ Add note</button>
       )}
     </div>
   )

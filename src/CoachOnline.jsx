@@ -108,6 +108,7 @@ function totalSessions(prog) {
 export default function CoachOnline({ athletes = [], allTemplates = {}, removedTemplates = new Set(), sb }) {
   const [assignments, setAssignments] = useState([])
   const [logs, setLogs] = useState([])
+  const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
   const [athleteId, setAthleteId] = useState('')
   const [programId, setProgramId] = useState('matts_online')
@@ -124,14 +125,17 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
     let all = [], from = 0
     while (true) {
       const { data, error } = await sb.from('workout_logs')
-        .select('athlete_id,template,block,week,day,value,logged_at').range(from, from + 999)
+        .select('athlete_id,template,block,week,day,ex_index,set_index,value,logged_at').range(from, from + 999)
       if (error) break
       if (data) all = all.concat(data)
       if (!data || data.length < 1000) break
       from += 1000
     }
+    const { data: nts } = await sb.from('workout_notes')
+      .select('athlete_id,template,block,week,day,ex_index,note,updated_at')
     setAssignments(asn || [])
     setLogs(all)
+    setNotes(nts || [])
     setLoading(false)
   }
   useEffect(() => { loadAll() }, [])
@@ -162,7 +166,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
 
   if (editing) {
     return <ProgramEditor
-      assignment={editing} allTemplates={allTemplates} sb={sb} athleteName={nameOf(editing.athlete_id)} logs={logs}
+      assignment={editing} allTemplates={allTemplates} sb={sb} athleteName={nameOf(editing.athlete_id)} logs={logs} notes={notes}
       onBack={() => { setEditing(null); loadAll() }}
     />
   }
@@ -234,7 +238,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
 }
 
 // ---------------- Week-based program editor ----------------
-function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], onBack }) {
+function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], notes = [], onBack }) {
   const raw = assignment.program_json?.blocks
     ? assignment.program_json
     : (allTemplates[assignment.template] ? clone(allTemplates[assignment.template]) : { label: assignment.template, days: [], weeks: 1, blocks: {} })
@@ -343,6 +347,17 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
   )
   const dayLogged = (w, d) => loggedSet.has(`${w}-${d}`)
   const weekDone = (w) => { const ds = days.filter(d => prog.blocks[w]?.[d]); return ds.length > 0 && ds.every(d => dayLogged(w, d)) }
+
+  // what the athlete actually logged for a given exercise (block == week in this model)
+  const mine = (rows) => rows.filter(r => r.athlete_id === assignment.athlete_id && r.template === assignment.template)
+  const athleteSets = (w, d, exIdx) => mine(logs)
+    .filter(l => l.block === w && l.day === d && l.ex_index === exIdx && l.value != null && String(l.value).trim() !== '')
+    .sort((a, b) => (a.set_index ?? 0) - (b.set_index ?? 0))
+    .map(l => String(l.value).trim())
+  const athleteNote = (w, d, exIdx) => {
+    const r = mine(notes).find(n => n.block === w && n.day === d && n.ex_index === exIdx && n.note && n.note.trim())
+    return r ? r.note.trim() : ''
+  }
   const currentWeek = weeks.find(w => !weekDone(w)) || weeks[weeks.length - 1]
 
   // dated-calendar mapping: each session lands on a real date from the start date
@@ -499,15 +514,21 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
 
         {/* Exercises */}
         <div style={{ background: '#fff', border: '1px solid #cdd8e3', borderRadius: 8, overflow: 'hidden' }}>
-          {(day.exercises || []).map((ex, i) => (
+          {(day.exercises || []).map((ex, i) => {
+            const aSets = athleteSets(wk, dayKey, i)
+            const aNote = athleteNote(wk, dayKey, i)
+            return (
             <div key={i}
+              style={{
+                borderTop: i ? '1px solid #eef3f8' : 'none',
+                borderLeft: ex.linked ? '3px solid #0a7' : '3px solid transparent',
+                marginLeft: ex.linked ? 14 : 0,
+              }}>
+            <div
               draggable onDragStart={() => setDrag(i)} onDragEnd={() => setDrag(null)}
               onDragOver={e => e.preventDefault()} onDrop={() => dropOn(i)}
               style={{
                 display: 'flex', gap: 6, padding: '6px 8px', alignItems: 'center',
-                borderTop: i ? '1px solid #eef3f8' : 'none',
-                borderLeft: ex.linked ? '3px solid #0a7' : '3px solid transparent',
-                marginLeft: ex.linked ? 14 : 0,
                 background: drag === i ? '#eef7f2' : 'transparent',
               }}>
               <span title="Drag to reorder — moves the whole superset" style={{ cursor: 'grab', color: '#b7c3d0', fontSize: 14, userSelect: 'none' }}>⠿</span>
@@ -527,7 +548,22 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], o
               </button>
               <button onClick={() => removeExercise(i)} title="Remove" style={{ width: 24, height: 24, border: 'none', background: 'transparent', color: '#c55', cursor: 'pointer', fontSize: 16, fontWeight: 800 }}>×</button>
             </div>
-          ))}
+            {(aSets.length > 0 || aNote) && (
+              <div style={{ padding: '2px 8px 8px', marginLeft: ex.linked ? 0 : 28, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {aSets.length > 0 && (
+                  <div style={{ fontSize: 12, color: '#0a7' }}>
+                    <span style={{ fontWeight: 800, color: '#5a6b7b' }}>Logged: </span>{aSets.join(' · ')}
+                  </div>
+                )}
+                {aNote && (
+                  <div style={{ fontSize: 12, color: '#0a2540', background: '#fff8e6', border: '1px solid #f0e2b0', borderRadius: 5, padding: '5px 8px' }}>
+                    <span style={{ fontWeight: 800, color: '#a07b00' }}>📝 Athlete note: </span>{aNote}
+                  </div>
+                )}
+              </div>
+            )}
+            </div>
+          )})}
           {(day.exercises || []).length === 0 && <div style={{ padding: 14, color: '#98a7b5', fontSize: 13 }}>No exercises on this day. Add one, or paste a day.</div>}
           <div style={{ padding: 10, borderTop: '1px solid #eef3f8' }}>
             <button onClick={addExercise} style={btn}>+ Add exercise</button>
