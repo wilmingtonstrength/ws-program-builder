@@ -94,17 +94,25 @@ export async function loadTests() {
 //     push_press, …) — these log a MAX (prompted), consistent with testing.
 export function syncTargetFor(ex, tests = {}) {
   const n = (ex?.exercise || '').toLowerCase()
-  if (n.includes('fly 10') && n.includes('5yd')) {
-    return { test_id: '5_10_fly', unit: 'sec', label: '5-10 Fly', better: 'lower', prompt: 'Best fly time (sec)' }
-  }
-  if (n.includes('fly 10')) {
-    return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
-  }
-  if (n.includes('countermovement')) {
-    return { test_id: 'vertical_jump', unit: 'inches', label: 'Vertical Jump', better: 'higher', prompt: 'Best height (in)' }
-  }
   // Static Jump: no sync yet — deferred until the eccentric-utilization score.
   if (n.includes('static jump')) return null
+  // --- speed / flies ---
+  if ((n.includes('fly') && n.includes('5-10')) || (n.includes('fly 10') && n.includes('5yd'))) {
+    return { test_id: '5_10_fly', unit: 'sec', label: '5-10 Fly', better: 'lower', prompt: 'Best fly time (sec)' }
+  }
+  if (n.includes('fly 20') || (n.includes('fly 10') && n.includes('20yd')) || n.includes('fly 10')) {
+    return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
+  }
+  if (/\b100\s?m\b/.test(n) || n.includes('100m')) {
+    return { test_id: '100m', unit: 'sec', label: '100m', better: 'lower', prompt: 'Best 100m time (sec)' }
+  }
+  // --- jumps ---
+  if (n.includes('approach jump')) {
+    return { test_id: 'approach_jump', unit: 'inches', label: 'Approach Jump', better: 'higher', prompt: 'Best height (in)' }
+  }
+  if (n.includes('countermovement') || n.includes('vertical jump')) {
+    return { test_id: 'vertical_jump', unit: 'inches', label: 'Vertical Jump', better: 'higher', prompt: 'Best height (in)' }
+  }
   // Strength lifts: prKey points at a real test id -> log a max.
   const key = typeof ex?.prKey === 'string' ? ex.prKey : null
   if (key && tests[key]) {
