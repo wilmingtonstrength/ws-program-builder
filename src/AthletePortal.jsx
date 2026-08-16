@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { sb } from './supabaseClient'
 import {
   getTemplate, TEMPLATE_ID, loadAthletePRs, loadTests,
-  weightText, syncTargetFor, dayLabel,
+  weightText, syncTargetFor, dayLabel, getPR,
 } from './programEngine'
 
 // ---- theme (matches Wilmington Strength) ----
@@ -23,6 +23,16 @@ const noteKey = (b, w, d, ei) => `${b}-${w}-${d}-${ei}`
 const editKey = (b, d, ei, field) => `${b}-${d}-${ei}-${field}`
 const hasVal = (v) => v != null && String(v).trim() !== ''
 
+// ---- date helpers (athlete calendar) ----
+const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const DOW1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const WD = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
+const fmtYmd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x }
+const mondayOf = (d) => { const x = new Date(d); return addDays(x, -((x.getDay() + 6) % 7)) }
+const parseYmd = (s) => (s ? new Date(s + 'T00:00:00') : new Date())
+const weekdayOffset = (header, fi) => { const m = String(header || '').toLowerCase().match(/sunday|monday|tuesday|wednesday|thursday|friday|saturday/); return m ? (WD[m[0]] + 6) % 7 : Math.min(Math.max(fi, 0), 6) }
+
 function templateSetCount(ex) {
   const n = parseInt(ex.sets)
   if (!n || isNaN(n)) return 0
@@ -34,6 +44,7 @@ const MAX_SETS = 15
 export default function AthletePortal({ athlete, onLogout }) {
   const [templateId, setTemplateId] = useState(TEMPLATE_ID)
   const [programObj, setProgramObj] = useState(null)   // coach-edited per-athlete program
+  const [startDate, setStartDate] = useState('')
   const tmpl = programObj || getTemplate(templateId)
   const blocks = tmpl ? Object.keys(tmpl.blocks).map(Number).sort((a, b) => a - b) : []
   const weeks = tmpl?.weeks || 3
@@ -51,25 +62,51 @@ export default function AthletePortal({ athlete, onLogout }) {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [toast, setToast] = useState(null)
   const timers = useRef({})
+  const stripRef = useRef(null)
 
   useEffect(() => { lsSet('ws_ap_block', block) }, [block])
   useEffect(() => { lsSet('ws_ap_week', week) }, [week])
   useEffect(() => { lsSet('ws_ap_day', dayKey) }, [dayKey])
+  useEffect(() => {
+    const el = stripRef.current?.querySelector('[data-sel="1"]')
+    if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [block, dayKey, ready])
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       // resolve the athlete's active assignment -> which program to show
       let tid = TEMPLATE_ID
-      const { data: asn } = await sb.from('assignments').select('template,program_json')
+      const { data: asn } = await sb.from('assignments').select('template,program_json,start_date')
         .eq('athlete_id', athlete.id).eq('active', true)
         .order('created_at', { ascending: false }).limit(1)
+      let pj = null, sd = ''
       if (asn && asn[0]) {
         if (asn[0].template) tid = asn[0].template
-        if (asn[0].program_json && asn[0].program_json.blocks) setProgramObj(asn[0].program_json)
+        if (asn[0].program_json && asn[0].program_json.blocks) { pj = asn[0].program_json; setProgramObj(pj) }
+        sd = asn[0].start_date || ''
+        setStartDate(sd)
       }
       if (!alive) return
       setTemplateId(tid)
+      // default the view to today's session (or the current week) — TrainHeroic style
+      const prog = pj || getTemplate(tid)
+      if (prog?.blocks) {
+        const w1 = mondayOf(parseYmd(sd || fmtYmd(mondayOf(new Date()))))
+        const dys = prog.days || []
+        const tstr = fmtYmd(new Date())
+        let sel = null
+        Object.keys(prog.blocks).forEach(w => dys.forEach(d => {
+          const s = prog.blocks[w][d]; if (!s) return
+          const dt = addDays(w1, (parseInt(w) - 1) * 7 + weekdayOffset(s.header, dys.indexOf(d)))
+          if (fmtYmd(dt) === tstr) sel = { w: parseInt(w), d }
+        }))
+        if (sel) { setBlock(sel.w); setDayKey(sel.d) }
+        else {
+          const wi = Math.floor((mondayOf(new Date()).getTime() - w1.getTime()) / (7 * 86400000)) + 1
+          if (prog.blocks[String(wi)]) { setBlock(wi); setDayKey(dys[0] || 'dayA') }
+        }
+      }
       const [p, t] = await Promise.all([loadAthletePRs(athlete.id), loadTests()])
       if (!alive) return
       setPrs(p); setTests(t)
@@ -84,7 +121,7 @@ export default function AthletePortal({ athlete, onLogout }) {
       .eq('athlete_id', athlete.id).eq('template', tid)
     if (error) { setNeedsSetup(true); return }
     const m = {}
-    data.forEach(r => { m[logKey(r.block, r.week, r.day, r.ex_index, r.set_index)] = { value: r.value } })
+    data.forEach(r => { m[logKey(r.block, r.week, r.day, r.ex_index, r.set_index)] = { value: r.value, ex_name: r.ex_name } })
     setLogs(m)
   }
 
@@ -214,22 +251,29 @@ export default function AthletePortal({ athlete, onLogout }) {
     return Object.entries(logs).some(([k, v]) => k.startsWith(pref) && hasVal(v?.value))
   }
 
-  const lastTimeFor = (d, exIdx) => {
-    const cur = chron(block, week)
+  // "Last time" matched by EXERCISE NAME (not position) — the most recent prior
+  // session where an exercise with this name has logged values.
+  const chronKey = (b, d) => b * 100 + Math.max(0, days.indexOf(d))
+  const lastTimeByName = (name) => {
+    if (!name) return null
+    const cur = chronKey(block, dayKey)
+    const groups = {}   // "b-day-ei" -> { chron, name, vals:{setIdx:value} }
+    Object.entries(logs).forEach(([k, v]) => {
+      const p = k.split('-')            // [b, w, day, ei, si]
+      const b = parseInt(p[0]), d = p[2], ei = p[3], si = parseInt(p[4])
+      const gk = `${b}-${d}-${ei}`
+      if (!groups[gk]) groups[gk] = { chron: chronKey(b, d), name: v.ex_name || '', vals: {} }
+      if (hasVal(v.value)) groups[gk].vals[si] = v.value
+    })
     let best = null, bestChron = -1
-    for (const b of blocks) {
-      for (let w = 1; w <= weeks; w++) {
-        const c = chron(b, w)
-        if (c >= cur) continue
-        const pref = `${b}-${w}-${d}-${exIdx}-`
-        const entries = Object.entries(logs)
-          .filter(([k]) => k.startsWith(pref))
-          .sort((a, z) => parseInt(a[0].slice(pref.length)) - parseInt(z[0].slice(pref.length)))
-          .map(([, v]) => v?.value ?? '').filter(hasVal)
-        if (entries.length && c > bestChron) { best = entries; bestChron = c }
+    const target = name.toLowerCase()
+    Object.values(groups).forEach(g => {
+      if (g.chron < cur && (g.name || '').toLowerCase() === target && Object.keys(g.vals).length && g.chron > bestChron) {
+        best = g; bestChron = g.chron
       }
-    }
-    return best
+    })
+    if (!best) return null
+    return Object.keys(best.vals).map(Number).sort((a, b) => a - b).map(k => best.vals[k]).filter(hasVal)
   }
 
   async function logToTesting(exIdx, ex) {
@@ -290,6 +334,19 @@ export default function AthletePortal({ athlete, onLogout }) {
   }).length
   const pct = loggables.length ? Math.round((doneCount / loggables.length) * 100) : 0
 
+  // ---- dated calendar strip ----
+  const week1Monday = mondayOf(parseYmd(startDate || fmtYmd(mondayOf(new Date()))))
+  const dateOf = (w, d) => addDays(week1Monday, (w - 1) * 7 + weekdayOffset(tmpl.blocks[w]?.[d]?.header, days.indexOf(d)))
+  const dateMap = {}
+  blocks.forEach(w => days.forEach(d => { if (tmpl.blocks[w]?.[d]) dateMap[fmtYmd(dateOf(w, d))] = { w, d } }))
+  const selYmd = fmtYmd(dateOf(block, dayKey))
+  const selDateObj = parseYmd(selYmd)
+  const monthLabel = `${MON3[selDateObj.getMonth()]} '${String(selDateObj.getFullYear()).slice(2)}`
+  const stripDays = []
+  const stripEnd = addDays(week1Monday, blocks.length * 7 - 1)
+  for (let dt = new Date(week1Monday); dt <= stripEnd; dt = addDays(dt, 1)) stripDays.push(new Date(dt))
+  const goToday = () => { const info = dateMap[today()]; if (info) { setBlock(info.w); setDayKey(info.d) } }
+
   return (
     <Shell onLogout={onLogout} athlete={athlete} title={tmpl?.label}>
       {toast && (
@@ -302,23 +359,29 @@ export default function AthletePortal({ athlete, onLogout }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-        <Segment label="Week" value={block} setValue={setBlock} options={blocks} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ color: TEXT, fontWeight: 900, fontSize: 18 }}>{monthLabel}</div>
+        <button onClick={goToday} style={{ background: CARD2, border: `1px solid ${BORDER}`, color: ACCENT, borderRadius: 20, padding: '5px 14px', fontFamily: 'inherit', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Today</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 6 }}>
-        {days.map(d => {
-          const { dow } = dayLabel(tmpl, block, d)
-          const active = d === dayKey
-          const done = dayLogged(block, week, d)
+      <div ref={stripRef} style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
+        {stripDays.map((dt, i) => {
+          const y = fmtYmd(dt)
+          const info = dateMap[y]
+          const isSel = y === selYmd
+          const isToday = y === today()
+          const logged = info && dayLogged(info.w, week, info.d)
           return (
-            <button key={d} onClick={() => setDayKey(d)} style={{
-              position: 'relative', flex: '0 0 auto', padding: '8px 14px', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontWeight: 800, fontSize: 13, letterSpacing: .3,
-              background: active ? ACCENT : CARD2, color: active ? NAVY : MUTED,
-            }}>
-              {(dow || d).slice(0, 3)}
-              {done && <span style={{ position: 'absolute', top: 5, right: 7, width: 6, height: 6, borderRadius: 6, background: active ? NAVY : OK }} />}
+            <button key={i} data-sel={isSel ? '1' : undefined}
+              onClick={() => { if (info) { setBlock(info.w); setDayKey(info.d) } }}
+              style={{
+                flex: '0 0 auto', width: 46, padding: '6px 0', borderRadius: 12, border: isToday && !isSel ? `1px solid ${ACCENT}` : '1px solid transparent', cursor: info ? 'pointer' : 'default',
+                background: isSel ? ACCENT : CARD2, color: isSel ? NAVY : (info ? TEXT : MUTED), opacity: info ? 1 : .55,
+                fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              }}>
+              <span style={{ fontSize: 9, fontWeight: 800 }}>{DOW1[dt.getDay()]}</span>
+              <span style={{ fontSize: 15, fontWeight: 900 }}>{dt.getDate()}</span>
+              <span style={{ width: 5, height: 5, borderRadius: 5, background: info ? (logged ? OK : (isSel ? NAVY : ACCENT)) : 'transparent' }} />
             </button>
           )
         })}
@@ -352,7 +415,8 @@ export default function AthletePortal({ athlete, onLogout }) {
             sync={syncTargetFor({ ...ex, exercise: name }, tests)}
             vals={valsAt(block, week, dayKey, i, count)}
             note={notes[noteKey(block, week, dayKey, i)] ?? ''}
-            lastTime={isLoggable(ex) ? lastTimeFor(dayKey, i) : null}
+            lastTime={isLoggable(ex) ? lastTimeByName(name) : null}
+            workingMax={getPR(prs, ex.prKey)}
             canRemove={count > Math.max(1, templateSetCount(ex))}
             onSet={(si, v) => saveSet(i, ex, si, v)}
             onAddSet={() => addSet(i, ex)}
@@ -368,7 +432,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   )
 }
 
-function ExerciseCard({ ex, name, swapped, count, target, sync, vals, note, lastTime, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
+function ExerciseCard({ ex, name, swapped, count, target, sync, vals, note, lastTime, workingMax, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
   const isWU = ex.series === 'WU'
   const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
@@ -410,10 +474,10 @@ function ExerciseCard({ ex, name, swapped, count, target, sync, vals, note, last
         {target && <span style={{ color: OK, fontWeight: 800, fontSize: 14 }}>{target}</span>}
       </div>
       {ex.note && <div style={{ color: MUTED, fontSize: 12, marginTop: 6, fontStyle: 'italic' }}>{ex.note}</div>}
-      {loggable && lastTime && lastTime.length > 0 && (
-        <div style={{ color: MUTED, fontSize: 11, marginTop: 8 }}>
-          <span style={{ opacity: .7 }}>Last time: </span>
-          <span style={{ color: TEXT, fontWeight: 700 }}>{lastTime.join(' · ')}</span>
+      {loggable && (workingMax != null || (lastTime && lastTime.length > 0)) && (
+        <div style={{ background: CARD2, borderRadius: 8, padding: '7px 10px', marginTop: 8 }}>
+          {workingMax != null && <div style={{ fontSize: 11 }}><span style={{ color: MUTED, opacity: .8 }}>Working max </span><span style={{ color: ACCENT, fontWeight: 900, fontSize: 13 }}>{workingMax} lb</span></div>}
+          {lastTime && lastTime.length > 0 && <div style={{ fontSize: 11, marginTop: workingMax != null ? 3 : 0 }}><span style={{ color: MUTED, opacity: .8 }}>Last time </span><span style={{ color: TEXT, fontWeight: 700 }}>{lastTime.join(' · ')}</span></div>}
         </div>
       )}
 
