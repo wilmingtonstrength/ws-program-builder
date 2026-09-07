@@ -189,7 +189,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   async function addSet(exIdx, ex) {
-    const next = displayCount(exIdx, ex)
+    const next = displayCount(exIdx, ex, effName(exIdx, ex))
     if (next >= MAX_SETS) return
     const k = logKey(block, week, dayKey, exIdx, next)
     setLogs(prev => ({ ...prev, [k]: { value: '' } }))
@@ -198,7 +198,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   async function removeSet(exIdx, ex) {
-    const cur = displayCount(exIdx, ex)
+    const cur = displayCount(exIdx, ex, effName(exIdx, ex))
     if (cur <= Math.max(1, templateSetCount(ex))) return
     const s = cur - 1
     const k = logKey(block, week, dayKey, exIdx, s)
@@ -231,11 +231,14 @@ export default function AthletePortal({ athlete, onLogout }) {
   // ---- derived helpers ----
   const chron = (b, w) => (b - 1) * weeks + w
 
-  const displayCount = (exIdx, ex) => {
+  const displayCount = (exIdx, ex, name) => {
     let maxIdx = -1
+    const nm = (name || '').toLowerCase()
     const pref = `${block}-${week}-${dayKey}-${exIdx}-`
     for (const key of Object.keys(logs)) {
       if (key.startsWith(pref)) {
+        const e = logs[key]
+        if (nm && (e.ex_name || '').toLowerCase() !== nm) continue   // ignore logs from a different exercise at this slot
         const s = parseInt(key.slice(pref.length))
         if (!isNaN(s) && s > maxIdx) maxIdx = s
       }
@@ -243,12 +246,29 @@ export default function AthletePortal({ athlete, onLogout }) {
     return Math.max(templateSetCount(ex), maxIdx + 1)
   }
 
-  const valsAt = (b, w, d, exIdx, count) =>
-    Array.from({ length: count }, (_, s) => logs[logKey(b, w, d, exIdx, s)]?.value ?? '')
+  const valsAt = (b, w, d, exIdx, count, name) => {
+    const nm = (name || '').toLowerCase()
+    return Array.from({ length: count }, (_, s) => {
+      const e = logs[logKey(b, w, d, exIdx, s)]
+      if (!e) return ''
+      if (nm && (e.ex_name || '').toLowerCase() !== nm) return ''   // this log belongs to a different exercise
+      return e.value ?? ''
+    })
+  }
 
   const dayLogged = (b, w, d) => {
     const pref = `${b}-${w}-${d}-`
     return Object.entries(logs).some(([k, v]) => k.startsWith(pref) && hasVal(v?.value))
+  }
+  // day-complete indicator that only counts logs belonging to the day's current exercises (by name)
+  const daySessionDone = (w, d) => {
+    const exs = tmpl.blocks[w]?.[d]?.exercises || []
+    return exs.some((e, ei) => {
+      if (e.series === 'WU') return false
+      const nm = (aEdits[editKey(w, d, ei, 'exercise')] ?? e.exercise ?? '').toLowerCase()
+      const pref = `${w}-${week}-${d}-${ei}-`
+      return Object.entries(logs).some(([k, v]) => k.startsWith(pref) && hasVal(v?.value) && (v.ex_name || '').toLowerCase() === nm)
+    })
   }
 
   // "Last time" matched by EXERCISE NAME (not position) — the most recent prior
@@ -279,8 +299,9 @@ export default function AthletePortal({ athlete, onLogout }) {
   async function logToTesting(exIdx, ex) {
     const target = syncTargetFor({ ...ex, exercise: effName(exIdx, ex) }, tests)
     if (!target) return
-    const count = displayCount(exIdx, ex)
-    const vals = valsAt(block, week, dayKey, exIdx, count).map(v => parseFloat(v)).filter(n => !isNaN(n))
+    const nm = effName(exIdx, ex)
+    const count = displayCount(exIdx, ex, nm)
+    const vals = valsAt(block, week, dayKey, exIdx, count, nm).map(v => parseFloat(v)).filter(n => !isNaN(n))
     const bestOfSets = vals.length ? (target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)) : null
 
     let best
@@ -330,7 +351,8 @@ export default function AthletePortal({ athlete, onLogout }) {
   const loggables = exercises.filter(isLoggable)
   const doneCount = loggables.filter(ex => {
     const exIdx = exercises.indexOf(ex)
-    return valsAt(block, week, dayKey, exIdx, displayCount(exIdx, ex)).some(hasVal)
+    const nm = effName(exIdx, ex)
+    return valsAt(block, week, dayKey, exIdx, displayCount(exIdx, ex, nm), nm).some(hasVal)
   }).length
   const pct = loggables.length ? Math.round((doneCount / loggables.length) * 100) : 0
 
@@ -370,7 +392,7 @@ export default function AthletePortal({ athlete, onLogout }) {
           const info = dateMap[y]
           const isSel = y === selYmd
           const isToday = y === today()
-          const logged = info && dayLogged(info.w, week, info.d)
+          const logged = info && daySessionDone(info.w, info.d)
           return (
             <button key={i} data-sel={isSel ? '1' : undefined}
               onClick={() => { if (info) { setBlock(info.w); setDayKey(info.d) } }}
@@ -405,15 +427,15 @@ export default function AthletePortal({ athlete, onLogout }) {
       {!ready && <p style={{ color: MUTED }}>Loading your numbers…</p>}
 
       {ready && exercises.map((ex, i) => {
-        const count = displayCount(i, ex)
         const name = effName(i, ex)
+        const count = displayCount(i, ex, name)
         const swapped = name !== ex.exercise
         return (
           <ExerciseCard
             key={i} ex={ex} name={name} swapped={swapped} count={count}
             target={weightText(ex, week, prs)}
             sync={syncTargetFor({ ...ex, exercise: name }, tests)}
-            vals={valsAt(block, week, dayKey, i, count)}
+            vals={valsAt(block, week, dayKey, i, count, name)}
             note={notes[noteKey(block, week, dayKey, i)] ?? ''}
             lastTime={isLoggable(ex) ? lastTimeByName(name) : null}
             workingMax={getPR(prs, ex.prKey)}

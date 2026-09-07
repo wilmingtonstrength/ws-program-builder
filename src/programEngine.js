@@ -97,6 +97,11 @@ export function syncTargetFor(ex, tests = {}) {
   // Static Jump: no sync yet — deferred until the eccentric-utilization score.
   if (n.includes('static jump')) return null
   // --- speed / flies ---
+  // Fly ladder: "5-10 Fly", "10-10 Fly", "15-10 Fly", "20-10 Fly" -> {N}_10_fly
+  const flyM = n.match(/(\d+)\s*[-–]\s*10\s*fly/)
+  if (flyM && tests[`${flyM[1]}_10_fly`]) {
+    return { test_id: `${flyM[1]}_10_fly`, unit: 'sec', label: `${flyM[1]}-10 Fly`, better: 'lower', prompt: 'Best fly time (sec)' }
+  }
   if ((n.includes('fly') && n.includes('5-10')) || (n.includes('fly 10') && n.includes('5yd'))) {
     return { test_id: '5_10_fly', unit: 'sec', label: '5-10 Fly', better: 'lower', prompt: 'Best fly time (sec)' }
   }
@@ -109,6 +114,9 @@ export function syncTargetFor(ex, tests = {}) {
   // --- jumps ---
   if (n.includes('approach jump')) {
     return { test_id: 'approach_jump', unit: 'inches', label: 'Approach Jump', better: 'higher', prompt: 'Best height (in)' }
+  }
+  if (n.includes('broad jump') && tests['broad_jump']) {
+    return { test_id: 'broad_jump', unit: 'inches', label: 'Broad Jump', better: 'higher', prompt: 'Best distance (in)' }
   }
   if (n.includes('countermovement') || n.includes('vertical jump')) {
     return { test_id: 'vertical_jump', unit: 'inches', label: 'Vertical Jump', better: 'higher', prompt: 'Best height (in)' }
