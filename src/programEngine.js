@@ -102,6 +102,10 @@ export function syncTargetFor(ex, tests = {}) {
   if (flyM && tests[`${flyM[1]}_10_fly`]) {
     return { test_id: `${flyM[1]}_10_fly`, unit: 'sec', label: `${flyM[1]}-10 Fly`, better: 'lower', prompt: 'Best fly time (sec)' }
   }
+  // Max-velocity fly (longer lead-in into a 20yd zone, e.g. "30-20 Fly") -> max_velocity
+  if (/(\d+)\s*[-–]\s*20\s*fly/.test(n)) {
+    return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
+  }
   if ((n.includes('fly') && n.includes('5-10')) || (n.includes('fly 10') && n.includes('5yd'))) {
     return { test_id: '5_10_fly', unit: 'sec', label: '5-10 Fly', better: 'lower', prompt: 'Best fly time (sec)' }
   }
