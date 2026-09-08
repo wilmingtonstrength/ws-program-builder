@@ -180,7 +180,7 @@ export default function AthletePortal({ athlete, onLogout }) {
 
   function saveSet(exIdx, ex, setIdx, raw) {
     const k = logKey(block, week, dayKey, exIdx, setIdx)
-    setLogs(prev => ({ ...prev, [k]: { value: raw } }))
+    setLogs(prev => ({ ...prev, [k]: { value: raw, ex_name: effName(exIdx, ex) } }))
     clearTimeout(timers.current[k])
     timers.current[k] = setTimeout(async () => {
       const { error } = await upsertRow(exIdx, ex, setIdx, raw)
@@ -192,7 +192,7 @@ export default function AthletePortal({ athlete, onLogout }) {
     const next = displayCount(exIdx, ex, effName(exIdx, ex))
     if (next >= MAX_SETS) return
     const k = logKey(block, week, dayKey, exIdx, next)
-    setLogs(prev => ({ ...prev, [k]: { value: '' } }))
+    setLogs(prev => ({ ...prev, [k]: { value: '', ex_name: effName(exIdx, ex) } }))
     const { error } = await upsertRow(exIdx, ex, next, '')
     if (error) setNeedsSetup(true)
   }
@@ -238,7 +238,7 @@ export default function AthletePortal({ athlete, onLogout }) {
     for (const key of Object.keys(logs)) {
       if (key.startsWith(pref)) {
         const e = logs[key]
-        if (nm && (e.ex_name || '').toLowerCase() !== nm) continue   // ignore logs from a different exercise at this slot
+        if (nm && e.ex_name && e.ex_name.toLowerCase() !== nm) continue   // ignore logs that belong to a different exercise at this slot
         const s = parseInt(key.slice(pref.length))
         if (!isNaN(s) && s > maxIdx) maxIdx = s
       }
@@ -251,7 +251,7 @@ export default function AthletePortal({ athlete, onLogout }) {
     return Array.from({ length: count }, (_, s) => {
       const e = logs[logKey(b, w, d, exIdx, s)]
       if (!e) return ''
-      if (nm && (e.ex_name || '').toLowerCase() !== nm) return ''   // this log belongs to a different exercise
+      if (nm && e.ex_name && e.ex_name.toLowerCase() !== nm) return ''   // this log belongs to a different exercise
       return e.value ?? ''
     })
   }
