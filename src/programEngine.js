@@ -80,7 +80,7 @@ export function weightText(ex, week, prs, useKg = false) {
 
 // ---- tests table (drives which exercises can log a max) ----
 export async function loadTests() {
-  const { data, error } = await sb.from('tests').select('id,name,unit,direction')
+  const { data, error } = await sb.from('tests').select('id,name,unit,direction,feet_inches,row_time,display_unit')
   const map = {}
   if (!error && data) data.forEach(t => { map[t.id] = t })
   return map

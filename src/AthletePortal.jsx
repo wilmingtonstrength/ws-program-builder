@@ -22,6 +22,15 @@ const logKey = (b, w, d, ei, si) => `${b}-${w}-${d}-${ei}-${si}`
 const noteKey = (b, w, d, ei) => `${b}-${w}-${d}-${ei}`
 const editKey = (b, d, ei, field) => `${b}-${d}-${ei}-${field}`
 const hasVal = (v) => v != null && String(v).trim() !== ''
+// Mirror the tracking app: feet-inches tests are stored as TOTAL INCHES.
+const formatFeetInches = (totalInches) => {
+  if (totalInches == null || isNaN(totalInches)) return '-'
+  const ft = Math.floor(totalInches / 12)
+  let inches = Math.round((totalInches % 12) * 10) / 10
+  if (inches >= 12) return `${ft + 1}'0"`
+  const inchStr = Number.isInteger(inches) ? String(inches) : inches.toFixed(1)
+  return `${ft}'${inchStr}"`
+}
 
 // ---- date helpers (athlete calendar) ----
 const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -188,26 +197,36 @@ export default function AthletePortal({ athlete, onLogout }) {
     }, 700)
   }
 
+  // Persist how many set boxes this exercise shows (defaults to the prescription).
+  async function saveSetCount(exIdx, n) {
+    const k = editKey(block, dayKey, exIdx, 'sets')
+    setAEdits(prev => ({ ...prev, [k]: String(n) }))
+    const { error } = await sb.from('athlete_program_edits').upsert({
+      athlete_id: athlete.id, template: templateId, block, day: dayKey,
+      ex_index: exIdx, field: 'sets', value: String(n), updated_at: new Date().toISOString(),
+    }, { onConflict: 'athlete_id,template,block,day,ex_index,field' })
+    if (error) flash('Set count didn’t save: ' + error.message, 'err')
+  }
+
   async function addSet(exIdx, ex) {
-    const next = displayCount(exIdx, ex, effName(exIdx, ex))
-    if (next >= MAX_SETS) return
-    const k = logKey(block, week, dayKey, exIdx, next)
-    setLogs(prev => ({ ...prev, [k]: { value: '', ex_name: effName(exIdx, ex) } }))
-    const { error } = await upsertRow(exIdx, ex, next, '')
-    if (error) setNeedsSetup(true)
+    const cur = displayCount(exIdx, ex, effName(exIdx, ex))
+    if (cur >= MAX_SETS) return
+    await saveSetCount(exIdx, cur + 1)
   }
 
   async function removeSet(exIdx, ex) {
     const cur = displayCount(exIdx, ex, effName(exIdx, ex))
-    if (cur <= Math.max(1, templateSetCount(ex))) return
+    if (cur <= 1) return
     const s = cur - 1
+    // drop any value logged in the set being removed so it doesn't linger
     const k = logKey(block, week, dayKey, exIdx, s)
     setLogs(prev => { const n = { ...prev }; delete n[k]; return n })
     clearTimeout(timers.current[k])
     await sb.from('workout_logs').delete()
-      .eq('athlete_id', athlete.id).eq('template', TEMPLATE_ID)
+      .eq('athlete_id', athlete.id).eq('template', templateId)
       .eq('block', block).eq('week', week).eq('day', dayKey)
       .eq('ex_index', exIdx).eq('set_index', s)
+    await saveSetCount(exIdx, cur - 1)
   }
 
   async function swapExercise(exIdx, ex, newName) {
@@ -232,18 +251,22 @@ export default function AthletePortal({ athlete, onLogout }) {
   const chron = (b, w) => (b - 1) * weeks + w
 
   const displayCount = (exIdx, ex, name) => {
-    let maxIdx = -1
+    let maxIdx = -1   // highest set index that actually holds a logged value (never hide data)
     const nm = (name || '').toLowerCase()
     const pref = `${block}-${week}-${dayKey}-${exIdx}-`
     for (const key of Object.keys(logs)) {
       if (key.startsWith(pref)) {
         const e = logs[key]
         if (nm && e.ex_name && e.ex_name.toLowerCase() !== nm) continue   // ignore logs that belong to a different exercise at this slot
+        if (!hasVal(e.value)) continue
         const s = parseInt(key.slice(pref.length))
         if (!isNaN(s) && s > maxIdx) maxIdx = s
       }
     }
-    return Math.max(templateSetCount(ex), maxIdx + 1)
+    // athlete's explicit set-count override (lets them add above / drop below the prescription)
+    const ov = parseInt(aEdits[editKey(block, dayKey, exIdx, 'sets')])
+    const base = !isNaN(ov) ? ov : templateSetCount(ex)
+    return Math.max(base, maxIdx + 1)
   }
 
   const valsAt = (b, w, d, exIdx, count, name) => {
@@ -304,8 +327,19 @@ export default function AthletePortal({ athlete, onLogout }) {
     const vals = valsAt(block, week, dayKey, exIdx, count, nm).map(v => parseFloat(v)).filter(n => !isNaN(n))
     const bestOfSets = vals.length ? (target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)) : null
 
+    const td = tests[target.test_id] || {}
     let best
-    if (target.isMax) {
+    if (td.feet_inches) {
+      // Same entry as the tracking app: collect feet + inches, store TOTAL INCHES.
+      const fStr = window.prompt(`${target.label} — feet:`, '')
+      if (fStr == null) return
+      const iStr = window.prompt(`${target.label} — inches:`, '')
+      if (iStr == null) return
+      const f = parseFloat(fStr) || 0
+      const inch = parseFloat(iStr) || 0
+      best = f * 12 + inch
+      if (!(best > 0)) { flash('Enter feet/inches first', 'err'); return }
+    } else if (target.isMax) {
       // Working sets are usually submaximal — prompt (prefilled with best set) so
       // Matt confirms the actual max before it hits the testing record.
       const typed = window.prompt(target.prompt + ':', bestOfSets != null ? String(bestOfSets) : '')
@@ -329,7 +363,9 @@ export default function AthletePortal({ athlete, onLogout }) {
     else if (target.better === 'higher') isPr = converted > cur
     else isPr = converted < cur
 
-    const label = target.test_id === 'max_velocity' ? `${best}s → ${converted} MPH` : `${best} ${target.unit}`
+    const label = target.test_id === 'max_velocity' ? `${best}s → ${converted} MPH`
+      : td.feet_inches ? formatFeetInches(best)
+      : `${best} ${target.unit}`
     const verb = target.isMax ? 'max' : 'result'
     if (!window.confirm(`Log ${target.label} ${verb}:\n${label}${isPr ? '  (NEW PR!)' : ''}\n\nWrite to your performance record?`)) return
 
@@ -439,7 +475,7 @@ export default function AthletePortal({ athlete, onLogout }) {
             note={notes[noteKey(block, week, dayKey, i)] ?? ''}
             lastTime={isLoggable(ex) ? lastTimeByName(name) : null}
             workingMax={getPR(prs, ex.prKey)}
-            canRemove={count > Math.max(1, templateSetCount(ex))}
+            canRemove={count > 1}
             onSet={(si, v) => saveSet(i, ex, si, v)}
             onAddSet={() => addSet(i, ex)}
             onRemoveSet={() => removeSet(i, ex)}
