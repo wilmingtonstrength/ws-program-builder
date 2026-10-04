@@ -97,15 +97,15 @@ export function syncTargetFor(ex, tests = {}) {
   // Static Jump: no sync yet — deferred until the eccentric-utilization score.
   if (n.includes('static jump')) return null
   // --- speed / flies ---
-  // Fly sprints written "A-B Fly" or "A/B Fly" (lead-in / timed zone) -> {A}_{B}_fly
+  // A 20yd timed zone (e.g. "30-20 Fly") is a max-velocity run -> log top speed (mph)
+  if (/(\d+)\s*[-–\/]\s*20\s*fly/.test(n)) {
+    return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
+  }
+  // Acceleration flies "A-B Fly" / "A/B Fly" (lead-in / timed zone) -> {A}_{B}_fly
   const flyM = n.match(/(\d+)\s*[-–\/]\s*(\d+)\s*fly/)
   if (flyM && tests[`${flyM[1]}_${flyM[2]}_fly`]) {
     const id = `${flyM[1]}_${flyM[2]}_fly`
     return { test_id: id, unit: 'sec', label: `${flyM[1]}-${flyM[2]} Fly`, better: 'lower', prompt: 'Best fly time (sec)' }
-  }
-  // Fallback: an N-20 fly with no dedicated test -> max velocity
-  if (/(\d+)\s*[-–\/]\s*20\s*fly/.test(n)) {
-    return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
   }
   if ((n.includes('fly') && n.includes('5-10')) || (n.includes('fly 10') && n.includes('5yd'))) {
     return { test_id: '5_10_fly', unit: 'sec', label: '5-10 Fly', better: 'lower', prompt: 'Best fly time (sec)' }
