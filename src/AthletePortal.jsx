@@ -17,6 +17,10 @@ const BORDER = '#1d3350'
 
 const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v } catch { return d } }
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
+// unit conversion (results/maxes are stored in lbs; display/entry can be kg)
+const LB_PER_KG = 2.2046
+const toKg = (lbs) => Math.round(lbs / LB_PER_KG * 2) / 2   // nearest 0.5 kg
+const toLbs = (kg) => Math.round(kg * LB_PER_KG)
 const today = () => new Date().toISOString().slice(0, 10)
 const logKey = (b, w, d, ei, si) => `${b}-${w}-${d}-${ei}-${si}`
 const noteKey = (b, w, d, ei) => `${b}-${w}-${d}-${ei}`
@@ -67,6 +71,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   const [block, setBlock] = useState(() => lsGet('ws_ap_block', blocks[0] || 1))
   const [week, setWeek] = useState(() => lsGet('ws_ap_week', 1))
   const [dayKey, setDayKey] = useState(() => lsGet('ws_ap_day', days[0] || 'dayA'))
+  const [useKg, setUseKg] = useState(() => lsGet('ws_ap_kg', false))
   const [ready, setReady] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
   const [toast, setToast] = useState(null)
@@ -76,6 +81,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   useEffect(() => { lsSet('ws_ap_block', block) }, [block])
   useEffect(() => { lsSet('ws_ap_week', week) }, [week])
   useEffect(() => { lsSet('ws_ap_day', dayKey) }, [dayKey])
+  useEffect(() => { lsSet('ws_ap_kg', useKg) }, [useKg])
   useEffect(() => {
     const el = stripRef.current?.querySelector('[data-sel="1"]')
     if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' })
@@ -328,6 +334,8 @@ export default function AthletePortal({ athlete, onLogout }) {
     const bestOfSets = vals.length ? (target.better === 'lower' ? Math.min(...vals) : Math.max(...vals)) : null
 
     const td = tests[target.test_id] || {}
+    const isWeight = target.unit === 'lbs'
+    const uHint = (useKg && isWeight) ? ' (kg)' : ''
     let best
     if (td.feet_inches) {
       // Same entry as the tracking app: collect feet + inches, store TOTAL INCHES.
@@ -342,19 +350,21 @@ export default function AthletePortal({ athlete, onLogout }) {
     } else if (target.isMax) {
       // Working sets are usually submaximal — prompt (prefilled with best set) so
       // Matt confirms the actual max before it hits the testing record.
-      const typed = window.prompt(target.prompt + ':', bestOfSets != null ? String(bestOfSets) : '')
+      const typed = window.prompt(target.prompt + uHint + ':', bestOfSets != null ? String(bestOfSets) : '')
       if (typed == null) return
       best = parseFloat(typed)
     } else if (bestOfSets != null) {
       best = bestOfSets
     } else {
-      const typed = window.prompt(target.prompt + ':')
+      const typed = window.prompt(target.prompt + uHint + ':')
       if (typed == null) return
       best = parseFloat(typed)
     }
     if (isNaN(best)) { flash('Enter a number first', 'err'); return }
 
-    let converted = best
+    // weight tests store lbs; if the athlete entered kg, convert for the record
+    const bestLbs = (useKg && isWeight) ? toLbs(best) : best
+    let converted = bestLbs
     if (target.test_id === 'max_velocity') converted = Math.round((20.45 / best) * 100) / 100
 
     const cur = prs[target.test_id]
@@ -365,13 +375,14 @@ export default function AthletePortal({ athlete, onLogout }) {
 
     const label = target.test_id === 'max_velocity' ? `${best}s → ${converted} MPH`
       : td.feet_inches ? formatFeetInches(best)
+      : (useKg && isWeight) ? `${best} kg (${bestLbs} lb)`
       : `${best} ${target.unit}`
     const verb = target.isMax ? 'max' : 'result'
     if (!window.confirm(`Log ${target.label} ${verb}:\n${label}${isPr ? '  (NEW PR!)' : ''}\n\nWrite to your performance record?`)) return
 
     const { error } = await sb.from('results').insert({
       athlete_id: athlete.id, test_id: target.test_id, test_date: today(),
-      raw_value: best, converted_value: converted, unit: target.unit, is_pr: isPr,
+      raw_value: bestLbs, converted_value: converted, unit: target.unit, is_pr: isPr,
     })
     if (error) { flash('Log failed: ' + error.message, 'err'); return }
     setPrs(prev => ({ ...prev, [target.test_id]: converted }))
@@ -419,7 +430,10 @@ export default function AthletePortal({ athlete, onLogout }) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div style={{ color: TEXT, fontWeight: 900, fontSize: 18 }}>{monthLabel}</div>
-        <button onClick={goToday} style={{ background: CARD2, border: `1px solid ${BORDER}`, color: ACCENT, borderRadius: 20, padding: '5px 14px', fontFamily: 'inherit', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Today</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setUseKg(k => !k)} style={{ background: useKg ? ACCENT : CARD2, border: `1px solid ${BORDER}`, color: useKg ? NAVY : ACCENT, borderRadius: 20, padding: '5px 12px', fontFamily: 'inherit', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>{useKg ? 'kg' : 'lb'} ⇄</button>
+          <button onClick={goToday} style={{ background: CARD2, border: `1px solid ${BORDER}`, color: ACCENT, borderRadius: 20, padding: '5px 14px', fontFamily: 'inherit', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Today</button>
+        </div>
       </div>
 
       <div ref={stripRef} style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
@@ -441,6 +455,21 @@ export default function AthletePortal({ athlete, onLogout }) {
               <span style={{ fontSize: 15, fontWeight: 900 }}>{dt.getDate()}</span>
               <span style={{ width: 5, height: 5, borderRadius: 5, background: info ? (logged ? OK : (isSel ? NAVY : ACCENT)) : 'transparent' }} />
             </button>
+          )
+        })}
+      </div>
+
+      {/* day chips — switch which day's session you're doing (e.g. do Tuesday's workout today) */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {days.filter(d => bd[d]).map(d => {
+          const hdr = bd[d]?.header || d
+          const short = (hdr.split('—')[0].trim() || d).slice(0, 3)
+          const sel = d === dayKey
+          return (
+            <button key={d} onClick={() => setDayKey(d)} style={{
+              flex: '0 0 auto', padding: '6px 12px', borderRadius: 18, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800, fontSize: 12,
+              border: `1px solid ${sel ? ACCENT : BORDER}`, background: sel ? ACCENT : CARD2, color: sel ? NAVY : TEXT,
+            }}>{short}</button>
           )
         })}
       </div>
@@ -468,8 +497,8 @@ export default function AthletePortal({ athlete, onLogout }) {
         const swapped = name !== ex.exercise
         return (
           <ExerciseCard
-            key={i} ex={ex} name={name} swapped={swapped} count={count}
-            target={weightText(ex, week, prs)}
+            key={i} ex={ex} name={name} swapped={swapped} count={count} useKg={useKg}
+            target={weightText(ex, week, prs, useKg)}
             sync={syncTargetFor({ ...ex, exercise: name }, tests)}
             vals={valsAt(block, week, dayKey, i, count, name)}
             note={notes[noteKey(block, week, dayKey, i)] ?? ''}
@@ -490,7 +519,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   )
 }
 
-function ExerciseCard({ ex, name, swapped, count, target, sync, vals, note, lastTime, workingMax, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
+function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, note, lastTime, workingMax, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
   const isWU = ex.series === 'WU'
   const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
@@ -534,13 +563,16 @@ function ExerciseCard({ ex, name, swapped, count, target, sync, vals, note, last
       {ex.note && <div style={{ color: MUTED, fontSize: 12, marginTop: 6, fontStyle: 'italic' }}>{ex.note}</div>}
       {loggable && (workingMax != null || (lastTime && lastTime.length > 0)) && (
         <div style={{ background: CARD2, borderRadius: 8, padding: '7px 10px', marginTop: 8 }}>
-          {workingMax != null && <div style={{ fontSize: 11 }}><span style={{ color: MUTED, opacity: .8 }}>Working max </span><span style={{ color: ACCENT, fontWeight: 900, fontSize: 13 }}>{workingMax} lb</span></div>}
+          {workingMax != null && <div style={{ fontSize: 11 }}><span style={{ color: MUTED, opacity: .8 }}>Working max </span><span style={{ color: ACCENT, fontWeight: 900, fontSize: 13 }}>{useKg ? `${toKg(workingMax)} kg` : `${workingMax} lb`}</span></div>}
           {lastTime && lastTime.length > 0 && <div style={{ fontSize: 11, marginTop: workingMax != null ? 3 : 0 }}><span style={{ color: MUTED, opacity: .8 }}>Last time </span><span style={{ color: TEXT, fontWeight: 700 }}>{lastTime.join(' · ')}</span></div>}
         </div>
       )}
 
+      {loggable && target && (
+        <div style={{ color: MUTED, fontSize: 10, fontWeight: 800, letterSpacing: 1, marginTop: 10 }}>ENTERING IN {useKg ? 'KG' : 'LB'}</div>
+      )}
       {loggable && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: target ? 4 : 12 }}>
           {Array.from({ length: count }, (_, s) => {
             const v = vals[s] ?? ''
             const filled = hasVal(v)
