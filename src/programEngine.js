@@ -102,8 +102,8 @@ export function syncTargetFor(ex, tests = {}) {
   // Static Jump: no sync yet — deferred until the eccentric-utilization score.
   if (n.includes('static jump')) return null
   // --- speed / flies ---
-  // A 20yd timed zone (e.g. "30-20 Fly") is a max-velocity run -> log top speed (mph)
-  if (/(\d+)\s*[-–\/]\s*20\s*fly/.test(n)) {
+  // A 20+ yd timed zone (e.g. "30-20 Fly", "30-30 Fly") is a max-velocity run -> log top speed (mph)
+  if (/(\d+)\s*[-–\/]\s*(20|30)\s*fly/.test(n)) {
     return { test_id: 'max_velocity', unit: 'sec', label: 'Max Velocity', better: 'higher', prompt: 'Fly time (sec)' }
   }
   // Acceleration flies "A-B Fly" / "A/B Fly" (lead-in / timed zone) -> {A}_{B}_fly
