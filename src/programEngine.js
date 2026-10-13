@@ -73,6 +73,11 @@ export function weightText(ex, week, prs, useKg = false) {
   if (!pr || !ex.pct) return ''
   const unit = useKg ? ' kg' : ' lbs'
   const round = useKg ? rKg : r5
+  // A 2-element pct is an explicit [lo, hi] range (shown as a weight range).
+  if (ex.pct.length === 2) {
+    const lo = round(pr * ex.pct[0]), hi = round(pr * ex.pct[1])
+    return lo === hi ? lo + unit : lo + '–' + hi + unit
+  }
   if (week <= 1) return round(pr * ex.pct[0]) + unit
   const lo = round(pr * ex.pct[1]), hi = round(pr * ex.pct[2])
   return lo === hi ? lo + unit : lo + '–' + hi + unit
