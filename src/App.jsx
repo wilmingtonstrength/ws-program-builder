@@ -2050,6 +2050,10 @@ export default function App() {
   })
   const [customTemplates, setCustomTemplates] = useState({})
   const [removedTemplates, setRemovedTemplates] = useState(() => new Set())
+  const [warmups, setWarmups] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ws_warmups')) || {} } catch { return {} }
+  })
+  const [showWarmupEditor, setShowWarmupEditor] = useState(false)
   const athRef = useRef(null)
   const saveTimers = useRef({})
 
@@ -2067,6 +2071,11 @@ export default function App() {
   useEffect(() => { localStorage.setItem('ws_block', String(block)) }, [block])
   useEffect(() => { localStorage.setItem('ws_athleteId', JSON.stringify(athleteId)) }, [athleteId])
   useEffect(() => { localStorage.setItem('ws_tab', tab) }, [tab])
+  useEffect(() => { localStorage.setItem('ws_warmups', JSON.stringify(warmups)) }, [warmups])
+
+  const getWarmup = (athId) => warmups[athId] || null
+  const setWarmup = (athId, data) => setWarmups(prev => ({ ...prev, [athId]: data }))
+  const clearWarmup = (athId) => setWarmups(prev => { const next = { ...prev }; delete next[athId]; return next })
 
   useEffect(() => {
     async function load() {
@@ -2515,11 +2524,29 @@ export default function App() {
               )}
             </div>
             {saving && <div style={{ fontSize: 10, color: '#aaa', alignSelf: 'center' }}>Saving...</div>}
-            <button onClick={() => window.print()} style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', marginLeft: 'auto', fontFamily: 'inherit' }}>Print / PDF</button>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              {ath && (
+                <button onClick={() => setShowWarmupEditor(true)} style={{ padding: '6px 14px', background: ath && getWarmup(ath.id) ? '#e8b000' : '#fff', border: '1px solid #bbb', color: ath && getWarmup(ath.id) ? '#111' : '#555', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {getWarmup(ath.id) ? 'Edit Warm-Up' : '+ Warm-Up'}
+                </button>
+              )}
+              <button onClick={() => window.print()} style={{ padding: '6px 18px', background: '#111', border: 'none', color: '#fff', fontWeight: 700, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'inherit' }}>Print / PDF</button>
+            </div>
           </div>
+
+          {/* Warm-up editor modal */}
+          {showWarmupEditor && ath && (
+            <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.3)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={e => { if (e.target === e.currentTarget) setShowWarmupEditor(false) }}>
+              <WarmupEditor ath={ath} warmup={getWarmup(ath.id)} onSave={d => setWarmup(ath.id, d)} onClear={() => clearWarmup(ath.id)} onClose={() => setShowWarmupEditor(false)} />
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px' }}>
             <div style={{ flex: '0 1 auto' }}>
+              {/* Warm-up sheet (prints as its own page before the program) */}
+              {ath && getWarmup(ath.id) && <WarmupSheet ath={ath} warmup={getWarmup(ath.id)} />}
+
               <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
                 <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
                 <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
@@ -2555,7 +2582,10 @@ export default function App() {
               .print-only { display: block !important }
               select { display: none !important }
               input { border: none !important; padding: 0 !important; }
-              #sheet, #sheet2 { max-width: none !important; margin: 0 !important; padding: 4px 8px !important; box-shadow: none !important; }
+              #sheet, #sheet2, #warmup-sheet { max-width: none !important; margin: 0 !important; padding: 4px 8px !important; box-shadow: none !important; }
+              #warmup-sheet { padding: 16px 20px !important; page-break-after: always; break-after: page; }
+              #warmup-sheet table td { padding: 8px 6px !important; font-size: 12px !important; }
+              #warmup-sheet table th { font-size: 9px !important; }
               /* Sheet 2 starts on a new page. page-break-BEFORE only — no
                  AFTER on sheet 1 — so browsers don't insert a blank page
                  between them. Also no page-break-inside: avoid on sheet 1;
@@ -3655,6 +3685,93 @@ function OlyAnalytics({ days, getExs, ath, getPR, edits, block, tier, setEdit, b
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function WarmupEditor({ ath, warmup, onSave, onClear, onClose }) {
+  const empty = { focus: '', exercises: [{ name: '', setsReps: '', note: '' }] }
+  const [data, setData] = useState(warmup || empty)
+  const updateEx = (idx, field, val) => {
+    const exs = [...data.exercises]
+    exs[idx] = { ...exs[idx], [field]: val }
+    setData({ ...data, exercises: exs })
+  }
+  const addEx = () => { if (data.exercises.length < 6) setData({ ...data, exercises: [...data.exercises, { name: '', setsReps: '', note: '' }] }) }
+  const removeEx = (idx) => { if (data.exercises.length > 1) setData({ ...data, exercises: data.exercises.filter((_, i) => i !== idx) }) }
+  const save = () => { onSave({ ...data, exercises: data.exercises.filter(e => e.name.trim()) }); onClose() }
+  const iStyle = { width: '100%', padding: '4px 6px', border: '1px solid #ccc', borderRadius: 2, fontSize: 11, fontFamily: 'inherit' }
+  return (
+    <div style={{ background: '#fff', border: '2px solid #111', borderRadius: 4, padding: 16, maxWidth: 420, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>Warm-Up — {ath.first_name} {ath.last_name}</div>
+        <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: 16, cursor: 'pointer', color: '#999' }}>×</button>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <input value={data.focus} onChange={e => setData({ ...data, focus: e.target.value })} placeholder="Focus area (e.g. Knee Rehab, Ankle Mobility)" style={{ ...iStyle, fontWeight: 600 }} />
+      </div>
+      {data.exercises.map((ex, idx) => (
+        <div key={idx} style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center' }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#999', width: 16 }}>{idx + 1}</span>
+          <input value={ex.name} onChange={e => updateEx(idx, 'name', e.target.value)} placeholder="Exercise" style={{ ...iStyle, flex: 2 }} />
+          <input value={ex.setsReps} onChange={e => updateEx(idx, 'setsReps', e.target.value)} placeholder="Sets × Reps" style={{ ...iStyle, flex: 1 }} />
+          <input value={ex.note} onChange={e => updateEx(idx, 'note', e.target.value)} placeholder="Note" style={{ ...iStyle, flex: 1 }} />
+          {data.exercises.length > 1 && <button onClick={() => removeEx(idx)} style={{ border: 'none', background: 'none', color: '#c00', cursor: 'pointer', fontSize: 14, padding: 0 }}>×</button>}
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+        {data.exercises.length < 6 && <button onClick={addEx} style={{ padding: '4px 10px', border: '1px solid #ccc', background: '#fff', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>+ Add Exercise</button>}
+        <div style={{ flex: 1 }} />
+        {warmup && <button onClick={() => { onClear(); onClose() }} style={{ padding: '4px 10px', border: '1px solid #c00', color: '#c00', background: '#fff', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2 }}>Remove Warm-Up</button>}
+        <button onClick={save} style={{ padding: '4px 14px', background: '#111', color: '#fff', border: 'none', fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 2, letterSpacing: 1, textTransform: 'uppercase' }}>Save</button>
+      </div>
+    </div>
+  )
+}
+
+function WarmupSheet({ ath, warmup }) {
+  if (!warmup || !warmup.exercises || warmup.exercises.length === 0) return null
+  return (
+    <div id="warmup-sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '24px 28px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '2px solid #111' }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>Individualized Warm-Up</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{ath.first_name} {ath.last_name}</div>
+          {warmup.focus && <div style={{ fontSize: 10, color: '#555', marginTop: 2, fontStyle: 'italic' }}>{warmup.focus}</div>}
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
+          WILMINGTON<br />STRENGTH
+        </div>
+      </div>
+      <div style={{ fontSize: 10, color: '#555', marginBottom: 12 }}>Complete this warm-up before every training session.</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            {['#','Exercise','Sets × Reps','Notes'].map((h,i) => (
+              <th key={i} style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', padding: '4px 6px', textAlign: 'left', color: '#444' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {warmup.exercises.map((ex, idx) => (
+            <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
+              <td style={{ padding: '10px 6px', fontSize: 11, fontWeight: 700, color: '#999', width: 28 }}>{idx + 1}</td>
+              <td style={{ padding: '10px 6px', fontSize: 13, fontWeight: 700 }}>{ex.name}</td>
+              <td style={{ padding: '10px 6px', fontSize: 12, fontWeight: 600, width: 120 }}>{ex.setsReps}</td>
+              <td style={{ padding: '10px 6px', fontSize: 11, color: '#555', fontStyle: ex.note ? 'normal' : 'italic' }}>{ex.note || ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 24, borderTop: '1px solid #ddd', paddingTop: 12, display: 'flex', gap: 20 }}>
+        {[1,2,3,4].map(wk => (
+          <div key={wk} style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#999', marginBottom: 4 }}>Week {wk}</div>
+            <div style={{ height: 20, borderBottom: '1px solid #ccc' }} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
