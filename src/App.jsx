@@ -142,11 +142,16 @@ const LIBRARY = {
     'Bottoms-Up KB Carry',"Waiter's Walk",
   ],
   'Cardio / Conditioning': ['Rower','Bike','Runner','Jump Rope'],
-  'Speed / Power': [
-    'Resisted Sprints','Acceleration','Change of Direction',
-    'Acceleration / Change of Direction',
-    'SL Lateral Hurdle Hop Complex','Seated Broad to Hurdle Hop',
-    'Pro Agility','Plyo Warmup',
+  'Speed': [
+    '5-10 Fly','10-10 Fly','15-10 Fly','20-10 Fly',
+    'Resisted Sprint','Wickets','Dribbles','Prime Times',
+  ],
+  'Agility': [
+    '5-0-5','5-10-5','5-5-10',
+  ],
+  'Plyo': [
+    'Hurdle Leap Complex','Depth Jumps','Drop Jumps',
+    'Altitude Drop into Split','Single Leg Altitude Drop',
   ],
 }
 
@@ -1632,6 +1637,61 @@ export const TEMPLATES = {
           mkEx('C2','Flywheel',3,'10',null,null),
           mkEx('C3','Triceps',3,'10',null,null),
           mkEx('WU','20 Min Bike','','',null,null,'steady state'),
+        ]}
+      }
+    }
+  },
+  adv_speed: {
+    label: 'Advanced Speed Program',
+    days: ['dayA','dayB'],
+    blocks: {
+      1: {
+        pctLabel: 'Block 1 — Oly 65-75%',
+        dayA: { header: 'Acceleration Day', exercises: [
+          mkEx('WU','Acceleration Warm Up','','',null,null),
+          mkEx('A1','5-10 Fly',4,'1',null,null),
+          mkEx('B1','',1,'1',null,null,'Agility — pick drill'),
+          mkEx('C1','',1,'1',null,null,'Plyo — pick drill'),
+          mkEx('D1','Pause at Knee Clean + Clean',5,'2+1',[0.65,0.65,0.75],'clean'),
+        ]},
+        dayB: { header: 'Max V Day', exercises: [
+          mkEx('WU','Speed Warm Up','','',null,null),
+          mkEx('A1','',1,'1',null,null,'Max V primer — pick from Speed'),
+          mkEx('B1','20yd Build into 10yd Fly',4,'1',null,null),
+          mkEx('C1','Hurdle Leap Complex',2,'4',null,null,'lateral 2ft, forward 2ft, SL forward, SL lateral front leg'),
+        ]}
+      },
+      2: {
+        pctLabel: 'Block 2 — Oly 75-85%',
+        dayA: { header: 'Acceleration Day', exercises: [
+          mkEx('WU','Acceleration Warm Up','','',null,null),
+          mkEx('A1','10-10 Fly',4,'1',null,null),
+          mkEx('B1','',1,'1',null,null,'Agility — pick drill'),
+          mkEx('C1','',1,'1',null,null,'Plyo — pick drill'),
+          mkEx('D1','Pause at Knee Clean + Clean',5,'1+1',[0.75,0.75,0.85],'clean'),
+        ]},
+        dayB: { header: 'Max V Day', exercises: [
+          mkEx('WU','Speed Warm Up','','',null,null),
+          mkEx('A1','',1,'1',null,null,'Max V primer — pick from Speed'),
+          mkEx('B1','20yd Build into 10yd Fly',4,'1',null,null),
+          mkEx('C1','Hurdle Leap Complex',2,'4',null,null,'lateral 2ft, forward 2ft, SL forward, SL lateral front leg'),
+        ]}
+      },
+      3: {
+        pctLabel: 'Block 3 — Fast singles',
+        dayA: { header: 'Acceleration Day', exercises: [
+          mkEx('WU','Acceleration Warm Up','','',null,null),
+          mkEx('A1','Resisted Sprint',3,'1',null,null,'~15 lb'),
+          mkEx('A2','5-10 Fly',3,'1',null,null),
+          mkEx('B1','',1,'1',null,null,'Agility — pick drill'),
+          mkEx('C1','',1,'1',null,null,'Plyo — pick drill'),
+          mkEx('D1','Clean',6,'1',null,'clean','fast singles'),
+        ]},
+        dayB: { header: 'Max V Day', exercises: [
+          mkEx('WU','Speed Warm Up','','',null,null),
+          mkEx('A1','',1,'1',null,null,'Max V primer — pick from Speed'),
+          mkEx('B1','20yd Build into 10yd Fly',4,'1',null,null),
+          mkEx('C1','Hurdle Leap Complex',2,'4',null,null,'lateral 2ft, forward 2ft, SL forward, SL lateral front leg'),
         ]}
       }
     }
