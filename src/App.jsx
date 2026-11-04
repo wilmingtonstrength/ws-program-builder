@@ -1653,12 +1653,15 @@ export const TEMPLATES = {
           mkEx('B1','',1,'1',null,null,'Agility — pick drill'),
           mkEx('C1','',1,'1',null,null,'Plyo — pick drill'),
           mkEx('D1','Pause at Knee Clean + Clean',5,'2+1',[0.65,0.65,0.75],'clean'),
+          mkEx('E1','',3,'8',null,null),
         ]},
         dayB: { header: 'Max V Day', exercises: [
           mkEx('WU','Speed Warm Up','','',null,null),
-          mkEx('A1','',1,'1',null,null,'Max V primer — pick from Speed'),
+          mkEx('A1','',1,'1',null,null),
           mkEx('B1','20yd Build into 10yd Fly',4,'1',null,null),
-          mkEx('C1','Hurdle Leap Complex',2,'4',null,null,'lateral 2ft, forward 2ft, SL forward, SL lateral front leg'),
+          mkEx('C1','Hurdle Leap Complex',2,'4',null,null),
+          mkEx('D1','',3,'8',null,null),
+          mkEx('E1','',3,'8',null,null),
         ]}
       },
       2: {
@@ -1666,32 +1669,38 @@ export const TEMPLATES = {
         dayA: { header: 'Acceleration Day', exercises: [
           mkEx('WU','Acceleration Warm Up','','',null,null),
           mkEx('A1','10-10 Fly',4,'1',null,null),
-          mkEx('B1','',1,'1',null,null,'Agility — pick drill'),
-          mkEx('C1','',1,'1',null,null,'Plyo — pick drill'),
+          mkEx('B1','',1,'1',null,null),
+          mkEx('C1','',1,'1',null,null),
           mkEx('D1','Pause at Knee Clean + Clean',5,'1+1',[0.75,0.75,0.85],'clean'),
+          mkEx('E1','',3,'8',null,null),
         ]},
         dayB: { header: 'Max V Day', exercises: [
           mkEx('WU','Speed Warm Up','','',null,null),
-          mkEx('A1','',1,'1',null,null,'Max V primer — pick from Speed'),
+          mkEx('A1','',1,'1',null,null),
           mkEx('B1','20yd Build into 10yd Fly',4,'1',null,null),
-          mkEx('C1','Hurdle Leap Complex',2,'4',null,null,'lateral 2ft, forward 2ft, SL forward, SL lateral front leg'),
+          mkEx('C1','Hurdle Leap Complex',2,'4',null,null),
+          mkEx('D1','',3,'8',null,null),
+          mkEx('E1','',3,'8',null,null),
         ]}
       },
       3: {
         pctLabel: 'Block 3 — Fast singles',
         dayA: { header: 'Acceleration Day', exercises: [
           mkEx('WU','Acceleration Warm Up','','',null,null),
-          mkEx('A1','Resisted Sprint',3,'1',null,null,'~15 lb'),
+          mkEx('A1','Resisted Sprint',3,'1',null,null),
           mkEx('A2','5-10 Fly',3,'1',null,null),
-          mkEx('B1','',1,'1',null,null,'Agility — pick drill'),
-          mkEx('C1','',1,'1',null,null,'Plyo — pick drill'),
-          mkEx('D1','Clean',6,'1',null,'clean','fast singles'),
+          mkEx('B1','',1,'1',null,null),
+          mkEx('C1','',1,'1',null,null),
+          mkEx('D1','Clean',6,'1',null,'clean'),
+          mkEx('E1','',3,'8',null,null),
         ]},
         dayB: { header: 'Max V Day', exercises: [
           mkEx('WU','Speed Warm Up','','',null,null),
-          mkEx('A1','',1,'1',null,null,'Max V primer — pick from Speed'),
+          mkEx('A1','',1,'1',null,null),
           mkEx('B1','20yd Build into 10yd Fly',4,'1',null,null),
-          mkEx('C1','Hurdle Leap Complex',2,'4',null,null,'lateral 2ft, forward 2ft, SL forward, SL lateral front leg'),
+          mkEx('C1','Hurdle Leap Complex',2,'4',null,null),
+          mkEx('D1','',3,'8',null,null),
+          mkEx('E1','',3,'8',null,null),
         ]}
       }
     }
