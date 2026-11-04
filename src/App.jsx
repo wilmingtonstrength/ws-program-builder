@@ -2613,9 +2613,6 @@ export default function App() {
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'flex-start', padding: '0 10px' }}>
             <div style={{ flex: '0 1 auto' }}>
-              {/* Warm-up sheet (prints as its own page before the program) */}
-              {ath && getWarmup(ath.id) && <WarmupSheet ath={ath} warmup={getWarmup(ath.id)} />}
-
               <div id="sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '16px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
                 <SheetHeader tD={tD} block={block} bD={bD} ath={ath} isOly={isOly} />
                 <PRBar PKS={PKS} ath={ath} getPR={getPR} getOverheadPR={getOverheadPR} getOverheadVariantPR={getOverheadVariantPR} />
@@ -2636,6 +2633,8 @@ export default function App() {
                   ))}
                 </div>
               )}
+
+              {ath && getWarmup(ath.id) && <WarmupSheet ath={ath} warmup={getWarmup(ath.id)} />}
             </div>
 
             {/* Block Analytics panel (Reroll/Reset, Save as Custom Template, volume/intensity) removed per coach request. OlyAnalytics component kept in the file if we ever want it back. */}
