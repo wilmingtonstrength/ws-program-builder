@@ -2652,9 +2652,8 @@ export default function App() {
               select { display: none !important }
               input { border: none !important; padding: 0 !important; }
               #sheet, #sheet2, #warmup-sheet { max-width: none !important; margin: 0 !important; padding: 4px 8px !important; box-shadow: none !important; }
-              #warmup-sheet { padding: 16px 20px !important; page-break-after: always; break-after: page; }
-              #warmup-sheet table td { padding: 8px 6px !important; font-size: 12px !important; }
-              #warmup-sheet table th { font-size: 9px !important; }
+              #warmup-sheet { padding: 2px 8px 4px !important; margin-bottom: 2px !important; }
+              #warmup-sheet table td { padding: 1px 3px !important; font-size: 9px !important; }
               /* Sheet 2 starts on a new page. page-break-BEFORE only — no
                  AFTER on sheet 1 — so browsers don't insert a blank page
                  between them. Also no page-break-inside: avoid on sheet 1;
@@ -3801,46 +3800,22 @@ function WarmupEditor({ ath, warmup, onSave, onClear, onClose }) {
 function WarmupSheet({ ath, warmup }) {
   if (!warmup || !warmup.exercises || warmup.exercises.length === 0) return null
   return (
-    <div id="warmup-sheet" style={{ maxWidth: 800, margin: '10px auto', background: '#fff', padding: '24px 28px', boxShadow: '0 1px 6px rgba(0,0,0,0.12)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '2px solid #111' }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase' }}>Individualized Warm-Up</div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{ath.first_name} {ath.last_name}</div>
-          {warmup.focus && <div style={{ fontSize: 10, color: '#555', marginTop: 2, fontStyle: 'italic' }}>{warmup.focus}</div>}
-        </div>
-        <div style={{ textAlign: 'right', fontSize: 9, fontWeight: 900, letterSpacing: 2, textTransform: 'uppercase', lineHeight: 1.6 }}>
-          <div style={{ fontSize: 22, letterSpacing: 4, fontWeight: 900 }}>WS</div>
-          WILMINGTON<br />STRENGTH
-        </div>
+    <div id="warmup-sheet" style={{ maxWidth: 800, margin: '0 auto 4px', background: '#fff', padding: '4px 8px' }}>
+      <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', paddingBottom: 2, marginBottom: 2 }}>
+        Warm-Up{warmup.focus ? ' — ' + warmup.focus : ''}
       </div>
-      <div style={{ fontSize: 10, color: '#555', marginBottom: 12 }}>Complete this warm-up before every training session.</div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            {['#','Exercise','Sets × Reps','Notes'].map((h,i) => (
-              <th key={i} style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1.5px solid #111', padding: '4px 6px', textAlign: 'left', color: '#444' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
         <tbody>
           {warmup.exercises.map((ex, idx) => (
-            <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
-              <td style={{ padding: '10px 6px', fontSize: 11, fontWeight: 700, color: '#999', width: 28 }}>{idx + 1}</td>
-              <td style={{ padding: '10px 6px', fontSize: 13, fontWeight: 700 }}>{ex.name}</td>
-              <td style={{ padding: '10px 6px', fontSize: 12, fontWeight: 600, width: 120 }}>{ex.setsReps}</td>
-              <td style={{ padding: '10px 6px', fontSize: 11, color: '#555', fontStyle: ex.note ? 'normal' : 'italic' }}>{ex.note || ''}</td>
+            <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+              <td style={{ padding: '1px 3px', fontSize: 9, fontWeight: 700, color: '#999', width: 14 }}>{idx + 1}</td>
+              <td style={{ padding: '1px 3px', fontSize: 10, fontWeight: 700 }}>{ex.name}</td>
+              <td style={{ padding: '1px 3px', fontSize: 9, fontWeight: 600, width: 80 }}>{ex.setsReps}</td>
+              <td style={{ padding: '1px 3px', fontSize: 9, color: '#555' }}>{ex.note || ''}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div style={{ marginTop: 24, borderTop: '1px solid #ddd', paddingTop: 12, display: 'flex', gap: 20 }}>
-        {[1,2,3,4].map(wk => (
-          <div key={wk} style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#999', marginBottom: 4 }}>Week {wk}</div>
-            <div style={{ height: 20, borderBottom: '1px solid #ccc' }} />
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
