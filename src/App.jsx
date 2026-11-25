@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import CoachOnline, { OnlineAlertBanner } from './CoachOnline'
+import { loadVideos, saveVideo, videoKey } from './videos'
 
 const sb = createClient(
   'https://xxtomnbvinxuvnrrqnqb.supabase.co',
@@ -2691,6 +2692,19 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
 
   const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 2500) }
 
+  // demo videos (shared with the online portal): one link per exercise name
+  const [videos, setVideos] = useState({})
+  useEffect(() => { loadVideos(sb).then(setVideos) }, [])
+  const editVideo = async (ex) => {
+    const cur = videos[videoKey(ex)] || ''
+    const typed = window.prompt(`Video link for "${ex}" (YouTube works best).\nAthletes see it anywhere this exercise is in an online program. Leave blank to remove.`, cur)
+    if (typed == null) return
+    const { error } = await saveVideo(sb, ex, typed)
+    if (error) { flash('Video didn\u2019t save: ' + error.message); return }
+    setVideos(prev => { const n = { ...prev }; if (typed.trim()) n[videoKey(ex)] = typed.trim(); else delete n[videoKey(ex)]; return n })
+    flash(typed.trim() ? `Video linked to "${ex}"` : `Video removed from "${ex}"`)
+  }
+
   const addExercise = async () => {
     const ex = newExercise.trim()
     if (!ex || !selectedCat) return
@@ -2776,6 +2790,10 @@ function LibraryManager({ library, setLibrary, saving, setSaving, sb }) {
           {(library[selectedCat] || []).map((ex, idx) => (
             <div key={ex} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
               <span style={{ flex: 1, fontWeight: 500 }}>{ex}</span>
+              {(() => { const url = videos[videoKey(ex)]; return (<>
+                {url && <a href={url} target="_blank" rel="noreferrer" title="Watch" style={{ fontSize: 10, color: '#0077aa', marginRight: 6 }}>watch</a>}
+                <button onClick={() => editVideo(ex)} title={url ? 'Change or remove the demo video' : 'Link a demo video'} style={{ fontSize: 10, fontWeight: 700, border: `1px solid ${url ? '#00a3cc' : '#ccc'}`, background: url ? '#00a3cc' : '#fff', color: url ? '#fff' : '#555', padding: '2px 8px', marginRight: 8, cursor: 'pointer', fontFamily: 'inherit', borderRadius: 3 }}>{url ? '\u25b6 video' : '+ video'}</button>
+              </>) })()}
               <select defaultValue="" onChange={e => { if (e.target.value) moveExercise(ex, selectedCat, e.target.value) }} style={{ fontSize: 10, border: '1px solid #ccc', padding: '2px 4px', marginRight: 8, fontFamily: 'inherit', color: '#555', background: '#fff' }}>
                 <option value="">Move to...</option>
                 {cats.filter(c => c !== selectedCat).map(c => <option key={c} value={c}>{c}</option>)}
