@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { sb } from './supabaseClient'
 import AthletePortal from './AthletePortal'
 
@@ -9,7 +9,28 @@ const COACH_EMAILS = ['matt@wilmingtonstrength.com']
 const NAVY = '#0a1628', CARD = '#0f2035', ACCENT = '#00d4ff', MUTED = '#5b7a9c', TEXT = '#e8f1fb', BORDER = '#1d3350'
 const SESSION_KEY = 'ws_athlete_session'
 
+// Coach preview: /athlete?preview=<athlete id> shows that athlete's portal exactly
+// as they see it, read-only (nothing typed is saved) and without touching the
+// coach's own athlete login.
+function CoachPreview({ id }) {
+  const [athlete, setAthlete] = useState(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    sb.from('athletes').select('id,first_name,last_name,email').eq('id', id).limit(1)
+      .then(({ data, error }) => { if (error || !data?.length) setErr('Athlete not found.'); else setAthlete(data[0]) })
+  }, [id])
+  if (err) return <div style={{ minHeight: '100vh', background: NAVY, color: TEXT, padding: 30, fontFamily: "'Archivo', system-ui, sans-serif" }}>{err}</div>
+  if (!athlete) return <div style={{ minHeight: '100vh', background: NAVY }} />
+  return <AthletePortal athlete={athlete} preview onLogout={() => window.close()} />
+}
+
 export default function AthleteApp() {
+  const previewId = parseInt(new URLSearchParams(window.location.search).get('preview'))
+  if (previewId) return <CoachPreview id={previewId} />
+  return <AthleteLogin />
+}
+
+function AthleteLogin() {
   const [athlete, setAthlete] = useState(() => {
     try { return JSON.parse(localStorage.getItem(SESSION_KEY)) } catch { return null }
   })

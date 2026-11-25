@@ -275,6 +275,7 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
                   {e?.endingSoon && <span style={{ background: '#e0a500', color: '#fff', fontWeight: 800, fontSize: 11, padding: '4px 10px', borderRadius: 12 }}>{e.daysLeft === 0 ? 'ENDS TODAY' : `ENDS IN ${e.daysLeft} DAY${e.daysLeft === 1 ? '' : 'S'}`}</span>}
                   {p.due && <span style={{ background: '#e0a500', color: '#fff', fontWeight: 800, fontSize: 11, padding: '4px 10px', borderRadius: 12 }}>DUE FOR NEW</span>}
                   <span style={{ color: '#5a6b7b', fontSize: 12 }}>{p.done}/{p.total} · {p.pct}%</span>
+                  <a href={`/athlete?preview=${a.athlete_id}`} target="_blank" rel="noreferrer" title="See this program exactly as the athlete sees it (read-only)" style={{ ...btnLight, textDecoration: 'none' }}>View as athlete</a>
                   <button onClick={() => setEditing(a)} style={btnDark}>Edit program →</button>
                 </div>
               </div>
@@ -449,7 +450,10 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], n
   const Header = () => (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <button onClick={onBack} style={linkBtn}>← Back to athletes</button>
+        <span style={{ display: 'inline-flex', gap: 14, alignItems: 'center' }}>
+          <button onClick={onBack} style={linkBtn}>← Back to athletes</button>
+          <a href={`/athlete?preview=${assignment.athlete_id}`} target="_blank" rel="noreferrer" style={{ ...linkBtn, textDecoration: 'underline' }}>View as athlete ↗</a>
+        </span>
         <span style={{ fontSize: 12, color: saveState === 'error' ? '#c00' : '#0a7', fontWeight: 700 }}>
           {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Save failed' : 'All changes saved'}
         </span>

@@ -56,7 +56,7 @@ function templateSetCount(ex) {
 const isLoggable = (ex) => ex.series !== 'WU' && templateSetCount(ex) > 0
 const MAX_SETS = 15
 
-export default function AthletePortal({ athlete, onLogout }) {
+export default function AthletePortal({ athlete, onLogout, preview = false }) {
   const [templateId, setTemplateId] = useState(TEMPLATE_ID)
   const [programObj, setProgramObj] = useState(null)   // coach-edited per-athlete program
   const [startDate, setStartDate] = useState('')
@@ -71,9 +71,9 @@ export default function AthletePortal({ athlete, onLogout }) {
   const [logs, setLogs] = useState({})     // logKey -> { value }  (key present => set exists)
   const [notes, setNotes] = useState({})   // noteKey -> text  (per-exercise free-text note)
   const [aEdits, setAEdits] = useState({}) // editKey -> value  (athlete overrides, e.g. swapped exercise)
-  const [block, setBlock] = useState(() => lsGet('ws_ap_block', blocks[0] || 1))
-  const [week, setWeek] = useState(() => lsGet('ws_ap_week', 1))
-  const [dayKey, setDayKey] = useState(() => lsGet('ws_ap_day', days[0] || 'dayA'))
+  const [block, setBlock] = useState(() => preview ? 1 : lsGet('ws_ap_block', blocks[0] || 1))
+  const [week, setWeek] = useState(() => preview ? 1 : lsGet('ws_ap_week', 1))
+  const [dayKey, setDayKey] = useState(() => preview ? 'dayA' : lsGet('ws_ap_day', days[0] || 'dayA'))
   const [useKg, setUseKg] = useState(() => lsGet('ws_ap_kg', false))
   const [ready, setReady] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
@@ -81,9 +81,9 @@ export default function AthletePortal({ athlete, onLogout }) {
   const timers = useRef({})
   const stripRef = useRef(null)
 
-  useEffect(() => { lsSet('ws_ap_block', block) }, [block])
-  useEffect(() => { lsSet('ws_ap_week', week) }, [week])
-  useEffect(() => { lsSet('ws_ap_day', dayKey) }, [dayKey])
+  useEffect(() => { if (!preview) lsSet('ws_ap_block', block) }, [block])
+  useEffect(() => { if (!preview) lsSet('ws_ap_week', week) }, [week])
+  useEffect(() => { if (!preview) lsSet('ws_ap_day', dayKey) }, [dayKey])
   useEffect(() => { lsSet('ws_ap_kg', useKg) }, [useKg])
   useEffect(() => {
     const el = stripRef.current?.querySelector('[data-sel="1"]')
@@ -161,7 +161,11 @@ export default function AthletePortal({ athlete, onLogout }) {
     setNotes(m)
   }
 
+  // coach preview is read-only: nothing typed or tapped is written to the athlete's record
+  const blocked = () => { if (preview) flash('Preview only, nothing is saved', 'err'); return preview }
+
   function saveNote(exIdx, ex, text) {
+    if (blocked()) return
     const k = noteKey(block, week, dayKey, exIdx)
     setNotes(prev => ({ ...prev, [k]: text }))
     clearTimeout(timers.current['n' + k])
@@ -197,6 +201,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   function saveSet(exIdx, ex, setIdx, raw) {
+    if (blocked()) return
     const k = logKey(block, week, dayKey, exIdx, setIdx)
     setLogs(prev => ({ ...prev, [k]: { value: raw, ex_name: effName(exIdx, ex) } }))
     clearTimeout(timers.current[k])
@@ -218,12 +223,14 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   async function addSet(exIdx, ex) {
+    if (blocked()) return
     const cur = displayCount(exIdx, ex, effName(exIdx, ex))
     if (cur >= MAX_SETS) return
     await saveSetCount(exIdx, cur + 1)
   }
 
   async function removeSet(exIdx, ex) {
+    if (blocked()) return
     const cur = displayCount(exIdx, ex, effName(exIdx, ex))
     if (cur <= 1) return
     const s = cur - 1
@@ -239,6 +246,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   async function swapExercise(exIdx, ex, newName) {
+    if (blocked()) return
     const k = editKey(block, dayKey, exIdx, 'exercise')
     const trimmed = (newName || '').trim()
     if (!trimmed || trimmed === ex.exercise) {   // revert to template
@@ -329,6 +337,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   }
 
   async function logToTesting(exIdx, ex) {
+    if (blocked()) return
     const target = syncTargetFor({ ...ex, exercise: effName(exIdx, ex) }, tests)
     if (!target) return
     const nm = effName(exIdx, ex)
@@ -395,6 +404,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   // Add / update a lift max from the "Your maxes" card (writes to the testing record,
   // same as the tracking app) so every %-based weight range fills in.
   async function logMax(testId) {
+    if (blocked()) return
     const td = tests[testId] || {}
     const cur = prs[testId]
     const typed = window.prompt(`${td.name || testId} max (${useKg ? 'kg' : 'lb'}):`, cur != null ? String(useKg ? toKg(cur) : cur) : '')
@@ -448,7 +458,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   const goToday = () => { const info = dateMap[today()]; if (info) { setBlock(info.w); setDayKey(info.d) } }
 
   return (
-    <Shell onLogout={onLogout} athlete={athlete} title={tmpl?.label}>
+    <Shell onLogout={onLogout} athlete={athlete} title={tmpl?.label} preview={preview}>
       {toast && (
         <div style={{ position: 'fixed', top: 12, left: 12, right: 12, zIndex: 50, background: toast.kind === 'err' ? '#3a1220' : '#0c3', color: '#fff', padding: '12px 14px', borderRadius: 10, fontWeight: 700, textAlign: 'center', boxShadow: '0 6px 24px rgba(0,0,0,.4)' }}>{toast.msg}</div>
       )}
@@ -736,16 +746,21 @@ function Segment({ label, value, setValue, options }) {
   )
 }
 
-function Shell({ children, onLogout, athlete, title }) {
+function Shell({ children, onLogout, athlete, title, preview }) {
   return (
     <div style={{ minHeight: '100vh', background: NAVY, fontFamily: "'Archivo', system-ui, sans-serif" }}>
+      {preview && (
+        <div style={{ position: 'sticky', top: 0, zIndex: 40, background: '#FFA500', color: NAVY, fontWeight: 900, fontSize: 12, letterSpacing: .5, textAlign: 'center', padding: '7px 10px' }}>
+          COACH PREVIEW · viewing as {athlete.first_name} {athlete.last_name} · nothing you enter is saved
+        </div>
+      )}
       <div style={{ maxWidth: 520, margin: '0 auto', padding: '16px 14px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ color: ACCENT, fontWeight: 900, fontSize: 18, letterSpacing: .5 }}>{title || 'Online Program'}</div>
             <div style={{ color: MUTED, fontSize: 12 }}>{athlete.first_name} {athlete.last_name}</div>
           </div>
-          <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${MUTED}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>Log out</button>
+          <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${MUTED}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>{preview ? 'Close' : 'Log out'}</button>
         </div>
         {children}
       </div>
