@@ -57,10 +57,14 @@ const isLoggable = (ex) => ex.series !== 'WU' && templateSetCount(ex) > 0
 const MAX_SETS = 15
 
 export default function AthletePortal({ athlete, onLogout, preview = false, exitLabel }) {
-  const [templateId, setTemplateId] = useState(TEMPLATE_ID)
+  // No default program: an athlete only ever sees their OWN assignment. (This used
+  // to fall back to the coach's program when the assignment failed to load.)
+  const [templateId, setTemplateId] = useState(null)
+  const [loadState, setLoadState] = useState('loading') // loading | ok | none | error
+  const [reload, setReload] = useState(0)
   const [programObj, setProgramObj] = useState(null)   // coach-edited per-athlete program
   const [startDate, setStartDate] = useState('')
-  const tmpl = programObj || getTemplate(templateId)
+  const tmpl = programObj || (templateId ? getTemplate(templateId) : null)
   const blocks = tmpl ? Object.keys(tmpl.blocks).map(Number).sort((a, b) => a - b) : []
   const weeks = tmpl?.weeks || 3
   const days = tmpl?.days || []
@@ -94,19 +98,31 @@ export default function AthletePortal({ athlete, onLogout, preview = false, exit
     let alive = true
     ;(async () => {
       // resolve the athlete's active assignment -> which program to show
-      let tid = TEMPLATE_ID
-      const { data: asn } = await sb.from('assignments').select('template,program_json,start_date')
-        .eq('athlete_id', athlete.id).eq('active', true)
-        .order('created_at', { ascending: false }).limit(1)
+      setLoadState('loading')
+      let asn = null, asnErr = null
+      for (let attempt = 0; attempt < 3 && alive; attempt++) {
+        try {
+          const r = await sb.from('assignments').select('template,program_json,start_date')
+            .eq('athlete_id', athlete.id).eq('active', true)
+            .order('created_at', { ascending: false }).limit(1)
+          asn = r.data; asnErr = r.error
+        } catch (e) { asn = null; asnErr = e }
+        if (!asnErr) break
+        await new Promise(res => setTimeout(res, 800 * (attempt + 1)))
+      }
+      if (!alive) return
+      if (asnErr) { setLoadState('error'); return }
+      if (!asn || !asn[0]) { setLoadState('none'); return }
+      let tid = asn[0].template || `athlete_${athlete.id}`
       let pj = null, sd = ''
-      if (asn && asn[0]) {
-        if (asn[0].template) tid = asn[0].template
+      {
         if (asn[0].program_json && asn[0].program_json.blocks) { pj = asn[0].program_json; setProgramObj(pj) }
         sd = asn[0].start_date || ''
         setStartDate(sd)
       }
-      if (!alive) return
+      if (!pj && !getTemplate(tid)) { setLoadState('none'); return }
       setTemplateId(tid)
+      setLoadState('ok')
       // default the view to today's session (or the current week) — TrainHeroic style
       const prog = pj || getTemplate(tid)
       if (prog?.blocks) {
@@ -132,7 +148,7 @@ export default function AthletePortal({ athlete, onLogout, preview = false, exit
       if (alive) setReady(true)
     })()
     return () => { alive = false }
-  }, [athlete.id])
+  }, [athlete.id, reload])
 
   async function refreshLogs(tid = templateId) {
     const { data, error } = await sb.from('workout_logs').select('*')
@@ -422,7 +438,22 @@ export default function AthletePortal({ athlete, onLogout, preview = false, exit
     flash(`${td.name || testId} max saved`)
   }
 
-  if (!tmpl) return <Shell onLogout={onLogout} athlete={athlete}><p style={{ color: MUTED, padding: 20 }}>Program not found.</p></Shell>
+  if (loadState !== 'ok' || !tmpl) return (
+    <Shell onLogout={onLogout} athlete={athlete} title="Wilmington Strength" preview={preview} exitLabel={exitLabel}>
+      <div style={{ color: MUTED, padding: '30px 6px', fontSize: 15, lineHeight: 1.5 }}>
+        {loadState === 'loading' && 'Loading your program…'}
+        {loadState === 'error' && (<>
+          <div style={{ color: TEXT, fontWeight: 800, marginBottom: 6 }}>Couldn’t load your program.</div>
+          Check your connection and try again.
+          <div><button onClick={() => setReload(n => n + 1)} style={{ marginTop: 14, padding: '10px 16px', borderRadius: 10, border: 'none', background: ACCENT, color: NAVY, fontFamily: 'inherit', fontWeight: 900, fontSize: 15, cursor: 'pointer' }}>Try again</button></div>
+        </>)}
+        {(loadState === 'none' || (loadState === 'ok' && !tmpl)) && (<>
+          <div style={{ color: TEXT, fontWeight: 800, marginBottom: 6 }}>No program assigned yet.</div>
+          You’re logged in as {athlete.first_name} {athlete.last_name}. If that’s not you, log out and use your own email. Otherwise check with Coach Matt.
+        </>)}
+      </div>
+    </Shell>
+  )
 
   // lifts whose max drives a %-based weight somewhere in this program (shown up top, like the printed sheet)
   const maxLifts = []
