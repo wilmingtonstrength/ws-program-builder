@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
+import { loadVideos, saveVideo, videoKey } from './videos'
 
 // Coach-side "Online Programs" tab. Assign a program (snapshots an editable,
 // WEEK-BASED copy) then edit it like a calendar: each week is independent —
@@ -103,6 +104,54 @@ function totalSessions(prog) {
   const weeks = Object.keys(prog.blocks).length
   const days = (prog.days || []).length
   return weeks * days
+}
+
+// When a program's last session falls, and whether it has run out / is about to.
+// Date-based on purpose: an athlete who skips logging still runs out of program.
+export function programEnd(a, allTemplates = {}) {
+  const prog = a.program_json?.blocks ? a.program_json : (allTemplates[a.template] ? flattenToWeeks(allTemplates[a.template]) : null)
+  if (!prog?.blocks) return null
+  const days = prog.days || []
+  const w1 = mondayOf(parseYmd(a.start_date))
+  let last = null
+  Object.keys(prog.blocks).forEach(w => days.forEach(d => {
+    const s = prog.blocks[w]?.[d]
+    if (!s) return
+    const dt = addDays(w1, (parseInt(w) - 1) * 7 + weekdayOffset(s.header, days.indexOf(d)))
+    if (!last || dt > last) last = dt
+  }))
+  if (!last) return null
+  const daysLeft = Math.round((last.getTime() - parseYmd(ymd(new Date())).getTime()) / 86400000)
+  const label = `${MONTHS[last.getMonth()].slice(0, 3)} ${last.getDate()}`
+  return { last, label, daysLeft, ended: daysLeft < 0, endingSoon: daysLeft >= 0 && daysLeft <= 7 }
+}
+
+// Banner shown across the whole coach app (every tab) so a program that has run
+// out, or runs out within a week, can't go unnoticed.
+export function OnlineAlertBanner({ sb, athletes = [], allTemplates = {}, onOpen }) {
+  const [rows, setRows] = useState([])
+  useEffect(() => {
+    let alive = true
+    sb.from('assignments').select('id,athlete_id,template,start_date,program_json').eq('active', true)
+      .then(({ data }) => { if (alive && data) setRows(data) })
+    return () => { alive = false }
+  }, [])
+  const nameOf = (id) => { const a = athletes.find(x => x.id === id); return a ? `${a.first_name} ${a.last_name}`.trim() : `Athlete ${id}` }
+  const items = rows.map(a => ({ a, e: programEnd(a, allTemplates) })).filter(x => x.e && (x.e.ended || x.e.endingSoon))
+    .sort((x, y) => x.e.daysLeft - y.e.daysLeft)
+  if (!items.length) return null
+  const anyEnded = items.some(x => x.e.ended)
+  return (
+    <div className="no-print" style={{ background: anyEnded ? '#fdecec' : '#fff6dd', borderBottom: `2px solid ${anyEnded ? '#c0392b' : '#e0a500'}`, padding: '8px 16px', fontFamily: 'Arial, sans-serif', fontSize: 13, color: '#0a2540', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span style={{ fontWeight: 900, color: anyEnded ? '#c0392b' : '#a07b00' }}>⚠ ONLINE PROGRAMS</span>
+      <span style={{ flex: 1, minWidth: 200 }}>
+        {items.map(({ a, e }, i) => (
+          <span key={a.id}>{i > 0 && ' · '}<b>{nameOf(a.athlete_id)}</b> {e.ended ? `ran out ${e.label} (${-e.daysLeft} day${e.daysLeft === -1 ? '' : 's'} ago)` : e.daysLeft === 0 ? 'ends today' : `ends ${e.label} (${e.daysLeft} day${e.daysLeft === 1 ? '' : 's'} left)`}</span>
+        ))}
+      </span>
+      {onOpen && <button onClick={onOpen} style={{ padding: '5px 12px', background: '#0a2540', color: '#fff', border: 'none', borderRadius: 4, fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Open Online Programs →</button>}
+    </div>
+  )
 }
 
 export default function CoachOnline({ athletes = [], allTemplates = {}, removedTemplates = new Set(), sb }) {
@@ -213,14 +262,17 @@ export default function CoachOnline({ athletes = [], allTemplates = {}, removedT
 
         {assignments.map(a => {
           const p = progressFor(a)
+          const e = programEnd(a, allTemplates)
           return (
-            <div key={a.id} style={{ background: '#fff', border: `1px solid ${p.due ? '#e0a500' : '#cdd8e3'}`, borderRadius: 8, padding: 14, marginBottom: 10 }}>
+            <div key={a.id} style={{ background: '#fff', border: `1px solid ${e?.ended ? '#c0392b' : (p.due || e?.endingSoon) ? '#e0a500' : '#cdd8e3'}`, borderRadius: 8, padding: 14, marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                 <div>
                   <div style={{ fontWeight: 800, fontSize: 15, color: '#0a2540' }}>{nameOf(a.athlete_id)}</div>
                   <div style={{ fontSize: 12, color: '#5a6b7b' }}>{a.program_json?.label || allTemplates[a.template]?.label || a.template}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {e?.ended && <span style={{ background: '#c0392b', color: '#fff', fontWeight: 800, fontSize: 11, padding: '4px 10px', borderRadius: 12 }}>RAN OUT {e.label.toUpperCase()}</span>}
+                  {e?.endingSoon && <span style={{ background: '#e0a500', color: '#fff', fontWeight: 800, fontSize: 11, padding: '4px 10px', borderRadius: 12 }}>{e.daysLeft === 0 ? 'ENDS TODAY' : `ENDS IN ${e.daysLeft} DAY${e.daysLeft === 1 ? '' : 'S'}`}</span>}
                   {p.due && <span style={{ background: '#e0a500', color: '#fff', fontWeight: 800, fontSize: 11, padding: '4px 10px', borderRadius: 12 }}>DUE FOR NEW</span>}
                   <span style={{ color: '#5a6b7b', fontSize: 12 }}>{p.done}/{p.total} · {p.pct}%</span>
                   <button onClick={() => setEditing(a)} style={btnDark}>Edit program →</button>
@@ -259,6 +311,17 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], n
   const [startDate, setStartDate] = useState(assignment.start_date || ymd(mondayOf(new Date())))
   const [monthCursor, setMonthCursor] = useState(() => { const s = assignment.start_date ? parseYmd(assignment.start_date) : new Date(); return new Date(s.getFullYear(), s.getMonth(), 1) })
   const timer = useRef(null)
+  const [videos, setVideos] = useState({})   // videoKey(exercise name) -> url (shared library, all athletes)
+  useEffect(() => { loadVideos(sb).then(setVideos) }, [])
+  const editVideo = async (name) => {
+    if (!videoKey(name)) { window.alert('Name the exercise first.'); return }
+    const cur = videos[videoKey(name)] || ''
+    const typed = window.prompt(`Video link for "${name}" (YouTube works best).\nShows for every athlete, any week this exercise appears. Leave blank to remove.`, cur)
+    if (typed == null) return
+    const { error } = await saveVideo(sb, name, typed)
+    if (error) { window.alert('Video didn’t save: ' + error.message); return }
+    setVideos(prev => { const n = { ...prev }; if (typed.trim()) n[videoKey(name)] = typed.trim(); else delete n[videoKey(name)]; return n })
+  }
 
   const weeks = Object.keys(prog.blocks || {}).map(Number).sort((a, b) => a - b)
   const days = prog.days || []
@@ -542,6 +605,11 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], n
               <span style={{ color: '#999', fontSize: 12 }}>×</span>
               <input value={ex.reps || ''} onChange={e => setExField(i, 'reps', e.target.value)} title="reps" style={{ ...cell, width: 52 }} />
               <input value={ex.note || ''} onChange={e => setExField(i, 'note', e.target.value)} placeholder="note / tempo / %" style={{ ...cell, flex: 1 }} />
+              {(() => { const has = !!videos[videoKey(ex.exercise)]; return (
+                <button onClick={() => editVideo(ex.exercise)} title={has ? 'Demo video linked — click to change or remove' : 'Link a demo video to this exercise'}
+                  style={{ ...btnLight, padding: '5px 8px', fontSize: 11, color: has ? '#fff' : '#5a6b7b', background: has ? '#00a3cc' : '#fff', borderColor: has ? '#00a3cc' : '#bbccdb' }}>
+                  {has ? '▶ video' : '＋ video'}
+                </button>) })()}
               <button onClick={() => toggleLink(i)} disabled={i === 0} title={ex.linked ? 'Unlink from the exercise above' : 'Superset with the exercise above'}
                 style={{ ...btnLight, padding: '5px 8px', fontSize: 11, color: ex.linked ? '#fff' : '#5a6b7b', background: ex.linked ? '#0a7' : '#fff', borderColor: ex.linked ? '#0a7' : '#bbccdb', opacity: i === 0 ? .3 : 1 }}>
                 {ex.linked ? 'linked ✕' : '＋ link'}
@@ -569,7 +637,7 @@ function ProgramEditor({ assignment, allTemplates, sb, athleteName, logs = [], n
             <button onClick={addExercise} style={btn}>+ Add exercise</button>
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Tip: drag <b>⠿</b> (or ▲▼) to reorder — a linked superset moves as one unit. <b>＋ link</b> joins an exercise to the one above (A1 · A2 · A3); numbering updates automatically.</div>
+        <div style={{ fontSize: 11, color: '#8a99a8', marginTop: 8 }}>Tip: drag <b>⠿</b> (or ▲▼) to reorder — a linked superset moves as one unit. <b>＋ link</b> joins an exercise to the one above (A1 · A2 · A3); numbering updates automatically. <b>＋ video</b> links a demo video to that exercise name for every athlete.</div>
       </div>
     </div>
   )

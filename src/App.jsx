@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import CoachOnline from './CoachOnline'
+import CoachOnline, { OnlineAlertBanner } from './CoachOnline'
 
 const sb = createClient(
   'https://xxtomnbvinxuvnrrqnqb.supabase.co',
@@ -2545,6 +2545,7 @@ export default function App() {
           <button key={t} onClick={() => setTab(t)} style={{ padding: '10px 20px', border: 'none', borderBottom: t === tab ? '3px solid #111' : '3px solid transparent', background: 'transparent', fontWeight: t === tab ? 800 : 400, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: 1, textTransform: 'uppercase' }}>{label}</button>
         ))}
       </div>
+      {tab !== 'online' && <OnlineAlertBanner sb={sb} athletes={athletes} allTemplates={allTemplates} onOpen={() => setTab('online')} />}
       {tab === 'online' ? (
         <CoachOnline athletes={athletes} allTemplates={allTemplates} removedTemplates={removedTemplates} sb={sb} />
       ) : tab === 'library' ? (

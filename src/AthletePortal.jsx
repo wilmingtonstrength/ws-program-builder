@@ -4,6 +4,7 @@ import {
   getTemplate, TEMPLATE_ID, loadAthletePRs, loadTests,
   weightText, syncTargetFor, dayLabel, getPR,
 } from './programEngine'
+import { loadVideos, videoKey, videoPlayer } from './videos'
 
 // ---- theme (matches Wilmington Strength) ----
 const NAVY = '#0a1628'
@@ -65,6 +66,7 @@ export default function AthletePortal({ athlete, onLogout }) {
 
   const [prs, setPrs] = useState({})
   const [tests, setTests] = useState({})
+  const [videos, setVideos] = useState({}) // videoKey(exercise name) -> demo video url
   const [logs, setLogs] = useState({})     // logKey -> { value }  (key present => set exists)
   const [notes, setNotes] = useState({})   // noteKey -> text  (per-exercise free-text note)
   const [aEdits, setAEdits] = useState({}) // editKey -> value  (athlete overrides, e.g. swapped exercise)
@@ -122,9 +124,9 @@ export default function AthletePortal({ athlete, onLogout }) {
           if (prog.blocks[String(wi)]) { setBlock(wi); setDayKey(dys[0] || 'dayA') }
         }
       }
-      const [p, t] = await Promise.all([loadAthletePRs(athlete.id), loadTests()])
+      const [p, t, v] = await Promise.all([loadAthletePRs(athlete.id), loadTests(), loadVideos(sb)])
       if (!alive) return
-      setPrs(p); setTests(t)
+      setPrs(p); setTests(t); setVideos(v)
       await Promise.all([refreshLogs(tid), refreshEdits(tid), refreshNotes(tid)])
       if (alive) setReady(true)
     })()
@@ -389,7 +391,34 @@ export default function AthletePortal({ athlete, onLogout }) {
     flash(`${target.label} logged${isPr ? ' — new PR! 🎉' : ''}`)
   }
 
+  // Add / update a lift max from the "Your maxes" card (writes to the testing record,
+  // same as the tracking app) so every %-based weight range fills in.
+  async function logMax(testId) {
+    const td = tests[testId] || {}
+    const cur = prs[testId]
+    const typed = window.prompt(`${td.name || testId} max (${useKg ? 'kg' : 'lb'}):`, cur != null ? String(useKg ? toKg(cur) : cur) : '')
+    if (typed == null) return
+    const n = parseFloat(typed)
+    if (isNaN(n) || n <= 0) { flash('Enter a number first', 'err'); return }
+    const lbs = useKg ? toLbs(n) : n
+    if (cur != null && lbs === cur) return
+    const { error } = await sb.from('results').insert({
+      athlete_id: athlete.id, test_id: testId, test_date: today(),
+      raw_value: lbs, converted_value: lbs, unit: 'lbs', is_pr: cur == null || lbs > cur,
+    })
+    if (error) { flash('Max didn’t save: ' + error.message, 'err'); return }
+    setPrs(prev => ({ ...prev, [testId]: lbs }))
+    flash(`${td.name || testId} max saved`)
+  }
+
   if (!tmpl) return <Shell onLogout={onLogout} athlete={athlete}><p style={{ color: MUTED, padding: 20 }}>Program not found.</p></Shell>
+
+  // lifts whose max drives a %-based weight somewhere in this program (shown up top, like the printed sheet)
+  const maxLifts = []
+  blocks.forEach(b => days.forEach(d => (tmpl.blocks[b]?.[d]?.exercises || []).forEach(ex => {
+    if (!ex.pct || !ex.prKey) return
+    ;[].concat(ex.prKey).forEach(k => { if (tests[k]?.unit === 'lbs' && !maxLifts.includes(k)) maxLifts.push(k) })
+  })))
 
   const bd = tmpl.blocks[block] || {}
   const exercises = bd[dayKey]?.exercises || []
@@ -425,6 +454,35 @@ export default function AthletePortal({ athlete, onLogout }) {
       {needsSetup && (
         <div style={{ background: '#3a2a12', border: '1px solid #a76', color: '#ffd9a0', padding: 12, borderRadius: 10, margin: '0 0 14px', fontSize: 13 }}>
           Logging isn’t saving — check your connection.
+        </div>
+      )}
+
+      {tmpl?.note && (
+        <div style={{ background: CARD2, border: `1px solid ${BORDER}`, borderLeft: `3px solid ${ACCENT}`, color: TEXT, padding: '10px 12px', borderRadius: 10, margin: '0 0 12px', fontSize: 12.5, lineHeight: 1.45 }}>
+          {tmpl.note}
+        </div>
+      )}
+
+      {ready && maxLifts.length > 0 && (
+        <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '10px 12px', margin: '0 0 12px' }}>
+          <div style={{ color: MUTED, fontSize: 10, fontWeight: 800, letterSpacing: 1, marginBottom: 8 }}>YOUR MAXES</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {maxLifts.map(k => {
+              const v = getPR(prs, k)
+              return (
+                <button key={k} onClick={() => logMax(k)} title="Tap to update" style={{
+                  flex: '1 1 96px', background: CARD2, border: `1px solid ${v != null ? BORDER : ACCENT}`, borderRadius: 10,
+                  padding: '7px 8px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                }}>
+                  <div style={{ color: MUTED, fontSize: 10, fontWeight: 800 }}>{tests[k].name}</div>
+                  <div style={{ color: v != null ? TEXT : ACCENT, fontWeight: 900, fontSize: v != null ? 16 : 13, marginTop: 2 }}>
+                    {v != null ? (useKg ? `${toKg(v)} kg` : `${v} lb`) : '＋ Add max'}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ color: MUTED, fontSize: 10.5, marginTop: 7 }}>Your weight ranges come from these. Tap one to add or update it.</div>
         </div>
       )}
 
@@ -504,6 +562,8 @@ export default function AthletePortal({ athlete, onLogout }) {
             note={notes[noteKey(block, week, dayKey, i)] ?? ''}
             lastTime={isLoggable(ex) ? lastTimeByName(name) : null}
             workingMax={getPR(prs, ex.prKey)}
+            needsMax={!!ex.pct && !!ex.prKey && getPR(prs, ex.prKey) == null}
+            videoUrl={videos[videoKey(name)]}
             canRemove={count > 1}
             onSet={(si, v) => saveSet(i, ex, si, v)}
             onAddSet={() => addSet(i, ex)}
@@ -519,7 +579,7 @@ export default function AthletePortal({ athlete, onLogout }) {
   )
 }
 
-function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, note, lastTime, workingMax, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
+function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, note, lastTime, workingMax, needsMax, videoUrl, canRemove, onSet, onAddSet, onRemoveSet, onSwap, onNote, onLogTesting }) {
   const isWU = ex.series === 'WU'
   const loggable = !isWU && count > 0
   const setsReps = ex.sets && ex.reps ? `${ex.sets} × ${ex.reps}` : (ex.reps || ex.sets || '')
@@ -527,6 +587,8 @@ function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, not
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(name)
   const [noteOpen, setNoteOpen] = useState(hasVal(note))
+  const [videoOpen, setVideoOpen] = useState(false)
+  const player = videoPlayer(videoUrl)
   useEffect(() => { if (hasVal(note)) setNoteOpen(true) }, [note])
 
   const startEdit = () => { setDraft(name); setEditing(true) }
@@ -548,9 +610,19 @@ function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, not
             {swapped && <span style={{ color: ACCENT, fontSize: 10, fontWeight: 800, marginLeft: 6, verticalAlign: 'middle' }}>SWAPPED</span>}
           </span>
         )}
+        {!editing && player && (player.kind === 'link'
+          ? <a href={player.src} target="_blank" rel="noreferrer" style={videoBtn}>▶ Video</a>
+          : <button onClick={() => setVideoOpen(o => !o)} style={videoBtn}>{videoOpen ? '✕ Close' : '▶ Video'}</button>)}
         {!editing && <button onClick={startEdit} title="Swap exercise" style={{ background: 'transparent', border: 'none', color: MUTED, fontSize: 15, cursor: 'pointer', padding: 2 }}>✎</button>}
         {allDone && <span style={{ color: OK, fontWeight: 900, fontSize: 16 }}>✓</span>}
       </div>
+      {videoOpen && player && player.kind !== 'link' && (
+        <div style={{ marginTop: 10, borderRadius: 10, overflow: 'hidden', background: '#000', aspectRatio: '16 / 9' }}>
+          {player.kind === 'iframe'
+            ? <iframe src={player.src} title={name + ' demo'} allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen style={{ width: '100%', height: '100%', border: 0, display: 'block' }} />
+            : <video src={player.src} controls playsInline style={{ width: '100%', height: '100%', display: 'block' }} />}
+        </div>
+      )}
       {swapped && !editing && (
         <div style={{ marginTop: 3 }}>
           <button onClick={() => onSwap(ex.exercise)} style={{ background: 'transparent', border: 'none', color: MUTED, fontSize: 10, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>revert to {ex.exercise}</button>
@@ -559,6 +631,7 @@ function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, not
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6 }}>
         {setsReps && <span style={{ color: ACCENT, fontWeight: 800, fontSize: 14 }}>{setsReps}</span>}
         {target && <span style={{ color: OK, fontWeight: 800, fontSize: 14 }}>{target}</span>}
+        {needsMax && <span style={{ color: MUTED, fontWeight: 700, fontSize: 12, alignSelf: 'center' }}>add your max up top to see weights</span>}
       </div>
       {ex.note && <div style={{ color: MUTED, fontSize: 12, marginTop: 6, fontStyle: 'italic' }}>{ex.note}</div>}
       {loggable && (workingMax != null || (lastTime && lastTime.length > 0)) && (
@@ -628,6 +701,11 @@ function ExerciseCard({ ex, name, swapped, count, useKg, target, sync, vals, not
       )}
     </div>
   )
+}
+
+const videoBtn = {
+  background: 'transparent', border: `1px solid ${ACCENT}`, color: ACCENT, borderRadius: 14, padding: '3px 9px',
+  fontFamily: 'inherit', fontWeight: 800, fontSize: 11, cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap',
 }
 
 const setBtn = {
