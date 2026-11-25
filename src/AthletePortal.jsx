@@ -5,6 +5,7 @@ import {
   weightText, syncTargetFor, dayLabel, getPR,
 } from './programEngine'
 import { loadVideos, videoKey, videoPlayer } from './videos'
+import { withLoad } from './loadParse'
 
 // ---- theme (matches Wilmington Strength) ----
 const NAVY = '#0a1628'
@@ -416,8 +417,9 @@ export default function AthletePortal({ athlete, onLogout }) {
   // lifts whose max drives a %-based weight somewhere in this program (shown up top, like the printed sheet)
   const maxLifts = []
   blocks.forEach(b => days.forEach(d => (tmpl.blocks[b]?.[d]?.exercises || []).forEach(ex => {
-    if (!ex.pct || !ex.prKey) return
-    ;[].concat(ex.prKey).forEach(k => { if (tests[k]?.unit === 'lbs' && !maxLifts.includes(k)) maxLifts.push(k) })
+    const lx = withLoad(ex, tests)
+    if (!lx.pct || !lx.prKey) return
+    ;[].concat(lx.prKey).forEach(k => { if (tests[k]?.unit === 'lbs' && !maxLifts.includes(k)) maxLifts.push(k) })
   })))
 
   const bd = tmpl.blocks[block] || {}
@@ -553,16 +555,17 @@ export default function AthletePortal({ athlete, onLogout }) {
         const name = effName(i, ex)
         const count = displayCount(i, ex, name)
         const swapped = name !== ex.exercise
+        const lx = withLoad(ex, tests)   // % read from the note, lift from the name
         return (
           <ExerciseCard
             key={i} ex={ex} name={name} swapped={swapped} count={count} useKg={useKg}
-            target={weightText(ex, week, prs, useKg)}
+            target={weightText(lx, week, prs, useKg)}
             sync={syncTargetFor({ ...ex, exercise: name }, tests)}
             vals={valsAt(block, week, dayKey, i, count, name)}
             note={notes[noteKey(block, week, dayKey, i)] ?? ''}
             lastTime={isLoggable(ex) ? lastTimeByName(name) : null}
-            workingMax={getPR(prs, ex.prKey)}
-            needsMax={!!ex.pct && !!ex.prKey && getPR(prs, ex.prKey) == null}
+            workingMax={getPR(prs, lx.prKey)}
+            needsMax={!!lx.pct && !!lx.prKey && getPR(prs, lx.prKey) == null}
             videoUrl={videos[videoKey(name)]}
             canRemove={count > 1}
             onSet={(si, v) => saveSet(i, ex, si, v)}
