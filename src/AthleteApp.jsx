@@ -12,7 +12,7 @@ const SESSION_KEY = 'ws_athlete_session'
 // Coach preview: /athlete?preview=<athlete id> shows that athlete's portal exactly
 // as they see it, read-only (nothing typed is saved) and without touching the
 // coach's own athlete login.
-function CoachPreview({ id }) {
+function CoachPreview({ id, onBack }) {
   const [athlete, setAthlete] = useState(null)
   const [err, setErr] = useState('')
   useEffect(() => {
@@ -21,7 +21,54 @@ function CoachPreview({ id }) {
   }, [id])
   if (err) return <div style={{ minHeight: '100vh', background: NAVY, color: TEXT, padding: 30, fontFamily: "'Archivo', system-ui, sans-serif" }}>{err}</div>
   if (!athlete) return <div style={{ minHeight: '100vh', background: NAVY }} />
-  return <AthletePortal athlete={athlete} preview onLogout={() => window.close()} />
+  return <AthletePortal key={athlete.id} athlete={athlete} preview onLogout={onBack || (() => window.close())} exitLabel={onBack ? '← All athletes' : 'Close'} />
+}
+
+// Coach signed in on the athlete side: pick any athlete with an online program
+// and see their portal exactly as they do (read-only).
+function CoachHome({ onLogout }) {
+  const [rows, setRows] = useState(null)
+  const [viewing, setViewing] = useState(null)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data: asn } = await sb.from('assignments')
+        .select('athlete_id,template,start_date,label:program_json->>label').eq('active', true)
+      const ids = [...new Set((asn || []).map(a => a.athlete_id))]
+      const { data: ath } = ids.length ? await sb.from('athletes').select('id,first_name,last_name').in('id', ids) : { data: [] }
+      const name = (id) => { const a = (ath || []).find(x => x.id === id); return a ? `${a.first_name || ''} ${a.last_name || ''}`.replace(/\s+/g, ' ').trim() : `Athlete ${id}` }
+      const list = (asn || []).map(a => ({ id: a.athlete_id, name: name(a.athlete_id), program: a.label || a.template }))
+        .sort((x, y) => x.name.localeCompare(y.name))
+      if (alive) setRows(list)
+    })()
+    return () => { alive = false }
+  }, [])
+
+  if (viewing) return <CoachPreview id={viewing} onBack={() => setViewing(null)} />
+  return (
+    <div style={{ minHeight: '100vh', background: NAVY, fontFamily: "'Archivo', system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 520, margin: '0 auto', padding: '16px 14px 40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div>
+            <div style={{ color: ACCENT, fontWeight: 900, fontSize: 18, letterSpacing: .5 }}>Wilmington Strength</div>
+            <div style={{ color: MUTED, fontSize: 12 }}>Coach view · tap an athlete to see their program</div>
+          </div>
+          <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${MUTED}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>Log out</button>
+        </div>
+        {!rows && <p style={{ color: MUTED }}>Loading athletes…</p>}
+        {rows && rows.length === 0 && <p style={{ color: MUTED }}>No athletes have an online program yet.</p>}
+        {(rows || []).map(r => (
+          <button key={r.id} onClick={() => setViewing(r.id)} style={{ display: 'flex', width: '100%', textAlign: 'left', alignItems: 'center', gap: 10, background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 14, marginBottom: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', color: TEXT, fontWeight: 800, fontSize: 16 }}>{r.name}</span>
+              <span style={{ display: 'block', color: MUTED, fontSize: 12, marginTop: 2 }}>{r.program}</span>
+            </span>
+            <span style={{ color: ACCENT, fontWeight: 900, fontSize: 18 }}>›</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function AthleteApp() {
@@ -37,6 +84,7 @@ function AthleteLogin() {
   const login = (a) => { localStorage.setItem(SESSION_KEY, JSON.stringify(a)); setAthlete(a) }
   const logout = () => { localStorage.removeItem(SESSION_KEY); setAthlete(null) }
 
+  if (athlete?.coach) return <CoachHome onLogout={logout} />
   if (athlete) return <AthletePortal athlete={athlete} onLogout={logout} />
   return <Login onLogin={login} />
 }
@@ -52,10 +100,7 @@ function Login({ onLogin }) {
     if (!addr) return
     setErr(''); setBusy(true)
     try {
-      if (COACH_EMAILS.includes(addr)) {
-        setErr('That’s a coach account — use the main builder at the home page.')
-        return
-      }
+      if (COACH_EMAILS.includes(addr)) { onLogin({ coach: true }); return }
       const { data, error } = await sb
         .from('athletes').select('id,first_name,last_name,email')
         .ilike('email', addr).limit(1)

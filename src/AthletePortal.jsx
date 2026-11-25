@@ -56,7 +56,7 @@ function templateSetCount(ex) {
 const isLoggable = (ex) => ex.series !== 'WU' && templateSetCount(ex) > 0
 const MAX_SETS = 15
 
-export default function AthletePortal({ athlete, onLogout, preview = false }) {
+export default function AthletePortal({ athlete, onLogout, preview = false, exitLabel }) {
   const [templateId, setTemplateId] = useState(TEMPLATE_ID)
   const [programObj, setProgramObj] = useState(null)   // coach-edited per-athlete program
   const [startDate, setStartDate] = useState('')
@@ -458,7 +458,7 @@ export default function AthletePortal({ athlete, onLogout, preview = false }) {
   const goToday = () => { const info = dateMap[today()]; if (info) { setBlock(info.w); setDayKey(info.d) } }
 
   return (
-    <Shell onLogout={onLogout} athlete={athlete} title={tmpl?.label} preview={preview}>
+    <Shell onLogout={onLogout} athlete={athlete} title={tmpl?.label} preview={preview} exitLabel={exitLabel}>
       {toast && (
         <div style={{ position: 'fixed', top: 12, left: 12, right: 12, zIndex: 50, background: toast.kind === 'err' ? '#3a1220' : '#0c3', color: '#fff', padding: '12px 14px', borderRadius: 10, fontWeight: 700, textAlign: 'center', boxShadow: '0 6px 24px rgba(0,0,0,.4)' }}>{toast.msg}</div>
       )}
@@ -746,7 +746,7 @@ function Segment({ label, value, setValue, options }) {
   )
 }
 
-function Shell({ children, onLogout, athlete, title, preview }) {
+function Shell({ children, onLogout, athlete, title, preview, exitLabel }) {
   return (
     <div style={{ minHeight: '100vh', background: NAVY, fontFamily: "'Archivo', system-ui, sans-serif" }}>
       {preview && (
@@ -760,7 +760,7 @@ function Shell({ children, onLogout, athlete, title, preview }) {
             <div style={{ color: ACCENT, fontWeight: 900, fontSize: 18, letterSpacing: .5 }}>{title || 'Online Program'}</div>
             <div style={{ color: MUTED, fontSize: 12 }}>{athlete.first_name} {athlete.last_name}</div>
           </div>
-          <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${MUTED}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>{preview ? 'Close' : 'Log out'}</button>
+          <button onClick={onLogout} style={{ background: 'transparent', border: `1px solid ${MUTED}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>{preview ? (exitLabel || 'Close') : 'Log out'}</button>
         </div>
         {children}
       </div>
